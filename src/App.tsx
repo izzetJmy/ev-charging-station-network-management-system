@@ -13,7 +13,7 @@ function App() {
           createdAt: new Date(),
         });
         console.log("Firebase çalışıyor ✅");
-      } catch (e) {
+      } catch (e : any) {
         console.error("Firebase hata ❌", e.message);
       }
     };
