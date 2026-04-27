@@ -1,27 +1,40 @@
 import { useEffect } from "react";
-import { db } from "./services/firebase/firebaseConfig";
-import { collection, addDoc } from "firebase/firestore";
+import {
+  getVehicles,
+  getStations,
+  getChargers,
+  getReservations,
+  getChargingSessions,
+  getAdminReports,
+} from "./services/firebase/userService";
 
 function App() {
   useEffect(() => {
-    console.log("TEST BAŞLADI");
+    const init = async () => {
+      // Get and log data
+      const vehicles = await getVehicles();
+      console.log("Vehicles:", vehicles);
 
-    const testFirebase = async () => {
-      try {
-        await addDoc(collection(db, "test"), {
-          name: "arda",
-          createdAt: new Date(),
-        });
-        console.log("Firebase çalışıyor ✅");
-      } catch (e) {
-        console.error("Firebase hata ❌", e.message);
-      }
+      const stations = await getStations();
+      console.log("Stations:", stations);
+
+      const chargers = await getChargers();
+      console.log("Chargers:", chargers);
+
+      const reservations = await getReservations();
+      console.log("Reservations:", reservations);
+
+      const chargingSessions = await getChargingSessions();
+      console.log("ChargingSessions:", chargingSessions);
+
+      const adminReports = await getAdminReports();
+      console.log("AdminReports:", adminReports);
     };
 
-    testFirebase();
+    init();
   }, []);
 
-  return <h1>ÇALIŞIYOR</h1>;
+  return <div>EV Charging App</div>;
 }
 
 export default App;
