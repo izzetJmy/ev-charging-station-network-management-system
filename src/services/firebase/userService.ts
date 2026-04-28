@@ -1,5 +1,17 @@
 import { db } from "./firebaseConfig";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  doc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import type { Vehicle } from "../../models/Vehicle";
+
+export const TEMP_USER_ID = "temporary-user-id";
 
 const vehiclesCollection = collection(db, "vehicles");
 const stationsCollection = collection(db, "stations");
@@ -12,6 +24,33 @@ const adminReportsCollection = collection(db, "adminReports");
 export const getVehicles = async () => {
   const snapshot = await getDocs(vehiclesCollection);
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+};
+
+export const getVehiclesByUserId = async (userId: string) => {
+  const vehicleQuery = query(vehiclesCollection, where("userId", "==", userId));
+  const snapshot = await getDocs(vehicleQuery);
+
+  return snapshot.docs.map((vehicleDoc) => ({
+    id: vehicleDoc.id,
+    ...vehicleDoc.data(),
+  })) as Vehicle[];
+};
+
+export const getVehicleByUserId = async (userId: string) => {
+  const vehicles = await getVehiclesByUserId(userId);
+  return vehicles[0] ?? null;
+};
+
+export const updateVehicle = async (
+  vehicleId: string,
+  vehicle: Omit<Partial<Vehicle>, "id" | "createdAt" | "updatedAt">,
+) => {
+  const vehicleRef = doc(db, "vehicles", vehicleId);
+
+  await updateDoc(vehicleRef, {
+    ...vehicle,
+    updatedAt: serverTimestamp(),
+  });
 };
 
 export const addVehicle = async (vehicle: { model: string; owner: string }) => {

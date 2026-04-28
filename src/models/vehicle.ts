@@ -9,6 +9,7 @@ export interface Location {
 
 export interface Vehicle {
   id: string;
+  userId?: string;
   brand: string;
   model: string;
   batteryCapacity: number; // in kWh
