@@ -2,6 +2,7 @@ import { type CSSProperties, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../../services/firebase/firebaseConfig";
+import { TEMP_USER_ID } from "../../services/firebase/userService";
 
 interface VehicleLocation {
   latitude: number;
@@ -389,6 +390,21 @@ const styles: Record<string, CSSProperties> = {
     cursor: "not-allowed",
     boxShadow: "none",
   },
+  navigationButton: {
+    width: "100%",
+    minHeight: "44px",
+    padding: "12px 14px",
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #AFCDBB",
+    borderRadius: "14px",
+    color: "#1F5E4D",
+    fontSize: "14px",
+    fontWeight: 850,
+    cursor: "pointer",
+    outline: "none",
+    marginTop: "12px",
+    fontFamily: "inherit",
+  },
   footer: {
     textAlign: "center",
     marginTop: "18px",
@@ -496,6 +512,7 @@ function VehicleRegistrationScreen() {
       setError("");
 
       await addDoc(collection(db, "vehicles"), {
+        userId: TEMP_USER_ID,
         brand,
         model,
         batteryCapacity: Number(batteryCapacity),
@@ -773,6 +790,14 @@ function VehicleRegistrationScreen() {
               )}
             </button>
           </form>
+
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            style={styles.navigationButton}
+          >
+            Arac Profiline Git
+          </button>
 
           <div style={styles.footer}>
             Verileriniz EV Network altyapisinda guvenle saklanir.
