@@ -5,7 +5,7 @@ import {
   TEMP_USER_ID,
   updateVehicle,
 } from "../../services/firebase/userService";
-import type { Location, Vehicle } from "../../models/Vehicle";
+import type { Location, Vehicle } from "../../models/vehicle";
 
 const connectorPresets = ["CCS2", "Type 2", "CHAdeMO", "Tesla"];
 

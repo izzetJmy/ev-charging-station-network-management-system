@@ -9,7 +9,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import type { Vehicle } from "../../models/Vehicle";
+import type { Vehicle } from "../../models/vehicle";
 
 export const TEMP_USER_ID = "temporary-user-id";
 
