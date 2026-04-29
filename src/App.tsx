@@ -1,13 +1,11 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import VehicleProfileScreen from "./screens/user/VehicleProfileScreen";
-import VehicleRegistrationScreen from "./screens/user/VehicleRegistrationScreen";
+import StationMapScreen from "./screens/user/StationMapScreen";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<VehicleProfileScreen />} />
-        <Route path="/register-vehicle" element={<VehicleRegistrationScreen />} />
+        <Route path="/" element={<StationMapScreen />} />
       </Routes>
     </BrowserRouter>
   );
