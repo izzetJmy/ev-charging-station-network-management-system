@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
-import type { Station } from "../../models/Station";
+import type { Station } from "../../models/station";
 import {
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
@@ -16,6 +16,8 @@ import StationMarkers from "./StationMarkers";
 interface MapViewProps {
   userLocation: UserCoordinates;
   stations: Station[];
+  selectedStationId: string | null;
+  onSelectStation: (station: Station) => void;
 }
 
 function getUserMarkerIcon(): google.maps.Symbol {
@@ -29,12 +31,14 @@ function getUserMarkerIcon(): google.maps.Symbol {
   };
 }
 
-function MapView({ userLocation, stations }: MapViewProps) {
+function MapView({
+  userLocation,
+  stations,
+  selectedStationId,
+  onSelectStation,
+}: MapViewProps) {
   const { isLoaded } = useGoogleMapsLoader();
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [selectedStationId, setSelectedStationId] = useState<string | null>(
-    null,
-  );
 
   useEffect(() => {
     if (!map) {
@@ -50,7 +54,7 @@ function MapView({ userLocation, stations }: MapViewProps) {
   };
 
   const handleSelectStation = (station: Station) => {
-    setSelectedStationId(station.id);
+    onSelectStation(station);
 
     if (!map) {
       return;

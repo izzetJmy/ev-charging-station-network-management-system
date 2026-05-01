@@ -1,7 +1,15 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import MapView from "../../components/Map/MapView";
+import StationDetailCard from "../../components/StationDetailCard";
 import { STATION_STATUS_COLORS } from "../../constants/mapConstants";
 import mockStations from "../../data/mockStations";
+import type { Station } from "../../models/station";
+import type { Vehicle } from "../../models/vehicle";
+import {
+  getVehicleByUserId,
+  updateVehicleCurrentLocation,
+} from "../../services/firebase/vehicleService";
+import { TEMP_USER_ID } from "../../services/firebase/userService";
 import { useGoogleMapsLoader } from "../../services/maps/googleMapsLoader";
 import {
   getCurrentLocation,
@@ -368,6 +376,11 @@ const styles: Record<string, CSSProperties> = {
     border: "1px solid #F4B8AE",
     color: "#A63E30",
   },
+  successMessage: {
+    backgroundColor: "#EFF8E7",
+    border: "1px solid #BFDE9B",
+    color: "#2C6642",
+  },
   warningCard: {
     minHeight: "420px",
     borderRadius: "24px",
@@ -493,7 +506,14 @@ const styles: Record<string, CSSProperties> = {
     color: "#8B9993",
     fontWeight: 700,
   },
+  detailWrap: {
+    marginTop: "16px",
+  },
 };
+
+interface RequestLocationOptions {
+  persistToVehicle?: boolean;
+}
 
 function formatCoordinates(coords: UserCoordinates | null) {
   if (!coords) {
@@ -545,15 +565,77 @@ function StationMapScreen() {
     useState<LocationPermissionState>("idle");
   const [coords, setCoords] = useState<UserCoordinates | null>(null);
   const [message, setMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [locationUpdateError, setLocationUpdateError] = useState("");
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [vehicleId, setVehicleId] = useState("");
+  const [locationUpdateLoading, setLocationUpdateLoading] = useState(false);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
 
-  const requestLocation = async () => {
+  useEffect(() => {
+    const loadVehicle = async () => {
+      try {
+        const vehicle = await getVehicleByUserId(TEMP_USER_ID);
+        setVehicle(vehicle);
+        setVehicleId(vehicle?.id ?? "");
+      } catch {
+        setVehicle(null);
+        setVehicleId("");
+      }
+    };
+
+    void loadVehicle();
+  }, []);
+
+  const requestLocation = async ({
+    persistToVehicle = false,
+  }: RequestLocationOptions = {}) => {
     setPermissionState("loading");
     setMessage("Konum izni isteniyor ve guncel konum alinmaya calisiliyor.");
+    setLocationUpdateError("");
+    setSuccessMessage("");
+
+    if (persistToVehicle) {
+      setLocationUpdateLoading(true);
+    }
 
     const result = await getCurrentLocation();
     setPermissionState(result.permissionState);
     setCoords(result.coords);
     setMessage(result.message);
+
+    if (!persistToVehicle) {
+      return;
+    }
+
+    if (!result.currentLocation) {
+      setLocationUpdateLoading(false);
+      setLocationUpdateError(
+        result.permissionState === "denied"
+          ? "Konum izni verilmedi. Vehicle konumu guncellenemedi."
+          : result.message,
+      );
+      return;
+    }
+
+    if (!vehicleId) {
+      setLocationUpdateLoading(false);
+      setLocationUpdateError(
+        "Konum alindi ancak guncellenecek vehicle kaydi bulunamadi.",
+      );
+      return;
+    }
+
+    try {
+      await updateVehicleCurrentLocation(vehicleId, result.currentLocation);
+      setSuccessMessage("Konum guncellendi, harita merkeze alindi ve Firestore'a yazildi.");
+    } catch {
+      setLocationUpdateError(
+        "Konum Firestore'a kaydedilirken bir hata olustu.",
+      );
+    } finally {
+      setLocationUpdateLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -581,6 +663,14 @@ function StationMapScreen() {
     permissionState === "granted" && !!coords && isLoaded && !mapsError;
   const shouldShowError =
     permissionState === "error" || (permissionState === "granted" && !!mapsError);
+
+  const handleSelectStation = (station: Station) => {
+    setSelectedStation(station);
+  };
+
+  const handleCloseStationCard = () => {
+    setSelectedStation(null);
+  };
 
   return (
     <div style={styles.page}>
@@ -702,6 +792,13 @@ function StationMapScreen() {
               </div>
             )}
 
+            {successMessage && (
+              <div style={{ ...styles.message, ...styles.successMessage }}>
+                <span>OK</span>
+                <span>{successMessage}</span>
+              </div>
+            )}
+
             {shouldShowError && (
               <div style={{ ...styles.message, ...styles.errorMessage }}>
                 <span>!</span>
@@ -709,9 +806,21 @@ function StationMapScreen() {
               </div>
             )}
 
+            {locationUpdateError && (
+              <div style={{ ...styles.message, ...styles.errorMessage }}>
+                <span>!</span>
+                <span>{locationUpdateError}</span>
+              </div>
+            )}
+
             {shouldShowMap ? (
               <div style={styles.mapFrame}>
-                <MapView userLocation={coords} stations={mockStations} />
+                <MapView
+                  userLocation={coords}
+                  stations={mockStations}
+                  selectedStationId={selectedStation?.id ?? null}
+                  onSelectStation={handleSelectStation}
+                />
               </div>
             ) : shouldShowLoadingState ? (
               <div style={styles.loadingShell}>
@@ -734,19 +843,32 @@ function StationMapScreen() {
               </div>
             )}
 
+            {selectedStation && (
+              <div style={styles.detailWrap}>
+                <StationDetailCard
+                  station={selectedStation}
+                  vehicle={vehicle}
+                  currentLocation={coords}
+                  onClose={handleCloseStationCard}
+                />
+              </div>
+            )}
+
             <div style={styles.actionRow}>
               <button
                 type="button"
-                onClick={() => void requestLocation()}
+                onClick={() => void requestLocation({ persistToVehicle: true })}
                 style={styles.primaryButton}
+                disabled={locationUpdateLoading}
               >
-                Konumu Tekrar Dene
+                {locationUpdateLoading ? "Guncelleniyor..." : "Konumumu Guncelle"}
               </button>
 
               <button
                 type="button"
                 onClick={() => window.location.reload()}
                 style={styles.secondaryButton}
+                disabled={locationUpdateLoading}
               >
                 Sayfayi Yenile
               </button>
