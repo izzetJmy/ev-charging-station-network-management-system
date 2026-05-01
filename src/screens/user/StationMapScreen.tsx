@@ -1,4 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import MapView from "../../components/Map/MapView";
 import StationDetailCard from "../../components/StationDetailCard";
 import { STATION_STATUS_COLORS } from "../../constants/mapConstants";
@@ -6,6 +8,7 @@ import mockStations from "../../data/mockStations";
 import type { Station } from "../../models/station";
 import type { Vehicle } from "../../models/vehicle";
 import {
+  getVehicleById,
   getVehicleByUserId,
   updateVehicleCurrentLocation,
 } from "../../services/firebase/vehicleService";
@@ -515,6 +518,10 @@ interface RequestLocationOptions {
   persistToVehicle?: boolean;
 }
 
+interface StationMapLocationState {
+  vehicleId?: string;
+}
+
 function formatCoordinates(coords: UserCoordinates | null) {
   if (!coords) {
     return "--";
@@ -559,6 +566,8 @@ function getProgressValue(
 }
 
 function StationMapScreen() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { isLoaded, isLoading: mapsLoading, errorMessage: mapsError } =
     useGoogleMapsLoader();
   const [permissionState, setPermissionState] =
@@ -575,7 +584,13 @@ function StationMapScreen() {
   useEffect(() => {
     const loadVehicle = async () => {
       try {
-        const vehicle = await getVehicleByUserId(TEMP_USER_ID);
+        const routeState = location.state as StationMapLocationState | null;
+        const selectedVehicleId = routeState?.vehicleId;
+
+        const vehicle = selectedVehicleId
+          ? await getVehicleById(selectedVehicleId)
+          : await getVehicleByUserId(TEMP_USER_ID);
+
         setVehicle(vehicle);
         setVehicleId(vehicle?.id ?? "");
       } catch {
@@ -585,7 +600,7 @@ function StationMapScreen() {
     };
 
     void loadVehicle();
-  }, []);
+  }, [location.state]);
 
   const requestLocation = async ({
     persistToVehicle = false,
@@ -866,11 +881,11 @@ function StationMapScreen() {
 
               <button
                 type="button"
-                onClick={() => window.location.reload()}
+                onClick={() => navigate("/")}
                 style={styles.secondaryButton}
                 disabled={locationUpdateLoading}
               >
-                Sayfayi Yenile
+                Arac Profiline Don
               </button>
             </div>
           </div>
