@@ -16,14 +16,28 @@ interface StationDetailCardProps {
 }
 
 const styles: Record<string, CSSProperties> = {
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+    backgroundColor: "rgba(15, 31, 27, 0.30)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    zIndex: 1200,
+  },
   card: {
-    marginTop: "16px",
+    width: "min(760px, 100%)",
+    maxHeight: "80vh",
     borderRadius: "22px",
     border: "1px solid #DCE8DF",
     backgroundColor: "#FFFFFF",
     padding: "18px",
     boxShadow: "0 16px 30px rgba(31,94,77,0.10)",
     transition: "transform 0.2s ease, box-shadow 0.2s ease",
+    overflowY: "auto",
   },
   topBar: {
     display: "flex",
@@ -155,80 +169,86 @@ function StationDetailCard({
   onClose,
 }: StationDetailCardProps) {
   return (
-    <section className="station-detail-card" style={styles.card}>
-      <div style={styles.topBar}>
-        <div style={styles.titleWrap}>
-          <div style={styles.eyebrow}>Secili Istasyon</div>
-          <h3 style={styles.title}>{station.name}</h3>
-        </div>
-
-        <button type="button" onClick={onClose} style={styles.closeButton}>
-          Kapat
-        </button>
-      </div>
-
-      <div style={styles.infoGrid}>
-        <div style={{ ...styles.infoCard, ...styles.infoCardWide }}>
-          <div style={styles.label}>Address</div>
-          <div style={styles.value}>{station.address}</div>
-        </div>
-
-        <div style={styles.infoCard}>
-          <div style={styles.label}>Status</div>
-          <div style={{ ...styles.value, ...styles.statusRow }}>
-            <span
-              style={{
-                ...styles.statusDot,
-                backgroundColor: STATION_STATUS_COLORS[station.status],
-              }}
-            />
-            <span style={{ textTransform: "capitalize" }}>{station.status}</span>
+    <div className="station-detail-overlay" style={styles.overlay} onClick={onClose}>
+      <section
+        className="station-detail-card"
+        style={styles.card}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div style={styles.topBar}>
+          <div style={styles.titleWrap}>
+            <div style={styles.eyebrow}>Secili Istasyon</div>
+            <h3 style={styles.title}>{station.name}</h3>
           </div>
+
+          <button type="button" onClick={onClose} style={styles.closeButton}>
+            Kapat
+          </button>
         </div>
 
-        <div style={styles.infoCard}>
-          <div style={styles.label}>Coordinates</div>
-          <div style={styles.value}>
-            {station.latitude.toFixed(5)}, {station.longitude.toFixed(5)}
+        <div style={styles.infoGrid}>
+          <div style={{ ...styles.infoCard, ...styles.infoCardWide }}>
+            <div style={styles.label}>Address</div>
+            <div style={styles.value}>{station.address}</div>
           </div>
-        </div>
 
-        <div style={styles.infoCard}>
-          <div style={styles.label}>Distance</div>
-          <div style={styles.value}>
-            {formatDistance(currentLocation, station)}
-          </div>
-        </div>
-      </div>
-
-      <div style={styles.chargerSection}>
-        <h4 style={styles.sectionTitle}>Charger List</h4>
-
-        {station.chargers.length > 0 ? (
-          <div style={styles.chargerGrid}>
-            {station.chargers.map((charger) => (
-              <ChargerItem
-                key={charger.id}
-                charger={charger}
-                station={station}
-                vehicle={vehicle}
+          <div style={styles.infoCard}>
+            <div style={styles.label}>Status</div>
+            <div style={{ ...styles.value, ...styles.statusRow }}>
+              <span
+                style={{
+                  ...styles.statusDot,
+                  backgroundColor: STATION_STATUS_COLORS[station.status],
+                }}
               />
-            ))}
+              <span style={{ textTransform: "capitalize" }}>{station.status}</span>
+            </div>
           </div>
-        ) : (
-          <div style={styles.emptyState}>
-            Bu istasyon icin gosterilecek charger bilgisi bulunamadi.
-          </div>
-        )}
-      </div>
 
-      <style>{`
-        .station-detail-card:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 20px 34px rgba(31,94,77,0.12);
-        }
-      `}</style>
-    </section>
+          <div style={styles.infoCard}>
+            <div style={styles.label}>Coordinates</div>
+            <div style={styles.value}>
+              {station.latitude.toFixed(5)}, {station.longitude.toFixed(5)}
+            </div>
+          </div>
+
+          <div style={styles.infoCard}>
+            <div style={styles.label}>Distance</div>
+            <div style={styles.value}>
+              {formatDistance(currentLocation, station)}
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.chargerSection}>
+          <h4 style={styles.sectionTitle}>Charger List</h4>
+
+          {station.chargers.length > 0 ? (
+            <div style={styles.chargerGrid}>
+              {station.chargers.map((charger) => (
+                <ChargerItem
+                  key={charger.id}
+                  charger={charger}
+                  station={station}
+                  vehicle={vehicle}
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={styles.emptyState}>
+              Bu istasyon icin gosterilecek charger bilgisi bulunamadi.
+            </div>
+          )}
+        </div>
+
+        <style>{`
+          .station-detail-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 34px rgba(31,94,77,0.12);
+          }
+        `}</style>
+      </section>
+    </div>
   );
 }
 
