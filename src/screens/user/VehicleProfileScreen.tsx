@@ -164,26 +164,33 @@ const styles: Record<string, CSSProperties> = {
     color: "#1F5E4D",
   },
   vehicleList: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    display: "flex",
     gap: "10px",
+    overflowX: "auto",
+    paddingBottom: "8px",
     marginBottom: "22px",
+    scrollSnapType: "x proximity",
   },
   vehicleButton: {
-    minHeight: "58px",
-    padding: "10px 12px",
+    flex: "0 0 190px",
+    minHeight: "64px",
+    padding: "12px 14px",
     border: "1px solid #D8E2DB",
     borderRadius: "14px",
-    backgroundColor: "#FFFFFF",
+    background: "linear-gradient(180deg, #FFFFFF 0%, #FBFDFB 100%)",
     color: "#263A33",
     textAlign: "left",
     cursor: "pointer",
     fontFamily: "inherit",
+    boxShadow: "0 6px 16px rgba(23,35,31,0.04)",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+    scrollSnapAlign: "start",
   },
   vehicleButtonActive: {
     borderColor: "#1F5E4D",
-    backgroundColor: "#EEF7EC",
-    boxShadow: "0 0 0 3px rgba(31,94,77,0.1)",
+    background: "linear-gradient(135deg, #EAF6E7 0%, #D8F0D8 100%)",
+    boxShadow: "0 0 0 3px rgba(31,94,77,0.14), 0 12px 24px rgba(31,94,77,0.10)",
+    transform: "translateY(-1px)",
   },
   vehicleButtonTitle: {
     display: "block",
@@ -274,6 +281,21 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
     marginTop: "12px",
+  },
+  mapButton: {
+    width: "100%",
+    minHeight: "48px",
+    padding: "12px 14px",
+    background: "linear-gradient(135deg, #173C34 0%, #24705B 100%)",
+    border: "none",
+    borderRadius: "14px",
+    color: "#FFFFFF",
+    fontSize: "14px",
+    fontWeight: 850,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    marginTop: "12px",
+    boxShadow: "0 12px 24px rgba(31,94,77,0.20)",
   },
 };
 
@@ -511,7 +533,11 @@ function VehicleProfileScreen() {
               )}
 
               {vehicles.length > 0 && (
-                <div style={styles.vehicleList} aria-label="Kayitli araclar">
+                <div
+                  className="vehicle-scrollbar"
+                  style={styles.vehicleList}
+                  aria-label="Kayitli araclar"
+                >
                   {vehicles.map((vehicle) => (
                     <button
                       key={vehicle.id}
@@ -655,6 +681,24 @@ function VehicleProfileScreen() {
               >
                 Arac Kaydina Git
               </button>
+
+              <button
+                type="button"
+                disabled={!vehicleId}
+                onClick={() =>
+                  navigate("/station-map", {
+                    state: {
+                      vehicleId,
+                    },
+                  })
+                }
+                style={{
+                  ...styles.mapButton,
+                  ...(!vehicleId ? styles.disabledButton : {}),
+                }}
+              >
+                Secili Aracla Istasyon Haritasina Git
+              </button>
             </form>
           )}
 
@@ -686,6 +730,26 @@ function VehicleProfileScreen() {
           .vehicle-profile-shell {
             grid-template-columns: 1fr !important;
           }
+        }
+
+        .vehicle-scrollbar::-webkit-scrollbar {
+          height: 8px;
+        }
+
+        .vehicle-scrollbar::-webkit-scrollbar-track {
+          background: #E8EFEA;
+          border-radius: 999px;
+        }
+
+        .vehicle-scrollbar::-webkit-scrollbar-thumb {
+          background: #BCCBC3;
+          border-radius: 999px;
+        }
+
+        .vehicle-scrollbar button:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 22px rgba(23,35,31,0.08);
+          border-color: #BFD2C7;
         }
 
         @media (max-width: 560px) {
