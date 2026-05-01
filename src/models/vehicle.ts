@@ -15,7 +15,7 @@ export interface Vehicle {
   batteryCapacity: number; // in kWh
   connectorType: string;
   plateNumber: string;
-  currentLocation?: Location | null; // Optional, can be null if location permission not granted
+  currentLocation?: Location | null;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
 }

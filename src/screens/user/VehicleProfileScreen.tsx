@@ -5,7 +5,9 @@ import {
   TEMP_USER_ID,
   updateVehicle,
 } from "../../services/firebase/userService";
+import { updateVehicleCurrentLocation } from "../../services/firebase/vehicleService";
 import type { Location, Vehicle } from "../../models/vehicle";
+import { getCurrentLocation } from "../../services/maps/locationService";
 
 const connectorPresets = ["CCS2", "Type 2", "CHAdeMO", "Tesla"];
 
@@ -363,30 +365,34 @@ function VehicleProfileScreen() {
     return "";
   };
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setError("Tarayiciniz konum ozelligini desteklemiyor.");
+  const handleGetLocation = async () => {
+    setLocationLoading(true);
+
+    const result = await getCurrentLocation();
+
+    if (!result.currentLocation) {
+      setError(
+        result.permissionState === "denied"
+          ? "Konum izni verilmedi. Mevcut konum korunacak."
+          : result.message,
+      );
+      setLocationLoading(false);
       return;
     }
 
-    setLocationLoading(true);
+    try {
+      if (vehicleId) {
+        await updateVehicleCurrentLocation(vehicleId, result.currentLocation);
+      }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCurrentLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          updatedAt: new Date(),
-        });
-        setError("");
-        setSuccess("Konum guncellendi. Kaydet butonu ile Firestore'a yazilir.");
-        setLocationLoading(false);
-      },
-      () => {
-        setError("Konum izni verilmedi. Mevcut konum korunacak.");
-        setLocationLoading(false);
-      },
-    );
+      setCurrentLocation(result.currentLocation);
+      setError("");
+      setSuccess("Konum guncellendi ve Firestore'a yazildi.");
+    } catch {
+      setError("Konum Firestore'a kaydedilirken bir hata olustu.");
+    } finally {
+      setLocationLoading(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

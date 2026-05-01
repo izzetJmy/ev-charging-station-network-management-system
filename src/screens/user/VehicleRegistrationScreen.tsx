@@ -1,14 +1,10 @@
 import { type CSSProperties, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import type { Location } from "../../models/vehicle";
 import { db } from "../../services/firebase/firebaseConfig";
 import { TEMP_USER_ID } from "../../services/firebase/userService";
-
-interface VehicleLocation {
-  latitude: number;
-  longitude: number;
-  updatedAt: Date;
-}
+import { getCurrentLocation } from "../../services/maps/locationService";
 
 const connectorPresets = ["CCS2", "Type 2", "CHAdeMO", "Tesla"];
 
@@ -422,8 +418,7 @@ function VehicleRegistrationScreen() {
   const [batteryCapacity, setBatteryCapacity] = useState("");
   const [connectorType, setConnectorType] = useState("");
   const [plateNumber, setPlateNumber] = useState("");
-  const [currentLocation, setCurrentLocation] =
-    useState<VehicleLocation | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -461,29 +456,21 @@ function VehicleRegistrationScreen() {
     boxShadow: focusedField === field ? "0 0 0 4px rgba(31,94,77,0.1)" : "none",
   });
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setError("Tarayiciniz konum ozelligini desteklemiyor.");
-      return;
-    }
-
+  const handleGetLocation = async () => {
     setLocationLoading(true);
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCurrentLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          updatedAt: new Date(),
-        });
-        setError("");
-        setLocationLoading(false);
-      },
-      () => {
-        setError("Konum izni verilmedi. Arac konumsuz kaydedilebilir.");
-        setLocationLoading(false);
-      },
-    );
+    const result = await getCurrentLocation();
+
+    if (result.currentLocation) {
+      setCurrentLocation(result.currentLocation);
+      setError("");
+    } else if (result.permissionState === "denied") {
+      setError("Konum izni verilmedi. Arac konumsuz kaydedilebilir.");
+    } else {
+      setError(result.message);
+    }
+
+    setLocationLoading(false);
   };
 
   const validateForm = () => {

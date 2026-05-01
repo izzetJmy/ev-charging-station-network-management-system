@@ -1,5 +1,5 @@
 import { Marker } from "@react-google-maps/api";
-import type { Station } from "../../models/Station";
+import type { Station } from "../../models/station";
 import { STATION_STATUS_COLORS } from "../../constants/mapConstants";
 
 interface StationMarkersProps {
