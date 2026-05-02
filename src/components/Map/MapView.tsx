@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
-import type { Station } from "../../models/station";
+import type { Station } from "../../models/Station";
 import {
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,

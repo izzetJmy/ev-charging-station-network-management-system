@@ -1,7 +1,7 @@
 import { type CSSProperties } from "react";
 import { STATION_STATUS_COLORS } from "../constants/mapConstants";
 import type { Charger } from "../models/Charger";
-import type { Station } from "../models/station";
+import type { Station } from "../models/Station";
 import type { Vehicle } from "../models/vehicle";
 import { checkVehicleChargerCompatibility } from "../utils/chargerCompatibility";
 
@@ -9,6 +9,8 @@ interface ChargerItemProps {
   charger: Charger;
   station: Station;
   vehicle: Vehicle | null;
+  onReserve?: (charger: Charger) => void;
+  onReportIssue?: (charger: Charger) => void;
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -107,9 +109,45 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 800,
     lineHeight: 1.4,
   },
+  actionRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "10px",
+    marginTop: "12px",
+  },
+  reserveButton: {
+    minHeight: "40px",
+    padding: "10px 12px",
+    border: "none",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #173C34 0%, #24705B 100%)",
+    color: "#FFFFFF",
+    fontSize: "12px",
+    fontWeight: 850,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  reportButton: {
+    minHeight: "40px",
+    padding: "10px 12px",
+    border: "1px solid #AFCDBB",
+    borderRadius: "12px",
+    backgroundColor: "#FFFFFF",
+    color: "#1F5E4D",
+    fontSize: "12px",
+    fontWeight: 850,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
 };
 
-function ChargerItem({ charger, station, vehicle }: ChargerItemProps) {
+function ChargerItem({
+  charger,
+  station,
+  vehicle,
+  onReserve,
+  onReportIssue,
+}: ChargerItemProps) {
   const compatibility = checkVehicleChargerCompatibility(
     vehicle,
     charger,
@@ -164,6 +202,27 @@ function ChargerItem({ charger, station, vehicle }: ChargerItemProps) {
           <div style={styles.value}>{charger.id}</div>
         </div>
       </div>
+
+      {(onReserve || onReportIssue) && (
+        <div style={styles.actionRow}>
+          <button
+            type="button"
+            style={styles.reserveButton}
+            onClick={() => onReserve?.(charger)}
+            disabled={!onReserve}
+          >
+            Rezerve Et
+          </button>
+          <button
+            type="button"
+            style={styles.reportButton}
+            onClick={() => onReportIssue?.(charger)}
+            disabled={!onReportIssue}
+          >
+            Sorun Bildir
+          </button>
+        </div>
+      )}
 
       <style>{`
         .charger-item-card:hover {

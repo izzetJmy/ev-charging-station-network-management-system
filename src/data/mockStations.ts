@@ -1,4 +1,4 @@
-import type { Station } from "../models/station";
+import type { Station } from "../models/Station";
 
 export const mockStations: Station[] = [
   {
@@ -128,7 +128,7 @@ export const mockStations: Station[] = [
         powerOutput: "22kW",
         connectorType: "Type 2",
         pricePerKwh: 6.2,
-        status: "available",
+        status: "occupied",
       },
       {
         id: "charger-izmir-005-b",

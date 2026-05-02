@@ -1,11 +1,18 @@
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import MapView from "../../components/Map/MapView";
 import StationDetailCard from "../../components/StationDetailCard";
 import { STATION_STATUS_COLORS } from "../../constants/mapConstants";
 import mockStations from "../../data/mockStations";
-import type { Station } from "../../models/station";
+import type { Station } from "../../models/Station";
 import type { Vehicle } from "../../models/vehicle";
 import {
   getVehicleById,
@@ -580,6 +587,7 @@ function StationMapScreen() {
   const [vehicleId, setVehicleId] = useState("");
   const [locationUpdateLoading, setLocationUpdateLoading] = useState(false);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const vehicleIdRef = useRef("");
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -602,60 +610,72 @@ function StationMapScreen() {
     void loadVehicle();
   }, [location.state]);
 
-  const requestLocation = async ({
-    persistToVehicle = false,
-  }: RequestLocationOptions = {}) => {
-    setPermissionState("loading");
-    setMessage("Konum izni isteniyor ve guncel konum alinmaya calisiliyor.");
-    setLocationUpdateError("");
-    setSuccessMessage("");
+  useEffect(() => {
+    vehicleIdRef.current = vehicleId;
+  }, [vehicleId]);
 
-    if (persistToVehicle) {
-      setLocationUpdateLoading(true);
-    }
+  const requestLocation = useCallback(
+    async ({ persistToVehicle = false }: RequestLocationOptions = {}) => {
+      setPermissionState("loading");
+      setMessage("Konum izni isteniyor ve guncel konum alinmaya calisiliyor.");
+      setLocationUpdateError("");
+      setSuccessMessage("");
 
-    const result = await getCurrentLocation();
-    setPermissionState(result.permissionState);
-    setCoords(result.coords);
-    setMessage(result.message);
+      if (persistToVehicle) {
+        setLocationUpdateLoading(true);
+      }
 
-    if (!persistToVehicle) {
-      return;
-    }
+      const result = await getCurrentLocation();
+      setPermissionState(result.permissionState);
+      setCoords(result.coords);
+      setMessage(result.message);
 
-    if (!result.currentLocation) {
-      setLocationUpdateLoading(false);
-      setLocationUpdateError(
-        result.permissionState === "denied"
-          ? "Konum izni verilmedi. Vehicle konumu guncellenemedi."
-          : result.message,
-      );
-      return;
-    }
+      if (!persistToVehicle) {
+        return;
+      }
 
-    if (!vehicleId) {
-      setLocationUpdateLoading(false);
-      setLocationUpdateError(
-        "Konum alindi ancak guncellenecek vehicle kaydi bulunamadi.",
-      );
-      return;
-    }
+      if (!result.currentLocation) {
+        setLocationUpdateLoading(false);
+        setLocationUpdateError(
+          result.permissionState === "denied"
+            ? "Konum izni verilmedi. Vehicle konumu guncellenemedi."
+            : result.message,
+        );
+        return;
+      }
 
-    try {
-      await updateVehicleCurrentLocation(vehicleId, result.currentLocation);
-      setSuccessMessage("Konum guncellendi, harita merkeze alindi ve Firestore'a yazildi.");
-    } catch {
-      setLocationUpdateError(
-        "Konum Firestore'a kaydedilirken bir hata olustu.",
-      );
-    } finally {
-      setLocationUpdateLoading(false);
-    }
-  };
+      if (!vehicleIdRef.current) {
+        setLocationUpdateLoading(false);
+        setLocationUpdateError(
+          "Konum alindi ancak guncellenecek vehicle kaydi bulunamadi.",
+        );
+        return;
+      }
+
+      try {
+        await updateVehicleCurrentLocation(
+          vehicleIdRef.current,
+          result.currentLocation,
+        );
+        setSuccessMessage(
+          "Konum guncellendi, harita merkeze alindi ve Firestore'a yazildi.",
+        );
+      } catch {
+        setLocationUpdateError("Konum Firestore'a kaydedilirken bir hata olustu.");
+      } finally {
+        setLocationUpdateLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    void requestLocation();
-  }, []);
+    const timerId = window.setTimeout(() => {
+      void requestLocation();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [requestLocation]);
 
   const progressValue = getProgressValue(
     permissionState,

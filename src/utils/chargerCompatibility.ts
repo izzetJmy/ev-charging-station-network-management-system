@@ -1,5 +1,5 @@
 import type { Charger } from "../models/Charger";
-import type { Station } from "../models/station";
+import type { Station } from "../models/Station";
 import type { Vehicle } from "../models/vehicle";
 
 export type ChargerCompatibilityState =
