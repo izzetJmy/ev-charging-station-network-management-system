@@ -1,7 +1,10 @@
-import { type CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ChargerItem from "./ChargerItem";
+import ReportIssueModal from "./ReportIssueModal";
 import { STATION_STATUS_COLORS } from "../constants/mapConstants";
-import type { Station } from "../models/station";
+import type { Charger } from "../models/Charger";
+import type { Station } from "../models/Station";
 import type { Vehicle } from "../models/vehicle";
 import {
   calculateDistanceInKilometers,
@@ -77,6 +80,39 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
     transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
+  topActions: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+  reportButton: {
+    minHeight: "40px",
+    padding: "0 14px",
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #AFCDBB",
+    borderRadius: "14px",
+    color: "#1F5E4D",
+    fontSize: "14px",
+    fontWeight: 850,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
+  message: {
+    padding: "12px 14px",
+    borderRadius: "14px",
+    fontSize: "13px",
+    lineHeight: 1.55,
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "14px",
+  },
+  successMessage: {
+    backgroundColor: "#EFF8E7",
+    border: "1px solid #BFDE9B",
+    color: "#2C6642",
   },
   infoGrid: {
     display: "grid",
@@ -168,6 +204,48 @@ function StationDetailCard({
   currentLocation,
   onClose,
 }: StationDetailCardProps) {
+  const navigate = useNavigate();
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportTargetCharger, setReportTargetCharger] = useState<Charger | null>(
+    null,
+  );
+  const [reportSuccessMessage, setReportSuccessMessage] = useState("");
+
+  const handleReserve = (charger: Charger) => {
+    navigate("/reservation", {
+      state: {
+        station,
+        charger,
+        vehicleId: vehicle?.id ?? "",
+      },
+    });
+  };
+
+  const handleOpenStationReport = () => {
+    setReportSuccessMessage("");
+    setReportTargetCharger(null);
+    setIsReportModalOpen(true);
+  };
+
+  const handleOpenChargerReport = (charger: Charger) => {
+    setReportSuccessMessage("");
+    setReportTargetCharger(charger);
+    setIsReportModalOpen(true);
+  };
+
+  const handleCloseReportModal = () => {
+    setIsReportModalOpen(false);
+    setReportTargetCharger(null);
+  };
+
+  const handleReportSubmitSuccess = () => {
+    setReportSuccessMessage(
+      reportTargetCharger
+        ? `Şarj cihazı ${reportTargetCharger.id} için sorun bildirimi kaydedildi.`
+        : "İstasyon için sorun bildirimi kaydedildi.",
+    );
+  };
+
   return (
     <div className="station-detail-overlay" style={styles.overlay} onClick={onClose}>
       <section
@@ -181,10 +259,26 @@ function StationDetailCard({
             <h3 style={styles.title}>{station.name}</h3>
           </div>
 
-          <button type="button" onClick={onClose} style={styles.closeButton}>
-            Kapat
-          </button>
+          <div style={styles.topActions}>
+            <button
+              type="button"
+              onClick={handleOpenStationReport}
+              style={styles.reportButton}
+            >
+              Sorun Bildir
+            </button>
+            <button type="button" onClick={onClose} style={styles.closeButton}>
+              Kapat
+            </button>
+          </div>
         </div>
+
+        {reportSuccessMessage && (
+          <div style={{ ...styles.message, ...styles.successMessage }}>
+            <span>OK</span>
+            <span>{reportSuccessMessage}</span>
+          </div>
+        )}
 
         <div style={styles.infoGrid}>
           <div style={{ ...styles.infoCard, ...styles.infoCardWide }}>
@@ -231,6 +325,8 @@ function StationDetailCard({
                   charger={charger}
                   station={station}
                   vehicle={vehicle}
+                  onReserve={handleReserve}
+                  onReportIssue={handleOpenChargerReport}
                 />
               ))}
             </div>
@@ -247,6 +343,16 @@ function StationDetailCard({
             box-shadow: 0 20px 34px rgba(31,94,77,0.12);
           }
         `}</style>
+
+        {isReportModalOpen && (
+          <ReportIssueModal
+            stationId={station.id}
+            stationName={station.name}
+            charger={reportTargetCharger}
+            onClose={handleCloseReportModal}
+            onSubmitSuccess={handleReportSubmitSuccess}
+          />
+        )}
       </section>
     </div>
   );

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Libraries } from "@react-google-maps/api";
-import type { StationStatus } from "../models/station";
+import type { StationStatus } from "../models/Station";
 
 export const DEFAULT_MAP_CENTER = {
   lat: 38.423734,
