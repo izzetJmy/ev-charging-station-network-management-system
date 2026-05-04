@@ -11,8 +11,8 @@ import {
 import type { Location, Vehicle } from "../../models/vehicle";
 import { getCurrentLocation } from "../../services/maps/locationService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
-
-const connectorPresets = ["CCS2", "Type 2", "CHAdeMO", "Tesla"];
+import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
+import { CONNECTOR_TYPE_OPTIONS } from "../../constants/connectorTypes";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -411,8 +411,15 @@ const styles: Record<string, CSSProperties> = {
   },
 };
 
-function formatLocation(location?: Location | null) {
+function formatLocation(
+  location: Location | null | undefined,
+  resolvedLabel: string,
+) {
   if (!location) return "Konum kaydi yok";
+
+  if (resolvedLabel && resolvedLabel !== "Konum çözümleniyor...") {
+    return resolvedLabel;
+  }
 
   return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
 }
@@ -423,7 +430,6 @@ function VehicleProfileScreen() {
   const routeVehicleId = params.vehicleId ?? "";
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState("");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
@@ -431,6 +437,7 @@ function VehicleProfileScreen() {
   const [connectorType, setConnectorType] = useState("");
   const [plateNumber, setPlateNumber] = useState("");
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+  const [currentLocationLabel, setCurrentLocationLabel] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -471,8 +478,6 @@ function VehicleProfileScreen() {
           userVehicles = await getVehiclesByUserId(userId);
         }
 
-        setVehicles(userVehicles);
-
         if (userVehicles.length === 0) {
           setVehicleId("");
           setError("Bu kullanici icin kayitli arac bulunamadi.");
@@ -490,11 +495,30 @@ function VehicleProfileScreen() {
     void loadVehicles();
   }, [routeVehicleId, userId]);
 
-  const handleSelectVehicle = (vehicle: Vehicle) => {
-    fillVehicleForm(vehicle);
-    setError("");
-    setSuccess("");
-  };
+  useEffect(() => {
+    let isCancelled = false;
+
+    const resolve = async () => {
+      if (!currentLocation) {
+        setCurrentLocationLabel("");
+        return;
+      }
+
+      setCurrentLocationLabel("Konum çözümleniyor...");
+      const result = await reverseGeocodeCoordinates({
+        lat: currentLocation.latitude,
+        lng: currentLocation.longitude,
+      });
+      if (isCancelled) return;
+      setCurrentLocationLabel(result?.label ?? "");
+    };
+
+    void resolve();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentLocation]);
 
   const validateForm = () => {
     if (!brand.trim()) return "Brand alani bos birakilamaz.";
@@ -569,24 +593,7 @@ function VehicleProfileScreen() {
         currentLocation,
       });
 
-      setVehicles((currentVehicles) =>
-        currentVehicles.map((vehicle) =>
-          vehicle.id === vehicleId
-            ? {
-                ...vehicle,
-                userId,
-                brand: brand.trim(),
-                model: model.trim(),
-                batteryCapacity: Number(batteryCapacity),
-                connectorType: connectorType.trim(),
-                plateNumber: plateNumber.trim().toUpperCase(),
-                currentLocation,
-                updatedAt: new Date(),
-              }
-            : vehicle,
-        ),
-      );
-      navigate("/", {
+      navigate("/app", {
         state: {
           snackbar: {
             message: "Araç bilgileri güncellendi.",
@@ -648,11 +655,11 @@ function VehicleProfileScreen() {
               <div style={styles.metricValue}>{connectorType || "--"}</div>
             </div>
             <div style={styles.metric}>
-              <div style={styles.metricLabel}>Konum</div>
-              <div style={styles.metricValue}>
-                {formatLocation(currentLocation)}
+                <div style={styles.metricLabel}>Konum</div>
+                <div style={styles.metricValue}>
+                {formatLocation(currentLocation, currentLocationLabel)}
+                </div>
               </div>
-            </div>
           </div>
         </section>
 
@@ -678,37 +685,6 @@ function VehicleProfileScreen() {
               {success && (
                 <div style={{ ...styles.message, ...styles.success }}>
                   {success}
-                </div>
-              )}
-
-              {vehicles.length > 0 && (
-                <div
-                  className="vehicle-scrollbar"
-                  style={styles.vehicleList}
-                  aria-label="Kayitli araclar"
-                >
-                  {vehicles.map((vehicle) => (
-                    <button
-                      key={vehicle.id}
-                      type="button"
-                      onClick={() => handleSelectVehicle(vehicle)}
-                      style={{
-                        ...styles.vehicleButton,
-                        ...(vehicle.id === vehicleId
-                          ? styles.vehicleButtonActive
-                          : {}),
-                      }}
-                    >
-                      <span style={styles.vehicleButtonTitle}>
-                        {[vehicle.brand, vehicle.model]
-                          .filter(Boolean)
-                          .join(" ") || "Isimsiz arac"}
-                      </span>
-                      <span style={styles.vehicleButtonMeta}>
-                        {vehicle.plateNumber || "Plaka yok"}
-                      </span>
-                    </button>
-                  ))}
                 </div>
               )}
 
@@ -753,17 +729,24 @@ function VehicleProfileScreen() {
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Connector Type</label>
-                  <input
-                    type="text"
+                  <select
                     value={connectorType}
                     onChange={(event) => setConnectorType(event.target.value)}
-                    placeholder="CCS2"
                     style={styles.input}
                     disabled={!vehicleId || saving}
-                  />
+                  >
+                    <option value="" disabled>
+                      Connector seçin
+                    </option>
+                    {CONNECTOR_TYPE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
 
                   <div style={styles.presetRow}>
-                    {connectorPresets.map((preset) => (
+                    {CONNECTOR_TYPE_OPTIONS.map((preset) => (
                       <button
                         key={preset}
                         type="button"
@@ -799,7 +782,7 @@ function VehicleProfileScreen() {
                 <label style={styles.label}>Current Location</label>
                 <div style={styles.locationBox}>
                   <p style={styles.locationText}>
-                    {formatLocation(currentLocation)}
+                    {formatLocation(currentLocation, currentLocationLabel)}
                   </p>
                   <button
                     type="button"

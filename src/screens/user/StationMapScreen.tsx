@@ -26,6 +26,7 @@ import {
   type UserCoordinates,
 } from "../../services/maps/locationService";
 import { calculateDistanceInKilometers } from "../../services/maps/locationService";
+import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 
 const styles: Record<string, CSSProperties> = {
@@ -33,19 +34,20 @@ const styles: Record<string, CSSProperties> = {
     minHeight: "100vh",
     backgroundColor: "#F6F8F4",
     backgroundImage:
-      "linear-gradient(90deg, rgba(21, 101, 87, 0.07) 1px, transparent 1px), linear-gradient(180deg, rgba(21, 101, 87, 0.06) 1px, transparent 1px), linear-gradient(135deg, #F6F8F4 0%, #ECF5EE 48%, #F9FBF6 100%)",
-    backgroundSize: "34px 34px, 34px 34px, 100% 100%",
+      "linear-gradient(135deg, #F6F8F4 0%, #ECF5EE 48%, #F9FBF6 100%)",
+    backgroundSize: "100% 100%",
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
-    padding: "32px 18px",
+    padding: "32px 18px 64px",
+    overflowY: "auto",
     fontFamily:
       "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     color: "#17231F",
     boxSizing: "border-box",
   },
   shell: {
-    width: "min(1120px, 100%)",
+    width: "min(1280px, 100%)",
     display: "grid",
     gridTemplateColumns: "0.92fr 1.08fr",
     borderRadius: "28px",
@@ -684,6 +686,7 @@ function StationMapScreen() {
   const [permissionState, setPermissionState] =
     useState<LocationPermissionState>("idle");
   const [coords, setCoords] = useState<UserCoordinates | null>(null);
+  const [coordsLabel, setCoordsLabel] = useState<string>("");
   const [message, setMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [locationUpdateError, setLocationUpdateError] = useState("");
@@ -795,6 +798,29 @@ function StationMapScreen() {
   useEffect(() => {
     vehicleIdRef.current = vehicleId;
   }, [vehicleId]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const resolveAddress = async () => {
+      if (!coords) {
+        setCoordsLabel("");
+        return;
+      }
+
+      setCoordsLabel("Konum çözümleniyor...");
+      const result = await reverseGeocodeCoordinates(coords);
+      if (isCancelled) return;
+
+      setCoordsLabel(result?.label ?? "");
+    };
+
+    void resolveAddress();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [coords]);
 
   const requestLocation = useCallback(
     async ({ persistToVehicle = false }: RequestLocationOptions = {}) => {
@@ -909,14 +935,18 @@ function StationMapScreen() {
             </p>
 
             <div style={styles.locationStrip}>
-              <div>
-                <div style={styles.locationStatus}>Guncel konum</div>
-                <div style={styles.locationValue}>
-                  {coords ? formatCoordinates(coords) : "Konum bekleniyor"}
+                <div>
+                  <div style={styles.locationStatus}>Guncel konum</div>
+                  <div style={styles.locationValue}>
+                    {coords
+                      ? coordsLabel && coordsLabel !== "Konum çözümleniyor..."
+                        ? coordsLabel
+                        : formatCoordinates(coords)
+                      : "Konum bekleniyor"}
+                  </div>
                 </div>
+                <div style={styles.chip}>{getStatusText(permissionState)}</div>
               </div>
-              <div style={styles.chip}>{getStatusText(permissionState)}</div>
-            </div>
 
             {selectedStation && (
               <div style={styles.selectedRow}>
@@ -1053,10 +1083,16 @@ function StationMapScreen() {
                 <div style={styles.infoValue}>{getStatusText(permissionState)}</div>
               </div>
               <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Koordinatlar</div>
-                <div style={styles.infoValue}>{formatCoordinates(coords)}</div>
+                <div style={styles.infoLabel}>Konum</div>
+                <div style={styles.infoValue}>
+                  {coords
+                    ? coordsLabel && coordsLabel !== "Konum çözümleniyor..."
+                      ? coordsLabel
+                      : formatCoordinates(coords)
+                    : "--"}
+                </div>
               </div>
-            </div>
+              </div>
 
             <div style={styles.statusLegend}>
               {statusSummary.map((status) => (
@@ -1155,7 +1191,7 @@ function StationMapScreen() {
 
               <button
                 type="button"
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/app")}
                 style={styles.secondaryButton}
                 disabled={locationUpdateLoading}
               >

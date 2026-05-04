@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { Vehicle } from "../../models/vehicle";
 import { getVehiclesByUserId } from "../../services/firebase/userService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
-import SnackbarHost from "../../components/SnackbarHost";
+import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -42,6 +42,17 @@ const styles: Record<string, CSSProperties> = {
     background:
       "linear-gradient(155deg, rgba(16,53,46,1) 0%, rgba(31,94,77,1) 70%, rgba(31,94,77,0.92) 100%)",
     borderBottom: "1px solid rgba(255,255,255,0.12)",
+    display: "flex",
+    alignItems: "center",
+  },
+  headerTopActions: {
+    position: "absolute",
+    top: "16px",
+    right: "22px",
+    zIndex: 3,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
   },
   headerMedia: {
     position: "relative",
@@ -114,6 +125,7 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 900,
     letterSpacing: "-0.02em",
     textShadow: "0 18px 34px rgba(0,0,0,0.35)",
+    textAlign: "left",
   },
   subtitle: {
     margin: 0,
@@ -133,6 +145,13 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: "space-between",
     gap: "12px",
     marginBottom: "14px",
+  },
+  listTitleRight: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: "10px",
+    flexWrap: "wrap",
   },
   listSubtitle: {
     margin: "-6px 0 14px",
@@ -207,7 +226,7 @@ const styles: Record<string, CSSProperties> = {
   footerActions: {
     marginTop: "18px",
     display: "grid",
-    gridTemplateColumns: "1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "12px",
   },
   primaryButton: {
@@ -324,13 +343,8 @@ function getVehicleDisplayName(vehicle: Vehicle) {
   return name || "Kayıtlı araç";
 }
 
-function formatLocation(vehicle: Vehicle) {
-  const location = vehicle.currentLocation;
-  if (!location) return "Konum kaydı yok";
-  if (typeof location.latitude !== "number" || typeof location.longitude !== "number") {
-    return "Konum kaydı yok";
-  }
-  return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
+function formatCoordinates(latitude: number, longitude: number) {
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 }
 
 function VehicleHomeScreen() {
@@ -344,6 +358,8 @@ function VehicleHomeScreen() {
   const [headerArtworkSrc, setHeaderArtworkSrc] = useState(
     "/Vehicle_Profile_Image.png",
   );
+  const [selectedVehicleLocationLabel, setSelectedVehicleLocationLabel] =
+    useState("");
 
   const selectedVehicle = useMemo(
     () => vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,
@@ -368,6 +384,36 @@ function VehicleHomeScreen() {
     void load();
   }, [userId]);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const resolveLocationLabel = async () => {
+      const location = selectedVehicle?.currentLocation ?? null;
+      if (
+        !location ||
+        typeof location.latitude !== "number" ||
+        typeof location.longitude !== "number"
+      ) {
+        setSelectedVehicleLocationLabel("");
+        return;
+      }
+
+      setSelectedVehicleLocationLabel("Konum çözümleniyor...");
+      const result = await reverseGeocodeCoordinates({
+        lat: location.latitude,
+        lng: location.longitude,
+      });
+      if (isCancelled) return;
+      setSelectedVehicleLocationLabel(result?.label ?? "");
+    };
+
+    void resolveLocationLabel();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedVehicle?.currentLocation, selectedVehicle?.id]);
+
   const handleGoToMap = () => {
     if (!selectedVehicleId) return;
     navigate("/station-map", { state: { vehicleId: selectedVehicleId } });
@@ -380,8 +426,18 @@ function VehicleHomeScreen() {
     setIsDetailOpen(false);
   };
 
+  const handleOpenHistory = () => {
+    if (!selectedVehicleId) return;
+    navigate("/charging-history", { state: { vehicleId: selectedVehicleId } });
+    setIsDetailOpen(false);
+  };
+
   const handleCreateVehicle = () => {
     navigate("/vehicles/new");
+  };
+
+  const handleGoToLanding = () => {
+    navigate("/");
   };
 
   return (
@@ -389,6 +445,15 @@ function VehicleHomeScreen() {
       <main className="vehicle-home-shell" style={styles.shell}>
         <header style={styles.header}>
           <div style={styles.headerTop}>
+            <div style={styles.headerTopActions}>
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={handleGoToLanding}
+              >
+                Ana sayfaya dön
+              </button>
+            </div>
             <h1 style={styles.title}>Kayıtlı Araçlar</h1>
           </div>
 
@@ -419,8 +484,10 @@ function VehicleHomeScreen() {
         <section style={styles.body} aria-label="Araç listesi">
           <div style={styles.listTitleRow}>
             <h2 style={styles.listTitle}>Araç listesi</h2>
-            <div style={styles.counter}>
-              {loading ? "Yükleniyor..." : `${vehicles.length} araç`}
+            <div style={styles.listTitleRight}>
+              <div style={styles.counter}>
+                {loading ? "Yükleniyor..." : `${vehicles.length} araç`}
+              </div>
             </div>
           </div>
 
@@ -529,7 +596,25 @@ function VehicleHomeScreen() {
                 <div style={styles.infoItem}>
                   <div style={styles.infoLabel}>Konum</div>
                   <div style={styles.infoValue}>
-                    {formatLocation(selectedVehicle)}
+                    {(() => {
+                      const location = selectedVehicle.currentLocation;
+                      if (
+                        !location ||
+                        typeof location.latitude !== "number" ||
+                        typeof location.longitude !== "number"
+                      ) {
+                        return "Konum kaydı yok";
+                      }
+
+                      if (
+                        selectedVehicleLocationLabel &&
+                        selectedVehicleLocationLabel !== "Konum çözümleniyor..."
+                      ) {
+                        return selectedVehicleLocationLabel;
+                      }
+
+                      return formatCoordinates(location.latitude, location.longitude);
+                    })()}
                   </div>
                 </div>
               </div>
@@ -550,11 +635,20 @@ function VehicleHomeScreen() {
                   Aracı Güncelle
                 </button>
               </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <button
+                  type="button"
+                  style={styles.secondaryButton}
+                  onClick={handleOpenHistory}
+                >
+                  Şarj Geçmişi
+                </button>
+              </div>
             </section>
           </div>
         )}
       </main>
-      <SnackbarHost />
     </div>
   );
 }

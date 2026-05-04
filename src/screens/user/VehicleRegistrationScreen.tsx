@@ -1,31 +1,32 @@
-import { type CSSProperties, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import type { Location } from "../../models/vehicle";
 import { db } from "../../services/firebase/firebaseConfig";
 import { getCurrentLocation } from "../../services/maps/locationService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
-
-const connectorPresets = ["CCS2", "Type 2", "CHAdeMO", "Tesla"];
+import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
+import { CONNECTOR_TYPE_OPTIONS } from "../../constants/connectorTypes";
 
 const styles: Record<string, CSSProperties> = {
   page: {
     minHeight: "100vh",
     backgroundColor: "#F6F8F4",
     backgroundImage:
-      "linear-gradient(90deg, rgba(21, 101, 87, 0.07) 1px, transparent 1px), linear-gradient(180deg, rgba(21, 101, 87, 0.06) 1px, transparent 1px), linear-gradient(135deg, #F6F8F4 0%, #ECF5EE 48%, #F9FBF6 100%)",
-    backgroundSize: "34px 34px, 34px 34px, 100% 100%",
+      "linear-gradient(135deg, #F6F8F4 0%, #ECF5EE 48%, #F9FBF6 100%)",
+    backgroundSize: "100% 100%",
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
-    padding: "32px 18px",
+    padding: "32px 18px 64px",
+    overflowY: "auto",
     fontFamily:
       "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     color: "#17231F",
     boxSizing: "border-box",
   },
   shell: {
-    width: "min(1040px, 100%)",
+    width: "min(1240px, 100%)",
     display: "grid",
     gridTemplateColumns: "0.95fr 1.05fr",
     borderRadius: "28px",
@@ -420,6 +421,7 @@ function VehicleRegistrationScreen() {
   const [connectorType, setConnectorType] = useState("");
   const [plateNumber, setPlateNumber] = useState("");
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+  const [currentLocationLabel, setCurrentLocationLabel] = useState("");
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -474,6 +476,31 @@ function VehicleRegistrationScreen() {
     setLocationLoading(false);
   };
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const resolve = async () => {
+      if (!currentLocation) {
+        setCurrentLocationLabel("");
+        return;
+      }
+
+      setCurrentLocationLabel("Konum çözümleniyor...");
+      const result = await reverseGeocodeCoordinates({
+        lat: currentLocation.latitude,
+        lng: currentLocation.longitude,
+      });
+      if (isCancelled) return;
+      setCurrentLocationLabel(result?.label ?? "");
+    };
+
+    void resolve();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentLocation]);
+
   const validateForm = () => {
     if (!brand.trim()) return "Brand alani bos birakilamaz.";
     if (!model.trim()) return "Model alani bos birakilamaz.";
@@ -511,7 +538,7 @@ function VehicleRegistrationScreen() {
         updatedAt: serverTimestamp(),
       });
 
-      navigate("/", {
+      navigate("/app", {
         state: {
           snackbar: {
             message: "Yeni araç kaydedildi.",
@@ -661,18 +688,25 @@ function VehicleRegistrationScreen() {
 
               <div style={styles.formGroup}>
                 <label style={styles.label}>Connector Type</label>
-                <input
-                  type="text"
+                <select
                   value={connectorType}
                   onChange={(event) => setConnectorType(event.target.value)}
-                  placeholder="CCS2"
                   style={getInputStyle("connector")}
                   onFocus={() => setFocusedField("connector")}
                   onBlur={() => setFocusedField(null)}
-                />
+                >
+                  <option value="" disabled>
+                    Connector seçin
+                  </option>
+                  {CONNECTOR_TYPE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
 
                 <div style={styles.presetRow}>
-                  {connectorPresets.map((preset) => (
+                  {CONNECTOR_TYPE_OPTIONS.map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -745,8 +779,10 @@ function VehicleRegistrationScreen() {
                 <span>
                   Konum alindi:{" "}
                   <strong>
-                    {currentLocation.latitude.toFixed(5)},{" "}
-                    {currentLocation.longitude.toFixed(5)}
+                    {currentLocationLabel &&
+                    currentLocationLabel !== "Konum çözümleniyor..."
+                      ? currentLocationLabel
+                      : `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`}
                   </strong>
                 </span>
               </div>
@@ -788,7 +824,7 @@ function VehicleRegistrationScreen() {
 
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/app")}
             style={styles.navigationButton}
           >
             Arac Profiline Git

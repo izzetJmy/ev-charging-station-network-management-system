@@ -497,6 +497,7 @@ function ReservationScreen() {
   const [confirmation, setConfirmation] = useState<ReservationConfirmation | null>(
     null,
   );
+  const [reservationId, setReservationId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -794,7 +795,7 @@ function ReservationScreen() {
         return;
       }
 
-      await createReservation({
+      const createdReservationId = await createReservation({
         vehicleId: vehicle.id,
         stationId: station.id,
         chargerId: charger.id,
@@ -802,6 +803,7 @@ function ReservationScreen() {
         startTime: effectiveStartTime,
         endTime: effectiveEndTime,
       });
+      setReservationId(createdReservationId);
 
       setConfirmation({
         stationName: station.name,
@@ -834,7 +836,7 @@ function ReservationScreen() {
             <button
               type="button"
               style={styles.primaryButton}
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/app")}
             >
               Araç Profiline Git
             </button>
@@ -1069,6 +1071,34 @@ function ReservationScreen() {
               <p style={styles.confirmationValue}>
                 Tarih ve saat aralığı: {confirmation.dateTimeRange}
               </p>
+              <div style={{ ...styles.actionRow, marginTop: "14px" }}>
+                <button
+                  type="button"
+                  style={styles.primaryButton}
+                  onClick={() =>
+                    navigate("/charging-session", {
+                      state: {
+                        station,
+                        charger,
+                        vehicleId: vehicle?.id ?? "",
+                        reservationId,
+                        reservationDate: effectiveDate,
+                        reservationStartTime: effectiveStartTime,
+                        reservationEndTime: effectiveEndTime,
+                      },
+                    })
+                  }
+                >
+                  Şarj Oturumu Başlat
+                </button>
+                <button
+                  type="button"
+                  style={styles.secondaryButton}
+                  onClick={() => navigate("/station-map", { state: { vehicleId: vehicle?.id ?? "" } })}
+                >
+                  Haritaya Dön
+                </button>
+              </div>
             </div>
           )}
         </section>
