@@ -17,7 +17,7 @@ import {
   getVehicleById,
   getVehicleByUserId,
 } from "../../services/firebase/vehicleService";
-import { TEMP_USER_ID } from "../../services/firebase/userService";
+import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 
 const SLOT_INTERVAL_MINUTES = 15;
 const SLOT_INTERVAL_MS = SLOT_INTERVAL_MINUTES * 60 * 1000;
@@ -478,6 +478,7 @@ function getSelectedChargerName(charger: Charger) {
 function ReservationScreen() {
   const location = useLocation();
   const navigate = useNavigate();
+  const userId = useMemo(() => getOrCreateLocalUserId(), []);
 
   const locationState = (location.state as ReservationLocationState | null) ?? null;
   const station = locationState?.station ?? null;
@@ -502,7 +503,7 @@ function ReservationScreen() {
       try {
         const resolvedVehicle = selectedVehicleId
           ? await getVehicleById(selectedVehicleId)
-          : await getVehicleByUserId(TEMP_USER_ID);
+          : await getVehicleByUserId(userId);
 
         setVehicle(resolvedVehicle);
       } catch {
@@ -513,7 +514,7 @@ function ReservationScreen() {
     };
 
     void loadVehicle();
-  }, [selectedVehicleId]);
+  }, [selectedVehicleId, userId]);
 
   useEffect(() => {
     const timerId = window.setInterval(() => {

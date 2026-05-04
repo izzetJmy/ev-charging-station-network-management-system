@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import type { Location } from "../../models/vehicle";
 import { db } from "../../services/firebase/firebaseConfig";
-import { TEMP_USER_ID } from "../../services/firebase/userService";
 import { getCurrentLocation } from "../../services/maps/locationService";
+import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 
 const connectorPresets = ["CCS2", "Type 2", "CHAdeMO", "Tesla"];
 
@@ -412,6 +412,7 @@ const styles: Record<string, CSSProperties> = {
 
 function VehicleRegistrationScreen() {
   const navigate = useNavigate();
+  const userId = useMemo(() => getOrCreateLocalUserId(), []);
 
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
@@ -499,7 +500,7 @@ function VehicleRegistrationScreen() {
       setError("");
 
       await addDoc(collection(db, "vehicles"), {
-        userId: TEMP_USER_ID,
+        userId,
         brand,
         model,
         batteryCapacity: Number(batteryCapacity),
@@ -510,7 +511,14 @@ function VehicleRegistrationScreen() {
         updatedAt: serverTimestamp(),
       });
 
-      navigate("/home");
+      navigate("/", {
+        state: {
+          snackbar: {
+            message: "Yeni araç kaydedildi.",
+            variant: "success",
+          },
+        },
+      });
     } catch {
       setError("Arac kaydedilirken bir hata olustu.");
     } finally {

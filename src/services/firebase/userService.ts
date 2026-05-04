@@ -11,8 +11,6 @@ import {
 } from "firebase/firestore";
 import type { Vehicle } from "../../models/vehicle";
 
-export const TEMP_USER_ID = "temporary-user-id";
-
 const vehiclesCollection = collection(db, "vehicles");
 const stationsCollection = collection(db, "stations");
 const chargersCollection = collection(db, "chargers");

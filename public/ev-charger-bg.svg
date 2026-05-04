@@ -1,0 +1,51 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="90" y1="40" x2="1110" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E352D"/>
+      <stop offset="0.55" stop-color="#1F5E4D"/>
+      <stop offset="1" stop-color="#A4D65E"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="360" y1="140" x2="760" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="blur" x="-80" y="-80" width="1360" height="580" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="420" rx="0" fill="url(#g)"/>
+
+  <g opacity="0.22">
+    <path d="M80 92H1120" stroke="white" stroke-opacity="0.35" stroke-width="2" stroke-linecap="round"/>
+    <path d="M80 140H1120" stroke="white" stroke-opacity="0.26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M80 188H1120" stroke="white" stroke-opacity="0.20" stroke-width="2" stroke-linecap="round"/>
+    <path d="M80 236H1120" stroke="white" stroke-opacity="0.16" stroke-width="2" stroke-linecap="round"/>
+    <path d="M80 284H1120" stroke="white" stroke-opacity="0.13" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#blur)" opacity="0.35">
+    <circle cx="246" cy="120" r="78" fill="#B8F061"/>
+    <circle cx="972" cy="284" r="98" fill="#2F6FED"/>
+  </g>
+
+  <g opacity="0.95">
+    <rect x="150" y="138" width="820" height="190" rx="28" fill="url(#glass)" stroke="white" stroke-opacity="0.18"/>
+
+    <!-- Car (minimal line art) -->
+    <path d="M330 248C336 226 356 210 380 210H628C652 210 672 226 678 248L690 280H318L330 248Z" fill="white" fill-opacity="0.18"/>
+    <path d="M300 268C300 252.536 312.536 240 328 240H690C705.464 240 718 252.536 718 268V282C718 297.464 705.464 310 690 310H328C312.536 310 300 297.464 300 282V268Z" fill="white" fill-opacity="0.26" stroke="white" stroke-opacity="0.16"/>
+    <circle cx="368" cy="312" r="22" fill="#0B1B16" fill-opacity="0.85"/>
+    <circle cx="368" cy="312" r="11" fill="#7DA18E" fill-opacity="0.9"/>
+    <circle cx="648" cy="312" r="22" fill="#0B1B16" fill-opacity="0.85"/>
+    <circle cx="648" cy="312" r="11" fill="#7DA18E" fill-opacity="0.9"/>
+
+    <!-- Charger -->
+    <path d="M830 206C830 192.745 840.745 182 854 182H914C927.255 182 938 192.745 938 206V288C938 301.255 927.255 312 914 312H854C840.745 312 830 301.255 830 288V206Z" fill="white" fill-opacity="0.18" stroke="white" stroke-opacity="0.18"/>
+    <path d="M868 206H900" stroke="white" stroke-opacity="0.65" stroke-width="4" stroke-linecap="round"/>
+    <path d="M884 196V218" stroke="white" stroke-opacity="0.65" stroke-width="4" stroke-linecap="round"/>
+    <path d="M886 252C904 256 916 270 920 288" stroke="white" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round"/>
+    <path d="M920 288C924 306 916 318 898 324" stroke="white" stroke-opacity="0.32" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>
+

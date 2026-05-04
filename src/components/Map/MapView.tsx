@@ -49,6 +49,20 @@ function MapView({
     map.setZoom(FOCUSED_MAP_ZOOM);
   }, [map, userLocation]);
 
+  useEffect(() => {
+    if (!map || !selectedStationId) {
+      return;
+    }
+
+    const station = stations.find((candidate) => candidate.id === selectedStationId);
+    if (!station) {
+      return;
+    }
+
+    map.panTo({ lat: station.latitude, lng: station.longitude });
+    map.setZoom(FOCUSED_MAP_ZOOM);
+  }, [map, selectedStationId, stations]);
+
   const handleMapLoad = (instance: google.maps.Map) => {
     setMap(instance);
   };
