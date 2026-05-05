@@ -1,73 +1,56 @@
-# React + TypeScript + Vite
+# EV Charging Station Network Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Bu proje; elektrikli araç kullanıcılarının **araç profili oluşturup**, **istasyon/charger seçerek rezervasyon yapmasını**, **şarj oturumunu başlatıp maliyetini hesaplamasını** ve **geçmişini görüntülemesini** sağlar. Ayrıca bir **Admin Panel** ile istasyon/charger yönetimi ve raporlama yapılır.
 
-Currently, two official plugins are available:
+## Uygulama Akışı (Kullanıcı)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Landing** (`/`) → uygulama tanıtım sayfası.
+- **Kayıtlı Araçlar / Araç Profili** (`/app`, `/vehicles/...`)
+  - Kullanıcı için yerel bir `userId` üretilir (local storage).
+  - Araçlar Firestore’da `vehicles` içinde `userId` ile tutulur; kullanıcı girince sadece kendi araçları gelir.
+- **İstasyon Haritası** (`/station-map`)
+  - İstasyonlar Firestore’dan `stations` + `chargers` koleksiyonlarından çekilir ve birleştirilir.
+  - İstasyona tıklayınca detay kartı açılır; **konum koordinat yerine adres/semt** olarak gösterilir.
+  - İstasyon/charger için **Sorun Bildir** ile `reports` koleksiyonuna kayıt atılır.
+- **Rezervasyon** (`/reservation`)
+  - Seçilen station + charger + vehicle ile `reservations` koleksiyonuna kayıt yapılır.
+- **Charging Session** (`/charging-session`)
+  - Start/End batarya yüzdesi alınır (0–100, end > start).
+  - Tüketim/maliyet: `consumedKwh = batteryCapacity * (end-start)/100`, `totalCost = consumedKwh * pricePerKwh`.
+  - Sonuç `chargingSessions` koleksiyonuna `status: completed` ile kaydedilir.
+- **Charging History** (`/charging-history`)
+  - `chargingSessions` sadece seçili aracın `vehicleId`’si ile filtrelenerek listelenir.
 
-## React Compiler
+## Firestore Veri Modeli (Özet)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `stations`
+  - `name, address, latitude, longitude, status`
+  - `chargerIds: string[]` (station → charger ilişkisi)
+- `chargers`
+  - `stationId, type, powerOutput, connectorType, pricePerKwh, status`
+- `vehicles`
+  - `userId` + araç bilgileri (brand/model/battery/connector/plate/location…)
+- `reservations`
+  - `stationId, chargerId, vehicleId, date/time` …
+- `chargingSessions`
+  - `reservationId, vehicleId, stationId, chargerId, start/end %, consumedKwh, pricePerKwh, totalCost, status, createdAt`
+- `reports`
+  - `stationId, chargerId|null, issueType, description, createdAt`
 
-## Expanding the ESLint configuration
+## Admin Panel
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Giriş**: `/admin`
+- **Genel Özet / Gelir / İstasyon İstatistikleri / Raporlar**: `/admin/*`
+- **İstasyon & Charger Yönetimi**: `/admin/manage`
+  - İstasyon ekle/düzenle
+  - Charger ekle/düzenle (Firestore’a yazar)
+  - Konum seçimi: **harita veya arama ile adres/semt seçimi** (koordinat gösterilmez)
+- Sol menü **sürükle-bırak** ile kişiselleştirilebilir (localStorage).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Çalıştırma
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
