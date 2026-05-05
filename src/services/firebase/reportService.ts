@@ -1,4 +1,12 @@
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  type Timestamp,
+} from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
 export type ReportIssueType =
@@ -16,6 +24,11 @@ export interface ReportInput {
   description: string;
 }
 
+export interface ReportRecord extends ReportInput {
+  id: string;
+  createdAt?: Timestamp;
+}
+
 export async function createReport(report: ReportInput) {
   const reportRef = await addDoc(collection(db, "reports"), {
     stationId: report.stationId,
@@ -26,4 +39,12 @@ export async function createReport(report: ReportInput) {
   });
 
   return reportRef.id;
+}
+
+export async function getReports(): Promise<ReportRecord[]> {
+  const snap = await getDocs(query(collection(db, "reports"), orderBy("createdAt", "desc")));
+  return snap.docs.map((docSnap) => {
+    const data = docSnap.data() as Omit<ReportRecord, "id">;
+    return { id: docSnap.id, ...data };
+  });
 }

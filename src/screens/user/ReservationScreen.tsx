@@ -17,7 +17,7 @@ import {
   getVehicleById,
   getVehicleByUserId,
 } from "../../services/firebase/vehicleService";
-import { TEMP_USER_ID } from "../../services/firebase/userService";
+import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 
 const SLOT_INTERVAL_MINUTES = 15;
 const SLOT_INTERVAL_MS = SLOT_INTERVAL_MINUTES * 60 * 1000;
@@ -478,6 +478,7 @@ function getSelectedChargerName(charger: Charger) {
 function ReservationScreen() {
   const location = useLocation();
   const navigate = useNavigate();
+  const userId = useMemo(() => getOrCreateLocalUserId(), []);
 
   const locationState = (location.state as ReservationLocationState | null) ?? null;
   const station = locationState?.station ?? null;
@@ -496,13 +497,14 @@ function ReservationScreen() {
   const [confirmation, setConfirmation] = useState<ReservationConfirmation | null>(
     null,
   );
+  const [reservationId, setReservationId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadVehicle = async () => {
       try {
         const resolvedVehicle = selectedVehicleId
           ? await getVehicleById(selectedVehicleId)
-          : await getVehicleByUserId(TEMP_USER_ID);
+          : await getVehicleByUserId(userId);
 
         setVehicle(resolvedVehicle);
       } catch {
@@ -513,7 +515,7 @@ function ReservationScreen() {
     };
 
     void loadVehicle();
-  }, [selectedVehicleId]);
+  }, [selectedVehicleId, userId]);
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
@@ -793,7 +795,7 @@ function ReservationScreen() {
         return;
       }
 
-      await createReservation({
+      const createdReservationId = await createReservation({
         vehicleId: vehicle.id,
         stationId: station.id,
         chargerId: charger.id,
@@ -801,6 +803,7 @@ function ReservationScreen() {
         startTime: effectiveStartTime,
         endTime: effectiveEndTime,
       });
+      setReservationId(createdReservationId);
 
       setConfirmation({
         stationName: station.name,
@@ -833,7 +836,7 @@ function ReservationScreen() {
             <button
               type="button"
               style={styles.primaryButton}
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/app")}
             >
               Araç Profiline Git
             </button>
@@ -1068,6 +1071,34 @@ function ReservationScreen() {
               <p style={styles.confirmationValue}>
                 Tarih ve saat aralığı: {confirmation.dateTimeRange}
               </p>
+              <div style={{ ...styles.actionRow, marginTop: "14px" }}>
+                <button
+                  type="button"
+                  style={styles.primaryButton}
+                  onClick={() =>
+                    navigate("/charging-session", {
+                      state: {
+                        station,
+                        charger,
+                        vehicleId: vehicle?.id ?? "",
+                        reservationId,
+                        reservationDate: effectiveDate,
+                        reservationStartTime: effectiveStartTime,
+                        reservationEndTime: effectiveEndTime,
+                      },
+                    })
+                  }
+                >
+                  Şarj Oturumu Başlat
+                </button>
+                <button
+                  type="button"
+                  style={styles.secondaryButton}
+                  onClick={() => navigate("/station-map", { state: { vehicleId: vehicle?.id ?? "" } })}
+                >
+                  Haritaya Dön
+                </button>
+              </div>
             </div>
           )}
         </section>

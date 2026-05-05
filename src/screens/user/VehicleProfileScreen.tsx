@@ -1,15 +1,18 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   getVehiclesByUserId,
-  TEMP_USER_ID,
   updateVehicle,
 } from "../../services/firebase/userService";
-import { updateVehicleCurrentLocation } from "../../services/firebase/vehicleService";
+import {
+  getVehicleById,
+  updateVehicleCurrentLocation,
+} from "../../services/firebase/vehicleService";
 import type { Location, Vehicle } from "../../models/vehicle";
 import { getCurrentLocation } from "../../services/maps/locationService";
-
-const connectorPresets = ["CCS2", "Type 2", "CHAdeMO", "Tesla"];
+import { getOrCreateLocalUserId } from "../../services/auth/localUser";
+import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
+import { getConnectorTypeOptions } from "../../services/firebase/chargerService";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -26,42 +29,146 @@ const styles: Record<string, CSSProperties> = {
     boxSizing: "border-box",
   },
   shell: {
-    width: "min(980px, 100%)",
+    width: "min(1040px, 100%)",
     display: "grid",
-    gridTemplateColumns: "0.85fr 1.15fr",
-    borderRadius: "24px",
+    gridTemplateColumns: "0.95fr 1.05fr",
+    borderRadius: "28px",
     overflow: "hidden",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255, 255, 255, 0.86)",
     border: "1px solid rgba(31, 94, 77, 0.16)",
-    boxShadow: "0 24px 70px rgba(28, 74, 61, 0.14)",
+    boxShadow:
+      "0 24px 80px rgba(28, 74, 61, 0.16), 0 4px 18px rgba(23, 35, 31, 0.06)",
+    backdropFilter: "blur(14px)",
   },
   summary: {
     padding: "34px",
-    background: "linear-gradient(155deg, #10352E 0%, #1F5E4D 100%)",
+    minHeight: "620px",
+    background:
+      "linear-gradient(155deg, #10352E 0%, #1F5E4D 48%, #A9D869 140%)",
     color: "#FFFFFF",
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
-    gap: "28px",
+    position: "relative",
+    overflow: "hidden",
+  },
+  routeLayer: {
+    position: "absolute",
+    inset: 0,
+    opacity: 0.34,
+    backgroundImage:
+      "linear-gradient(120deg, transparent 12%, rgba(255,255,255,0.16) 12%, rgba(255,255,255,0.16) 13%, transparent 13%, transparent 52%, rgba(255,255,255,0.14) 52%, rgba(255,255,255,0.14) 53%, transparent 53%), linear-gradient(25deg, transparent 24%, rgba(255,255,255,0.12) 24%, rgba(255,255,255,0.12) 25%, transparent 25%)",
+    backgroundSize: "240px 220px, 190px 180px",
+  },
+  summaryContent: {
+    position: "relative",
+    zIndex: 1,
   },
   eyebrow: {
-    color: "rgba(255,255,255,0.72)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "8px 12px",
+    borderRadius: "999px",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.22)",
     fontSize: "12px",
-    fontWeight: 850,
-    letterSpacing: "0.08em",
+    fontWeight: 800,
     textTransform: "uppercase",
+    letterSpacing: "0.08em",
+  },
+  signalDot: {
+    width: "8px",
+    height: "8px",
+    borderRadius: "999px",
+    backgroundColor: "#B8F061",
+    boxShadow: "0 0 16px rgba(184,240,97,0.9)",
   },
   title: {
-    margin: "12px 0 8px",
-    fontSize: "34px",
-    lineHeight: 1.12,
+    margin: "34px 0 10px",
+    fontSize: "38px",
+    lineHeight: 1.08,
     fontWeight: 850,
+    maxWidth: "360px",
   },
   summaryText: {
     margin: 0,
+    maxWidth: "340px",
     color: "rgba(255,255,255,0.76)",
-    fontSize: "14px",
-    lineHeight: 1.65,
+    fontSize: "15px",
+    lineHeight: 1.7,
+  },
+  vehiclePlate: {
+    marginTop: "38px",
+    borderRadius: "22px",
+    backgroundColor: "rgba(255,255,255,0.13)",
+    border: "1px solid rgba(255,255,255,0.18)",
+    padding: "22px",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)",
+  },
+  carBody: {
+    height: "88px",
+    borderRadius: "42px 54px 28px 28px",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(209,238,208,0.88))",
+    position: "relative",
+    boxShadow: "0 18px 34px rgba(0,0,0,0.2)",
+  },
+  carCabin: {
+    position: "absolute",
+    left: "30%",
+    top: "-24px",
+    width: "35%",
+    height: "42px",
+    borderRadius: "34px 34px 10px 10px",
+    background: "linear-gradient(135deg, #BFE9E2, #FFFFFF)",
+    border: "3px solid rgba(255,255,255,0.9)",
+  },
+  carWheelLeft: {
+    position: "absolute",
+    left: "16%",
+    bottom: "-14px",
+    width: "30px",
+    height: "30px",
+    borderRadius: "999px",
+    backgroundColor: "#17231F",
+    border: "6px solid #7DA18E",
+  },
+  carWheelRight: {
+    position: "absolute",
+    right: "16%",
+    bottom: "-14px",
+    width: "30px",
+    height: "30px",
+    borderRadius: "999px",
+    backgroundColor: "#17231F",
+    border: "6px solid #7DA18E",
+  },
+  platePreview: {
+    marginTop: "28px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+  },
+  plateCode: {
+    backgroundColor: "#FFFFFF",
+    color: "#17231F",
+    borderRadius: "10px",
+    padding: "10px 14px",
+    fontSize: "18px",
+    fontWeight: 900,
+    minWidth: "148px",
+    textAlign: "center",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.16)",
+  },
+  statusText: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: "12px",
+    lineHeight: 1.4,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    fontWeight: 800,
   },
   plate: {
     display: "inline-flex",
@@ -75,8 +182,12 @@ const styles: Record<string, CSSProperties> = {
     letterSpacing: "0.03em",
   },
   metricGrid: {
+    position: "relative",
+    zIndex: 1,
     display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
     gap: "10px",
+    marginTop: "34px",
   },
   metric: {
     borderRadius: "14px",
@@ -97,21 +208,22 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 850,
   },
   panel: {
-    padding: "36px",
-    backgroundColor: "rgba(255,255,255,0.96)",
+    padding: "38px",
+    backgroundColor: "rgba(255,255,255,0.94)",
   },
   panelTitle: {
     margin: "0 0 8px",
     color: "#17231F",
-    fontSize: "28px",
+    fontSize: "30px",
     lineHeight: 1.2,
     fontWeight: 850,
   },
   subtitle: {
-    margin: "0 0 26px",
+    margin: 0,
     color: "#66756E",
     fontSize: "14px",
     lineHeight: 1.6,
+    maxWidth: "430px",
   },
   formGrid: {
     display: "grid",
@@ -299,23 +411,34 @@ const styles: Record<string, CSSProperties> = {
   },
 };
 
-function formatLocation(location?: Location | null) {
+function formatLocation(
+  location: Location | null | undefined,
+  resolvedLabel: string,
+) {
   if (!location) return "Konum kaydi yok";
+
+  if (resolvedLabel && resolvedLabel !== "Konum çözümleniyor...") {
+    return resolvedLabel;
+  }
 
   return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
 }
 
 function VehicleProfileScreen() {
   const navigate = useNavigate();
+  const params = useParams();
+  const routeVehicleId = params.vehicleId ?? "";
+  const userId = useMemo(() => getOrCreateLocalUserId(), []);
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState("");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [batteryCapacity, setBatteryCapacity] = useState("");
   const [connectorType, setConnectorType] = useState("");
+  const [connectorOptions, setConnectorOptions] = useState<string[]>([]);
   const [plateNumber, setPlateNumber] = useState("");
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+  const [currentLocationLabel, setCurrentLocationLabel] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -348,9 +471,13 @@ function VehicleProfileScreen() {
         setLoading(true);
         setError("");
 
-        const userVehicles = await getVehiclesByUserId(TEMP_USER_ID);
-
-        setVehicles(userVehicles);
+        let userVehicles: Vehicle[] = [];
+        if (routeVehicleId) {
+          const resolvedVehicle = await getVehicleById(routeVehicleId);
+          userVehicles = resolvedVehicle ? [resolvedVehicle] : [];
+        } else {
+          userVehicles = await getVehiclesByUserId(userId);
+        }
 
         if (userVehicles.length === 0) {
           setVehicleId("");
@@ -367,13 +494,49 @@ function VehicleProfileScreen() {
     };
 
     void loadVehicles();
-  }, []);
+  }, [routeVehicleId, userId]);
 
-  const handleSelectVehicle = (vehicle: Vehicle) => {
-    fillVehicleForm(vehicle);
-    setError("");
-    setSuccess("");
-  };
+  useEffect(() => {
+    let isCancelled = false;
+
+    const resolve = async () => {
+      if (!currentLocation) {
+        setCurrentLocationLabel("");
+        return;
+      }
+
+      setCurrentLocationLabel("Konum çözümleniyor...");
+      const result = await reverseGeocodeCoordinates({
+        lat: currentLocation.latitude,
+        lng: currentLocation.longitude,
+      });
+      if (isCancelled) return;
+      setCurrentLocationLabel(result?.label ?? "");
+    };
+
+    void resolve();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentLocation]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getConnectorTypeOptions()
+      .then((options) => {
+        if (cancelled) return;
+        setConnectorOptions(options);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setConnectorOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const validateForm = () => {
     if (!brand.trim()) return "Brand alani bos birakilamaz.";
@@ -439,7 +602,7 @@ function VehicleProfileScreen() {
       setSuccess("");
 
       await updateVehicle(vehicleId, {
-        userId: TEMP_USER_ID,
+        userId,
         brand: brand.trim(),
         model: model.trim(),
         batteryCapacity: Number(batteryCapacity),
@@ -448,24 +611,14 @@ function VehicleProfileScreen() {
         currentLocation,
       });
 
-      setVehicles((currentVehicles) =>
-        currentVehicles.map((vehicle) =>
-          vehicle.id === vehicleId
-            ? {
-                ...vehicle,
-                userId: TEMP_USER_ID,
-                brand: brand.trim(),
-                model: model.trim(),
-                batteryCapacity: Number(batteryCapacity),
-                connectorType: connectorType.trim(),
-                plateNumber: plateNumber.trim().toUpperCase(),
-                currentLocation,
-                updatedAt: new Date(),
-              }
-            : vehicle,
-        ),
-      );
-      setSuccess("Arac bilgileri guncellendi.");
+      navigate("/app", {
+        state: {
+          snackbar: {
+            message: "Araç bilgileri güncellendi.",
+            variant: "success",
+          },
+        },
+      });
     } catch {
       setError("Arac bilgileri guncellenirken bir hata olustu.");
     } finally {
@@ -477,33 +630,54 @@ function VehicleProfileScreen() {
     <div style={styles.page}>
       <main className="vehicle-profile-shell" style={styles.shell}>
         <section style={styles.summary} aria-label="Vehicle summary">
-          <div>
-            <div style={styles.eyebrow}>EV Network</div>
+          <div style={styles.routeLayer} aria-hidden="true" />
+          <div style={styles.summaryContent}>
+            <div style={styles.eyebrow}>
+              <span style={styles.signalDot} />
+              EV Network
+            </div>
             <h1 style={styles.title}>{displayName}</h1>
             <p style={styles.summaryText}>
-              {vehicles.length} kayitli arac Firestore'dan cekildi. Secili
-              aracin bilgilerini burada guncelleyebilirsiniz.
+              Profil bilgilerini güncelleyin. Soket ve batarya bilgisi, istasyon
+              eşleşmesi için kullanılır.
             </p>
-            <div style={styles.plate}>{displayPlate}</div>
+
+            <div style={styles.vehiclePlate} aria-hidden="true">
+              <div style={styles.carBody}>
+                <div style={styles.carCabin} />
+                <div style={styles.carWheelLeft} />
+                <div style={styles.carWheelRight} />
+              </div>
+
+              <div style={styles.platePreview}>
+                <div>
+                  <div style={styles.statusText}>Aktif profil</div>
+                  <div
+                    style={{ marginTop: "6px", fontSize: "18px", fontWeight: 850 }}
+                  >
+                    {displayName}
+                  </div>
+                </div>
+                <div style={styles.plateCode}>{displayPlate}</div>
+              </div>
+            </div>
           </div>
 
           <div style={styles.metricGrid}>
             <div style={styles.metric}>
-              <div style={styles.metricLabel}>Battery Capacity</div>
-              <div style={styles.metricValue}>
-                {batteryCapacity ? `${batteryCapacity} kWh` : "--"}
-              </div>
+              <div style={styles.metricLabel}>Tahmini Menzil</div>
+              <div style={styles.metricValue}>{estimatedRange}</div>
             </div>
             <div style={styles.metric}>
-              <div style={styles.metricLabel}>Connector Type</div>
+              <div style={styles.metricLabel}>Soket</div>
               <div style={styles.metricValue}>{connectorType || "--"}</div>
             </div>
             <div style={styles.metric}>
-              <div style={styles.metricLabel}>Current Location</div>
-              <div style={styles.metricValue}>
-                {formatLocation(currentLocation)}
+                <div style={styles.metricLabel}>Konum</div>
+                <div style={styles.metricValue}>
+                {formatLocation(currentLocation, currentLocationLabel)}
+                </div>
               </div>
-            </div>
           </div>
         </section>
 
@@ -529,37 +703,6 @@ function VehicleProfileScreen() {
               {success && (
                 <div style={{ ...styles.message, ...styles.success }}>
                   {success}
-                </div>
-              )}
-
-              {vehicles.length > 0 && (
-                <div
-                  className="vehicle-scrollbar"
-                  style={styles.vehicleList}
-                  aria-label="Kayitli araclar"
-                >
-                  {vehicles.map((vehicle) => (
-                    <button
-                      key={vehicle.id}
-                      type="button"
-                      onClick={() => handleSelectVehicle(vehicle)}
-                      style={{
-                        ...styles.vehicleButton,
-                        ...(vehicle.id === vehicleId
-                          ? styles.vehicleButtonActive
-                          : {}),
-                      }}
-                    >
-                      <span style={styles.vehicleButtonTitle}>
-                        {[vehicle.brand, vehicle.model]
-                          .filter(Boolean)
-                          .join(" ") || "Isimsiz arac"}
-                      </span>
-                      <span style={styles.vehicleButtonMeta}>
-                        {vehicle.plateNumber || "Plaka yok"}
-                      </span>
-                    </button>
-                  ))}
                 </div>
               )}
 
@@ -604,17 +747,24 @@ function VehicleProfileScreen() {
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Connector Type</label>
-                  <input
-                    type="text"
+                  <select
                     value={connectorType}
                     onChange={(event) => setConnectorType(event.target.value)}
-                    placeholder="CCS2"
                     style={styles.input}
                     disabled={!vehicleId || saving}
-                  />
+                  >
+                    <option value="" disabled>
+                      Connector seçin
+                    </option>
+                    {connectorOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
 
                   <div style={styles.presetRow}>
-                    {connectorPresets.map((preset) => (
+                    {connectorOptions.map((preset) => (
                       <button
                         key={preset}
                         type="button"
@@ -650,7 +800,7 @@ function VehicleProfileScreen() {
                 <label style={styles.label}>Current Location</label>
                 <div style={styles.locationBox}>
                   <p style={styles.locationText}>
-                    {formatLocation(currentLocation)}
+                    {formatLocation(currentLocation, currentLocationLabel)}
                   </p>
                   <button
                     type="button"
@@ -676,28 +826,10 @@ function VehicleProfileScreen() {
 
               <button
                 type="button"
-                onClick={() => navigate("/register-vehicle")}
+                onClick={() => navigate("/vehicles/new")}
                 style={styles.navigationButton}
               >
-                Arac Kaydina Git
-              </button>
-
-              <button
-                type="button"
-                disabled={!vehicleId}
-                onClick={() =>
-                  navigate("/station-map", {
-                    state: {
-                      vehicleId,
-                    },
-                  })
-                }
-                style={{
-                  ...styles.mapButton,
-                  ...(!vehicleId ? styles.disabledButton : {}),
-                }}
-              >
-                Secili Aracla Istasyon Haritasina Git
+                Yeni Arac Olustur
               </button>
             </form>
           )}

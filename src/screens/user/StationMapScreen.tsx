@@ -11,7 +11,6 @@ import { useNavigate } from "react-router-dom";
 import MapView from "../../components/Map/MapView";
 import StationDetailCard from "../../components/StationDetailCard";
 import { STATION_STATUS_COLORS } from "../../constants/mapConstants";
-import mockStations from "../../data/mockStations";
 import type { Station } from "../../models/Station";
 import type { Vehicle } from "../../models/vehicle";
 import {
@@ -19,32 +18,36 @@ import {
   getVehicleByUserId,
   updateVehicleCurrentLocation,
 } from "../../services/firebase/vehicleService";
-import { TEMP_USER_ID } from "../../services/firebase/userService";
+import { getStationsWithChargers } from "../../services/firebase/stationService";
 import { useGoogleMapsLoader } from "../../services/maps/googleMapsLoader";
 import {
   getCurrentLocation,
   type LocationPermissionState,
   type UserCoordinates,
 } from "../../services/maps/locationService";
+import { calculateDistanceInKilometers } from "../../services/maps/locationService";
+import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
+import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 
 const styles: Record<string, CSSProperties> = {
   page: {
     minHeight: "100vh",
     backgroundColor: "#F6F8F4",
     backgroundImage:
-      "linear-gradient(90deg, rgba(21, 101, 87, 0.07) 1px, transparent 1px), linear-gradient(180deg, rgba(21, 101, 87, 0.06) 1px, transparent 1px), linear-gradient(135deg, #F6F8F4 0%, #ECF5EE 48%, #F9FBF6 100%)",
-    backgroundSize: "34px 34px, 34px 34px, 100% 100%",
+      "linear-gradient(135deg, #F6F8F4 0%, #ECF5EE 48%, #F9FBF6 100%)",
+    backgroundSize: "100% 100%",
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
-    padding: "32px 18px",
+    padding: "32px 18px 64px",
+    overflowY: "auto",
     fontFamily:
       "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     color: "#17231F",
     boxSizing: "border-box",
   },
   shell: {
-    width: "min(1120px, 100%)",
+    width: "min(1280px, 100%)",
     display: "grid",
     gridTemplateColumns: "0.92fr 1.08fr",
     borderRadius: "28px",
@@ -114,103 +117,204 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "15px",
     lineHeight: 1.7,
   },
-  heroCard: {
-    marginTop: "38px",
+  locationStrip: {
+    marginTop: "22px",
     borderRadius: "22px",
     backgroundColor: "rgba(255,255,255,0.13)",
     border: "1px solid rgba(255,255,255,0.18)",
-    padding: "22px",
+    padding: "16px",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)",
-  },
-  heroMap: {
-    height: "170px",
-    borderRadius: "18px",
-    position: "relative",
-    overflow: "hidden",
-    background:
-      "radial-gradient(circle at 20% 30%, rgba(184,240,97,0.34), transparent 32%), linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.04))",
-    border: "1px solid rgba(255,255,255,0.14)",
-  },
-  heroGrid: {
-    position: "absolute",
-    inset: 0,
-    backgroundImage:
-      "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px)",
-    backgroundSize: "32px 32px",
-  },
-  heroLineOne: {
-    position: "absolute",
-    width: "78%",
-    height: "3px",
-    left: "11%",
-    top: "42%",
-    borderRadius: "999px",
-    transform: "rotate(-18deg)",
-    background:
-      "linear-gradient(90deg, rgba(255,255,255,0.18), rgba(184,240,97,0.95), rgba(255,255,255,0.12))",
-    boxShadow: "0 0 26px rgba(184,240,97,0.34)",
-  },
-  heroLineTwo: {
-    position: "absolute",
-    width: "56%",
-    height: "3px",
-    left: "18%",
-    top: "60%",
-    borderRadius: "999px",
-    transform: "rotate(11deg)",
-    background:
-      "linear-gradient(90deg, rgba(255,255,255,0.10), rgba(255,255,255,0.85), rgba(255,255,255,0.08))",
-  },
-  heroPin: {
-    position: "absolute",
-    right: "20%",
-    top: "28%",
-    width: "22px",
-    height: "22px",
-    borderRadius: "999px 999px 999px 0",
-    transform: "rotate(-45deg)",
-    backgroundColor: "#B8F061",
-    boxShadow: "0 10px 30px rgba(184,240,97,0.45)",
-  },
-  heroPinInner: {
-    position: "absolute",
-    width: "9px",
-    height: "9px",
-    borderRadius: "999px",
-    backgroundColor: "#1F5E4D",
-    top: "6px",
-    left: "6px",
-  },
-  locationMeta: {
-    marginTop: "24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
     gap: "12px",
+    alignItems: "center",
+  },
+  selectedRow: {
+    marginTop: "14px",
+    borderRadius: "18px",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    padding: "12px 14px",
+  },
+  selectedLabel: {
+    color: "rgba(255,255,255,0.66)",
+    fontSize: "11px",
+    fontWeight: 800,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+  },
+  selectedValue: {
+    marginTop: "6px",
+    fontSize: "15px",
+    fontWeight: 900,
+    lineHeight: 1.35,
   },
   locationStatus: {
     color: "rgba(255,255,255,0.72)",
-    fontSize: "12px",
+    fontSize: "11px",
     lineHeight: 1.4,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
-    fontWeight: 800,
+    fontWeight: 850,
   },
   locationValue: {
     marginTop: "6px",
-    fontSize: "18px",
-    fontWeight: 850,
+    fontSize: "16px",
+    fontWeight: 900,
   },
   chip: {
     backgroundColor: "#FFFFFF",
     color: "#17231F",
-    borderRadius: "10px",
+    borderRadius: "999px",
     padding: "10px 14px",
-    fontSize: "18px",
+    fontSize: "13px",
     fontWeight: 900,
-    minWidth: "132px",
+    minWidth: "110px",
     textAlign: "center",
     boxShadow: "0 8px 20px rgba(0,0,0,0.16)",
+  },
+  filterCard: {
+    marginTop: "16px",
+    borderRadius: "22px",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    padding: "16px",
+  },
+  filterTitle: {
+    margin: 0,
+    color: "rgba(255,255,255,0.78)",
+    fontSize: "11px",
+    fontWeight: 850,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+  },
+  searchInput: {
+    width: "100%",
+    minHeight: "44px",
+    marginTop: "12px",
+    padding: "10px 12px",
+    borderRadius: "14px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    color: "#FFFFFF",
+    outline: "none",
+    fontSize: "14px",
+    fontWeight: 750,
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
+  filterRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    marginTop: "12px",
+  },
+  filterToggle: {
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    color: "rgba(255,255,255,0.86)",
+    minHeight: "36px",
+    padding: "0 12px",
+    fontSize: "12px",
+    fontWeight: 850,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  filterToggleActive: {
+    backgroundColor: "rgba(184,240,97,0.18)",
+    borderColor: "rgba(184,240,97,0.42)",
+    color: "#FFFFFF",
+    boxShadow: "0 0 0 3px rgba(184,240,97,0.12)",
+  },
+  listCard: {
+    marginTop: "16px",
+    borderRadius: "22px",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    padding: "16px",
+  },
+  listHeader: {
+    display: "flex",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: "12px",
+  },
+  listTitle: {
+    margin: 0,
+    color: "rgba(255,255,255,0.78)",
+    fontSize: "11px",
+    fontWeight: 850,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+  },
+  listCount: {
+    color: "rgba(255,255,255,0.70)",
+    fontSize: "12px",
+    fontWeight: 850,
+  },
+  stationList: {
+    marginTop: "12px",
+    display: "grid",
+    gap: "10px",
+  },
+  listToggle: {
+    marginTop: "12px",
+    width: "100%",
+    minHeight: "40px",
+    borderRadius: "14px",
+    border: "1px solid rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    color: "rgba(255,255,255,0.88)",
+    fontSize: "12px",
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease",
+  },
+  chevron: {
+    width: "10px",
+    height: "10px",
+    borderRight: "2px solid rgba(255,255,255,0.78)",
+    borderBottom: "2px solid rgba(255,255,255,0.78)",
+    transform: "rotate(45deg)",
+  },
+  chevronUp: {
+    transform: "rotate(225deg)",
+  },
+  stationButton: {
+    width: "100%",
+    textAlign: "left",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    padding: "12px 12px 11px",
+    color: "#FFFFFF",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease",
+  },
+  stationButtonActive: {
+    boxShadow: "0 0 0 3px rgba(184,240,97,0.14), 0 14px 28px rgba(0,0,0,0.22)",
+    transform: "translateY(-1px)",
+  },
+  stationName: {
+    display: "block",
+    fontSize: "13px",
+    fontWeight: 900,
+    letterSpacing: "-0.01em",
+  },
+  stationMeta: {
+    display: "block",
+    marginTop: "6px",
+    color: "rgba(255,255,255,0.74)",
+    fontSize: "12px",
+    fontWeight: 750,
+    lineHeight: 1.45,
   },
   metricGrid: {
     position: "relative",
@@ -239,6 +343,7 @@ const styles: Record<string, CSSProperties> = {
   },
   mapPanel: {
     padding: "38px",
+    minHeight: "680px",
     backgroundColor: "rgba(255,255,255,0.94)",
     display: "flex",
     flexDirection: "column",
@@ -575,11 +680,13 @@ function getProgressValue(
 function StationMapScreen() {
   const location = useLocation();
   const navigate = useNavigate();
+  const userId = useMemo(() => getOrCreateLocalUserId(), []);
   const { isLoaded, isLoading: mapsLoading, errorMessage: mapsError } =
     useGoogleMapsLoader();
   const [permissionState, setPermissionState] =
     useState<LocationPermissionState>("idle");
   const [coords, setCoords] = useState<UserCoordinates | null>(null);
+  const [coordsLabel, setCoordsLabel] = useState<string>("");
   const [message, setMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [locationUpdateError, setLocationUpdateError] = useState("");
@@ -587,7 +694,109 @@ function StationMapScreen() {
   const [vehicleId, setVehicleId] = useState("");
   const [locationUpdateLoading, setLocationUpdateLoading] = useState(false);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [stationSearch, setStationSearch] = useState("");
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [stationsError, setStationsError] = useState("");
   const vehicleIdRef = useRef("");
+
+  const stationCounts = useMemo(() => {
+    const totalStations = stations.length;
+    const availableStations = stations.filter((station) => {
+      if (station.status !== "available") {
+        return false;
+      }
+
+      return station.chargers.some((charger) => charger.status === "available");
+    }).length;
+
+    return {
+      totalStations,
+      availableStations,
+    };
+  }, [stations]);
+
+  const filteredStations = useMemo(() => {
+    const query = stationSearch.trim().toLowerCase();
+
+    return stations.filter((station) => {
+      if (onlyAvailable) {
+        if (station.status !== "available") {
+          return false;
+        }
+
+        const hasAvailableCharger = station.chargers.some(
+          (charger) => charger.status === "available",
+        );
+        if (!hasAvailableCharger) {
+          return false;
+        }
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const name = station.name?.toLowerCase() ?? "";
+      const address = station.address?.toLowerCase() ?? "";
+      return name.includes(query) || address.includes(query);
+    });
+  }, [onlyAvailable, stationSearch, stations]);
+
+  const nearbyStations = useMemo(() => {
+    const withDistance = filteredStations.map((station) => {
+      if (!coords) {
+        return { station, distanceKm: null as number | null };
+      }
+
+      return {
+        station,
+        distanceKm: calculateDistanceInKilometers(coords, station),
+      };
+    });
+
+    withDistance.sort((a, b) => {
+      if (a.distanceKm == null && b.distanceKm == null) {
+        return a.station.name.localeCompare(b.station.name);
+      }
+      if (a.distanceKm == null) return 1;
+      if (b.distanceKm == null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
+
+    return withDistance.slice(0, 8);
+  }, [coords, filteredStations]);
+
+  const visibleNearbyStations = useMemo(() => {
+    if (isNearbyExpanded) {
+      return nearbyStations;
+    }
+
+    return nearbyStations.slice(0, 3);
+  }, [isNearbyExpanded, nearbyStations]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getStationsWithChargers()
+      .then((result) => {
+        if (cancelled) return;
+        setStations(result);
+        setStationsError(
+          result.length
+            ? ""
+            : "İstasyon verisi bulunamadı. Admin panelden stations/chargers seed edebilirsiniz.",
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStationsError("İstasyon verisi alınamadı. Firestore bağlantısını kontrol edin.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -597,7 +806,7 @@ function StationMapScreen() {
 
         const vehicle = selectedVehicleId
           ? await getVehicleById(selectedVehicleId)
-          : await getVehicleByUserId(TEMP_USER_ID);
+          : await getVehicleByUserId(userId);
 
         setVehicle(vehicle);
         setVehicleId(vehicle?.id ?? "");
@@ -608,11 +817,34 @@ function StationMapScreen() {
     };
 
     void loadVehicle();
-  }, [location.state]);
+  }, [location.state, userId]);
 
   useEffect(() => {
     vehicleIdRef.current = vehicleId;
   }, [vehicleId]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const resolveAddress = async () => {
+      if (!coords) {
+        setCoordsLabel("");
+        return;
+      }
+
+      setCoordsLabel("Konum çözümleniyor...");
+      const result = await reverseGeocodeCoordinates(coords);
+      if (isCancelled) return;
+
+      setCoordsLabel(result?.label ?? "");
+    };
+
+    void resolveAddress();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [coords]);
 
   const requestLocation = useCallback(
     async ({ persistToVehicle = false }: RequestLocationOptions = {}) => {
@@ -726,40 +958,116 @@ function StationMapScreen() {
               ekranda gosterir.
             </p>
 
-            <div style={styles.heroCard}>
-              <div style={styles.heroMap} aria-hidden="true">
-                <div style={styles.heroGrid} />
-                <div style={styles.heroLineOne} />
-                <div style={styles.heroLineTwo} />
-                <div style={styles.heroPin}>
-                  <div style={styles.heroPinInner} />
-                </div>
-              </div>
-
-              <div style={styles.locationMeta}>
+            <div style={styles.locationStrip}>
                 <div>
                   <div style={styles.locationStatus}>Guncel konum</div>
                   <div style={styles.locationValue}>
-                    {coords ? formatCoordinates(coords) : "Konum bekleniyor"}
+                    {coords
+                      ? coordsLabel && coordsLabel !== "Konum çözümleniyor..."
+                        ? coordsLabel
+                        : formatCoordinates(coords)
+                      : "Konum bekleniyor"}
                   </div>
                 </div>
                 <div style={styles.chip}>{getStatusText(permissionState)}</div>
               </div>
+
+            {selectedStation && (
+              <div style={styles.selectedRow}>
+                <div style={styles.selectedLabel}>Secili istasyon</div>
+                <div style={styles.selectedValue}>{selectedStation.name}</div>
+              </div>
+            )}
+
+            <div style={styles.filterCard}>
+              <p style={styles.filterTitle}>Arama ve Filtre</p>
+              <input
+                value={stationSearch}
+                onChange={(event) => setStationSearch(event.target.value)}
+                placeholder="İstasyon adı veya adres ara..."
+                style={styles.searchInput}
+              />
+
+              <div style={styles.filterRow}>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.filterToggle,
+                    ...(onlyAvailable ? styles.filterToggleActive : {}),
+                  }}
+                  onClick={() => setOnlyAvailable((current) => !current)}
+                >
+                  Sadece uygun
+                </button>
+              </div>
+            </div>
+
+            <div style={styles.listCard}>
+              <div style={styles.listHeader}>
+                <p style={styles.listTitle}>Yakınımdakiler</p>
+                <div style={styles.listCount}>{filteredStations.length} istasyon</div>
+              </div>
+
+              <div style={styles.stationList}>
+                {visibleNearbyStations.map(({ station, distanceKm }) => {
+                  const isActive = station.id === selectedStation?.id;
+                  const distanceLabel =
+                    distanceKm == null
+                      ? "Konum yok"
+                      : distanceKm < 1
+                        ? `${Math.round(distanceKm * 1000)} m`
+                        : `${distanceKm.toFixed(1)} km`;
+
+                  return (
+                    <button
+                      key={station.id}
+                      type="button"
+                      style={{
+                        ...styles.stationButton,
+                        ...(isActive ? styles.stationButtonActive : {}),
+                      }}
+                      onClick={() => setSelectedStation(station)}
+                    >
+                      <span style={styles.stationName}>{station.name}</span>
+                      <span style={styles.stationMeta}>
+                        {distanceLabel} · {station.status}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {nearbyStations.length > 3 && (
+                <button
+                  type="button"
+                  style={styles.listToggle}
+                  onClick={() => setIsNearbyExpanded((current) => !current)}
+                >
+                  <span>{isNearbyExpanded ? "Daha az goster" : "Tumunu goster"}</span>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      ...styles.chevron,
+                      ...(isNearbyExpanded ? styles.chevronUp : {}),
+                    }}
+                  />
+                </button>
+              )}
             </div>
           </div>
 
           <div style={styles.metricGrid}>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{coords ? "Canli" : "--"}</div>
-              <div style={styles.metricLabel}>Konum noktasi</div>
+              <div style={styles.metricLabel}>Konum</div>
             </div>
             <div style={styles.metric}>
-              <div style={styles.metricValue}>{mockStations.length}</div>
-              <div style={styles.metricLabel}>Mock station</div>
+              <div style={styles.metricValue}>{stationCounts.totalStations}</div>
+              <div style={styles.metricLabel}>Istasyon</div>
             </div>
             <div style={styles.metric}>
-              <div style={styles.metricValue}>Google Maps</div>
-              <div style={styles.metricLabel}>Harita motoru</div>
+              <div style={styles.metricValue}>{stationCounts.availableStations}</div>
+              <div style={styles.metricLabel}>Uygun</div>
             </div>
           </div>
         </section>
@@ -799,10 +1107,16 @@ function StationMapScreen() {
                 <div style={styles.infoValue}>{getStatusText(permissionState)}</div>
               </div>
               <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Koordinatlar</div>
-                <div style={styles.infoValue}>{formatCoordinates(coords)}</div>
+                <div style={styles.infoLabel}>Konum</div>
+                <div style={styles.infoValue}>
+                  {coords
+                    ? coordsLabel && coordsLabel !== "Konum çözümleniyor..."
+                      ? coordsLabel
+                      : formatCoordinates(coords)
+                    : "--"}
+                </div>
               </div>
-            </div>
+              </div>
 
             <div style={styles.statusLegend}>
               {statusSummary.map((status) => (
@@ -848,11 +1162,18 @@ function StationMapScreen() {
               </div>
             )}
 
+            {stationsError && (
+              <div style={{ ...styles.message, ...styles.errorMessage }}>
+                <span>!</span>
+                <span>{stationsError}</span>
+              </div>
+            )}
+
             {shouldShowMap ? (
               <div style={styles.mapFrame}>
                 <MapView
                   userLocation={coords}
-                  stations={mockStations}
+                  stations={filteredStations}
                   selectedStationId={selectedStation?.id ?? null}
                   onSelectStation={handleSelectStation}
                 />
@@ -901,18 +1222,13 @@ function StationMapScreen() {
 
               <button
                 type="button"
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/app")}
                 style={styles.secondaryButton}
                 disabled={locationUpdateLoading}
               >
                 Arac Profiline Don
               </button>
             </div>
-          </div>
-
-          <div style={styles.footer}>
-            Google Maps API anahtari `.env` icinde `VITE_GOOGLE_MAPS_API_KEY`
-            olarak okunur.
           </div>
         </section>
       </main>
