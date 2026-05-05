@@ -11,7 +11,6 @@ import { useNavigate } from "react-router-dom";
 import MapView from "../../components/Map/MapView";
 import StationDetailCard from "../../components/StationDetailCard";
 import { STATION_STATUS_COLORS } from "../../constants/mapConstants";
-import mockStations from "../../data/mockStations";
 import type { Station } from "../../models/Station";
 import type { Vehicle } from "../../models/vehicle";
 import {
@@ -19,6 +18,7 @@ import {
   getVehicleByUserId,
   updateVehicleCurrentLocation,
 } from "../../services/firebase/vehicleService";
+import { getStationsWithChargers } from "../../services/firebase/stationService";
 import { useGoogleMapsLoader } from "../../services/maps/googleMapsLoader";
 import {
   getCurrentLocation,
@@ -697,11 +697,13 @@ function StationMapScreen() {
   const [stationSearch, setStationSearch] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [stationsError, setStationsError] = useState("");
   const vehicleIdRef = useRef("");
 
   const stationCounts = useMemo(() => {
-    const totalStations = mockStations.length;
-    const availableStations = mockStations.filter((station) => {
+    const totalStations = stations.length;
+    const availableStations = stations.filter((station) => {
       if (station.status !== "available") {
         return false;
       }
@@ -713,12 +715,12 @@ function StationMapScreen() {
       totalStations,
       availableStations,
     };
-  }, []);
+  }, [stations]);
 
   const filteredStations = useMemo(() => {
     const query = stationSearch.trim().toLowerCase();
 
-    return mockStations.filter((station) => {
+    return stations.filter((station) => {
       if (onlyAvailable) {
         if (station.status !== "available") {
           return false;
@@ -740,7 +742,7 @@ function StationMapScreen() {
       const address = station.address?.toLowerCase() ?? "";
       return name.includes(query) || address.includes(query);
     });
-  }, [onlyAvailable, stationSearch]);
+  }, [onlyAvailable, stationSearch, stations]);
 
   const nearbyStations = useMemo(() => {
     const withDistance = filteredStations.map((station) => {
@@ -773,6 +775,28 @@ function StationMapScreen() {
 
     return nearbyStations.slice(0, 3);
   }, [isNearbyExpanded, nearbyStations]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getStationsWithChargers()
+      .then((result) => {
+        if (cancelled) return;
+        setStations(result);
+        setStationsError(
+          result.length
+            ? ""
+            : "İstasyon verisi bulunamadı. Admin panelden stations/chargers seed edebilirsiniz.",
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStationsError("İstasyon verisi alınamadı. Firestore bağlantısını kontrol edin.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -1135,6 +1159,13 @@ function StationMapScreen() {
               <div style={{ ...styles.message, ...styles.errorMessage }}>
                 <span>!</span>
                 <span>{locationUpdateError}</span>
+              </div>
+            )}
+
+            {stationsError && (
+              <div style={{ ...styles.message, ...styles.errorMessage }}>
+                <span>!</span>
+                <span>{stationsError}</span>
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChargerItem from "./ChargerItem";
 import ReportIssueModal from "./ReportIssueModal";
@@ -10,6 +10,7 @@ import {
   calculateDistanceInKilometers,
   type UserCoordinates,
 } from "../services/maps/locationService";
+import { reverseGeocodeCoordinates } from "../services/maps/geocodingService";
 
 interface StationDetailCardProps {
   station: Station;
@@ -210,6 +211,7 @@ function StationDetailCard({
     null,
   );
   const [reportSuccessMessage, setReportSuccessMessage] = useState("");
+  const [stationLocationLabel, setStationLocationLabel] = useState<string>("");
 
   const handleReserve = (charger: Charger) => {
     navigate("/reservation", {
@@ -245,6 +247,25 @@ function StationDetailCard({
         : "İstasyon için sorun bildirimi kaydedildi.",
     );
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    setStationLocationLabel("");
+
+    reverseGeocodeCoordinates({ lat: station.latitude, lng: station.longitude })
+      .then((result) => {
+        if (cancelled) return;
+        setStationLocationLabel(result?.label?.trim() ?? "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStationLocationLabel("");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [station.id, station.latitude, station.longitude]);
 
   return (
     <div className="station-detail-overlay" style={styles.overlay} onClick={onClose}>
@@ -300,9 +321,9 @@ function StationDetailCard({
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Coordinates</div>
+            <div style={styles.label}>Konum</div>
             <div style={styles.value}>
-              {station.latitude.toFixed(5)}, {station.longitude.toFixed(5)}
+              {stationLocationLabel || station.address}
             </div>
           </div>
 

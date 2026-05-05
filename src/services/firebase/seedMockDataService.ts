@@ -1,6 +1,8 @@
-import type { Station } from "../models/Station";
+import { upsertChargers } from "./chargerService";
+import { upsertStations } from "./stationService";
+import type { Station } from "../../models/Station";
 
-export const mockStations: Station[] = [
+const SEED_STATIONS: Station[] = [
   {
     id: "station-izmir-001",
     name: "Alsancak Charging Point",
@@ -171,4 +173,9 @@ export const mockStations: Station[] = [
   },
 ];
 
-export default mockStations;
+export async function seedMockStationsAndChargersToFirestore() {
+  await Promise.all([
+    upsertStations(SEED_STATIONS),
+    upsertChargers(SEED_STATIONS.flatMap((station) => station.chargers ?? [])),
+  ]);
+}

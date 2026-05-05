@@ -4,7 +4,6 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
-import { mockStations } from "../../data/mockStations";
 
 type ChargingSessionDoc = {
   reservationId: string;
@@ -114,7 +113,10 @@ export async function fetchAdminTimeSeries(days = 14) {
 }
 
 export async function fetchRevenueReport() {
-  const sessionsSnap = await getDocs(collection(db, "chargingSessions"));
+  const [sessionsSnap, stationsSnap] = await Promise.all([
+    getDocs(collection(db, "chargingSessions")),
+    getDocs(collection(db, "stations")),
+  ]);
 
   let totalRevenue = 0;
   const revenueByStation: Record<string, number> = {};
@@ -133,7 +135,12 @@ export async function fetchRevenueReport() {
   const sessionCount = sessionsSnap.size;
   const averageRevenuePerSession = sessionCount ? round2(totalRevenue / sessionCount) : 0;
 
-  const stationNameById = new Map(mockStations.map((station) => [station.id, station.name]));
+  const stationNameById = new Map(
+    stationsSnap.docs.map((doc) => {
+      const data = doc.data() as { name?: unknown };
+      return [doc.id, typeof data.name === "string" ? data.name : doc.id] as const;
+    }),
+  );
 
   const revenueByStationRows = Object.entries(revenueByStation)
     .map(([stationId, revenue]) => ({
@@ -154,7 +161,7 @@ export async function fetchStationStatistics() {
   const stationsSnap = await getDocs(collection(db, "stations")).catch(() => null);
   const stations =
     stationsSnap?.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Record<string, unknown>) })) ??
-    mockStations;
+    [];
 
   const reservationsSnap = await getDocs(collection(db, "reservations")).catch(() => null);
 

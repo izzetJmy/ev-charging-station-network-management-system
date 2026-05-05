@@ -16,6 +16,8 @@ import AdminLayout from "./screens/admin/AdminLayout";
 import AdminDashboardScreen from "./screens/admin/AdminDashboardScreen";
 import RevenueReportScreen from "./screens/admin/RevenueReportScreen";
 import StationStatisticsScreen from "./screens/admin/StationStatisticsScreen";
+import AdminReportsScreen from "./screens/admin/AdminReportsScreen";
+import StationChargerManagementScreen from "./screens/admin/StationChargerManagementScreen";
 
 function App() {
   return (
@@ -36,8 +38,10 @@ function App() {
         <Route element={<RequireAdmin />}>
           <Route element={<AdminLayout />}>
             <Route path="/admin/dashboard" element={<AdminDashboardScreen />} />
+            <Route path="/admin/reports" element={<AdminReportsScreen />} />
             <Route path="/admin/revenue" element={<RevenueReportScreen />} />
             <Route path="/admin/stations" element={<StationStatisticsScreen />} />
+            <Route path="/admin/manage" element={<StationChargerManagementScreen />} />
           </Route>
         </Route>
       </Routes>

@@ -4,8 +4,8 @@ import { GoogleMap } from "@react-google-maps/api";
 import StationMarkers from "../../components/Map/StationMarkers";
 import { useGoogleMapsLoader } from "../../services/maps/googleMapsLoader";
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, MAP_CONTAINER_STYLE, MAP_OPTIONS } from "../../constants/mapConstants";
-import { mockStations } from "../../data/mockStations";
 import type { Station } from "../../models/Station";
+import { getStationsWithChargers } from "../../services/firebase/stationService";
 
 const styles: Record<string, CSSProperties> = {
   title: {
@@ -199,6 +199,7 @@ function round2(value: number) {
 export default function StationStatisticsScreen() {
   const { isLoaded } = useGoogleMapsLoader();
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+  const [stationsForMap, setStationsForMap] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{
@@ -234,11 +235,25 @@ export default function StationStatisticsScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    getStationsWithChargers()
+      .then((result) => {
+        if (cancelled) return;
+        setStationsForMap(result);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStationsForMap([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const sessionRows = useMemo(() => data?.sessionCountByStation ?? [], [data]);
   const energyRows = useMemo(() => data?.energyConsumedByStation ?? [], [data]);
   const revenueRows = useMemo(() => data?.revenueByStation ?? [], [data]);
-
-  const stationsForMap = useMemo(() => mockStations as unknown as Station[], []);
   const selectedStation = useMemo(
     () => stationsForMap.find((s) => s.id === selectedStationId) ?? null,
     [stationsForMap, selectedStationId],

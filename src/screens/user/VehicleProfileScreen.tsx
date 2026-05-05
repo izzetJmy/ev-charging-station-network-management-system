@@ -12,7 +12,7 @@ import type { Location, Vehicle } from "../../models/vehicle";
 import { getCurrentLocation } from "../../services/maps/locationService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
-import { CONNECTOR_TYPE_OPTIONS } from "../../constants/connectorTypes";
+import { getConnectorTypeOptions } from "../../services/firebase/chargerService";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -435,6 +435,7 @@ function VehicleProfileScreen() {
   const [model, setModel] = useState("");
   const [batteryCapacity, setBatteryCapacity] = useState("");
   const [connectorType, setConnectorType] = useState("");
+  const [connectorOptions, setConnectorOptions] = useState<string[]>([]);
   const [plateNumber, setPlateNumber] = useState("");
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [currentLocationLabel, setCurrentLocationLabel] = useState("");
@@ -519,6 +520,23 @@ function VehicleProfileScreen() {
       isCancelled = true;
     };
   }, [currentLocation]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getConnectorTypeOptions()
+      .then((options) => {
+        if (cancelled) return;
+        setConnectorOptions(options);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setConnectorOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const validateForm = () => {
     if (!brand.trim()) return "Brand alani bos birakilamaz.";
@@ -738,7 +756,7 @@ function VehicleProfileScreen() {
                     <option value="" disabled>
                       Connector seçin
                     </option>
-                    {CONNECTOR_TYPE_OPTIONS.map((option) => (
+                    {connectorOptions.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>
@@ -746,7 +764,7 @@ function VehicleProfileScreen() {
                   </select>
 
                   <div style={styles.presetRow}>
-                    {CONNECTOR_TYPE_OPTIONS.map((preset) => (
+                    {connectorOptions.map((preset) => (
                       <button
                         key={preset}
                         type="button"

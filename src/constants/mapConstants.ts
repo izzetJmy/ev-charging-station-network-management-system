@@ -9,7 +9,7 @@ export const DEFAULT_MAP_CENTER = {
 
 export const DEFAULT_MAP_ZOOM = 13;
 export const FOCUSED_MAP_ZOOM = 15;
-export const GOOGLE_MAPS_LIBRARIES: Libraries = [];
+export const GOOGLE_MAPS_LIBRARIES: Libraries = ["places"];
 
 export const MAP_CONTAINER_STYLE: CSSProperties = {
   width: "100%",

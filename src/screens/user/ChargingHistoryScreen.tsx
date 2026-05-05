@@ -2,7 +2,6 @@ import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { Charger } from "../../models/Charger";
 import type { Station } from "../../models/Station";
-import mockStations from "../../data/mockStations";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { getVehicleById, getVehicleByUserId } from "../../services/firebase/vehicleService";
 import type { Vehicle } from "../../models/vehicle";
@@ -14,6 +13,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "../../services/firebase/firebaseConfig";
+import { getStationsWithChargers } from "../../services/firebase/stationService";
 
 interface ChargingHistoryLocationState {
   vehicleId?: string;
@@ -225,15 +225,6 @@ const styles: Record<string, CSSProperties> = {
   },
 };
 
-function resolveStation(session: ChargingSessionRecord): Station | null {
-  return mockStations.find((station) => station.id === session.stationId) ?? null;
-}
-
-function resolveCharger(session: ChargingSessionRecord): Charger | null {
-  const station = resolveStation(session);
-  return station?.chargers.find((charger) => charger.id === session.chargerId) ?? null;
-}
-
 function formatCreatedAt(createdAt: unknown) {
   const asAny = createdAt as { toDate?: () => Date } | null;
   const date = asAny?.toDate?.() ?? null;
@@ -259,6 +250,8 @@ export default function ChargingHistoryScreen() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [vehicleLoading, setVehicleLoading] = useState(true);
   const [sessions, setSessions] = useState<ChargingSessionRecord[]>([]);
+  const [stationsById, setStationsById] = useState<Record<string, Station>>({});
+  const [chargersById, setChargersById] = useState<Record<string, Charger>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -277,6 +270,32 @@ export default function ChargingHistoryScreen() {
     };
     void loadVehicle();
   }, [requestedVehicleId, userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getStationsWithChargers()
+      .then((stations) => {
+        if (cancelled) return;
+        const stationMap: Record<string, Station> = {};
+        const chargerMap: Record<string, Charger> = {};
+        for (const station of stations) {
+          stationMap[station.id] = station;
+          for (const charger of station.chargers ?? []) {
+            chargerMap[charger.id] = charger;
+          }
+        }
+        setStationsById(stationMap);
+        setChargersById(chargerMap);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStationsById({});
+        setChargersById({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -355,8 +374,8 @@ export default function ChargingHistoryScreen() {
             {!error && sessions.length > 0 && (
               <div style={styles.list}>
                 {sessions.map((session) => {
-                  const station = resolveStation(session);
-                  const charger = resolveCharger(session);
+                  const station = stationsById[session.stationId] ?? null;
+                  const charger = chargersById[session.chargerId] ?? null;
                   const stationName = station?.name ?? session.stationId;
                   const chargerInfo = charger
                     ? `${charger.connectorType} • ${charger.powerOutput} • ${charger.type}`
