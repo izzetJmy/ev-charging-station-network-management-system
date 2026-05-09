@@ -473,7 +473,7 @@ export default function StationChargerManagementScreen() {
         }
       })
       .catch(() => {
-        setError("Veriler alınamadı. Firestore bağlantısını kontrol edin.");
+        setError("Veriler alinamadi. Firestore baglantisini kontrol edin.");
       })
       .finally(() => setLoading(false));
   };
@@ -592,19 +592,19 @@ export default function StationChargerManagementScreen() {
     const parsed = safeParseLatLng(stationDraft.latitude, stationDraft.longitude);
 
     if (!id) {
-      setStationError("Station ID boş bırakılamaz.");
+      setStationError("Station ID bos birakilamaz.");
       return;
     }
     if (!name) {
-      setStationError("İstasyon adı boş bırakılamaz.");
+      setStationError("Istasyon adi bos birakilamaz.");
       return;
     }
     if (!address) {
-      setStationError("Adres boş bırakılamaz.");
+      setStationError("Adres bos birakilamaz.");
       return;
     }
     if (!parsed) {
-      setStationError("Konum seçilmelidir (harita veya arama ile).");
+      setStationError("Konum secilmelidir (harita veya arama ile).");
       return;
     }
 
@@ -629,10 +629,10 @@ export default function StationChargerManagementScreen() {
 
       navigate(location.pathname, {
         replace: true,
-        state: { snackbar: { message: "İstasyon kaydedildi.", variant: "success" } },
+        state: { snackbar: { message: "Istasyon kaydedildi.", variant: "success" } },
       });
     } catch {
-      setStationError("İstasyon kaydedilemedi.");
+      setStationError("Istasyon kaydedilemedi.");
     } finally {
       setStationSaving(false);
     }
@@ -644,13 +644,13 @@ export default function StationChargerManagementScreen() {
 
     const id = chargerDraft.id.trim();
     if (!id) {
-      setChargerError("Charger ID boş bırakılamaz.");
+      setChargerError("Charger ID bos birakilamaz.");
       return;
     }
 
     const price = Number(chargerDraft.pricePerKwh);
     if (!Number.isFinite(price) || price < 0) {
-      setChargerError("Geçerli bir kWh ücreti girin.");
+      setChargerError("Gecerli bir kWh ucreti girin.");
       return;
     }
 
@@ -677,10 +677,10 @@ export default function StationChargerManagementScreen() {
 
       navigate(location.pathname, {
         replace: true,
-        state: { snackbar: { message: "Şarj cihazı kaydedildi.", variant: "success" } },
+        state: { snackbar: { message: "Sarj cihazi kaydedildi.", variant: "success" } },
       });
     } catch {
-      setChargerError("Şarj cihazı kaydedilemedi.");
+      setChargerError("Sarj cihazi kaydedilemedi.");
     } finally {
       setChargerSaving(false);
     }
@@ -693,7 +693,7 @@ export default function StationChargerManagementScreen() {
       const result = await reverseGeocodeCoordinates({ lat: coords.lat, lng: coords.lng });
       const label = result?.label?.trim() ?? "";
       const full = result?.fullAddress?.trim() ?? "";
-      const fallback = label || full || "Seçilen konum";
+      const fallback = label || full || "Secilen konum";
 
       setPickedAddressLabel(fallback);
       setPickedFullAddress(full || fallback);
@@ -706,9 +706,9 @@ export default function StationChargerManagementScreen() {
     <div>
       <div style={styles.headerRow}>
         <div>
-          <h2 style={styles.title}>İstasyon & Şarj Cihazı Yönetimi</h2>
+          <h2 style={styles.title}>Istasyon & Sarj Cihazi Yonetimi</h2>
           <p style={styles.subtitle}>
-            İstasyonları ve şarj cihazlarını Firestore’a ekleyin/güncelleyin. Seçili istasyona ait charger’ları sağ panelden yönetin.
+            Istasyonlari ve sarj cihazlarini Firestore'a ekleyin/guncelleyin. Secili istasyona ait charger'lari sag panelden yonetin.
           </p>
         </div>
         <div style={styles.actions}>
@@ -716,7 +716,7 @@ export default function StationChargerManagementScreen() {
             Yenile
           </button>
           <button type="button" style={styles.primaryButton} onClick={() => openNewStation()}>
-            Yeni İstasyon
+            Yeni Istasyon
           </button>
         </div>
       </div>
@@ -726,20 +726,20 @@ export default function StationChargerManagementScreen() {
           <div style={styles.label}>Arama</div>
           <input
             style={styles.input}
-            placeholder="İstasyon adı / ID / adres…"
+            placeholder="Istasyon adi / ID / adres..."
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
           />
         </div>
         <div style={styles.field}>
-          <div style={styles.label}>Seçili</div>
+          <div style={styles.label}>Secili</div>
           <select
             style={styles.input}
             value={selectedStationId ?? ""}
             onChange={(e) => setSelectedStationId(e.target.value || null)}
           >
             <option value="" disabled>
-              İstasyon seçin
+              Istasyon secin
             </option>
             {filteredStations.map((s) => (
               <option key={s.id} value={s.id}>
@@ -750,21 +750,21 @@ export default function StationChargerManagementScreen() {
         </div>
       </div>
 
-      {loading && <div style={{ ...styles.card, marginTop: "14px", padding: "14px", fontWeight: 850 }}>Yükleniyor…</div>}
+      {loading && <div style={{ ...styles.card, marginTop: "14px", padding: "14px", fontWeight: 850 }}>Yukleniyor...</div>}
       {!loading && error && <div style={{ ...styles.card, marginTop: "14px", padding: "14px", fontWeight: 850 }}>{error}</div>}
 
       {!loading && !error && (
         <div className="admin-manage-shell" style={styles.shell}>
           <section style={styles.card}>
             <div style={styles.cardHeader}>
-              <p style={styles.cardTitle}>İstasyonlar</p>
+              <p style={styles.cardTitle}>Istasyonlar</p>
               <span style={styles.badge}>
                 <span style={styles.dot} />
                 {filteredStations.length}
               </span>
             </div>
             {filteredStations.length === 0 ? (
-              <div style={styles.empty}>Kayıtlı istasyon yok.</div>
+              <div style={styles.empty}>Kayitli istasyon yok.</div>
             ) : (
               <div style={styles.list}>
                 {filteredStations.map((station) => (
@@ -784,7 +784,7 @@ export default function StationChargerManagementScreen() {
                     <p style={styles.stationName}>{station.name}</p>
                     <div style={styles.stationMeta}>
                       {station.address} <br />
-                      {stationStatusLabel(station.status)} • {station.chargers?.length ?? 0} charger
+                      {stationStatusLabel(station.status)} - {station.chargers?.length ?? 0} charger
                     </div>
                     <div style={{ marginTop: "10px", display: "flex", justifyContent: "flex-end" }}>
                       <button
@@ -795,7 +795,7 @@ export default function StationChargerManagementScreen() {
                           openEditStation(station);
                         }}
                       >
-                        Düzenle
+                        Duzenle
                       </button>
                     </div>
                   </div>
@@ -806,7 +806,7 @@ export default function StationChargerManagementScreen() {
 
           <section style={styles.card}>
             <div style={styles.cardHeader}>
-              <p style={styles.cardTitle}>Charger’lar</p>
+              <p style={styles.cardTitle}>Charger'lar</p>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <button type="button" style={styles.smallButton} onClick={() => openNewCharger()} disabled={!selectedStation}>
                   Yeni Charger
@@ -815,7 +815,7 @@ export default function StationChargerManagementScreen() {
             </div>
 
             {!selectedStation ? (
-              <div style={styles.empty}>Sağ paneli kullanmak için bir istasyon seçin.</div>
+              <div style={styles.empty}>Sag paneli kullanmak icin bir istasyon secin.</div>
             ) : (
               <div style={styles.rightBody}>
                 <h3 style={styles.infoTitle}>{selectedStation.name}</h3>
@@ -823,13 +823,13 @@ export default function StationChargerManagementScreen() {
 
                 <div style={styles.split}>
                   <div style={{ ...styles.chargerCard, backgroundColor: "rgba(239, 248, 231, 0.55)" }}>
-                    <div style={{ ...styles.label, marginBottom: "8px" }}>İstasyon Durumu</div>
+                    <div style={{ ...styles.label, marginBottom: "8px" }}>Istasyon Durumu</div>
                     <div style={{ fontSize: "16px", fontWeight: 1000, color: "#10352E" }}>
                       {stationStatusLabel(selectedStation.status)}
                     </div>
                   </div>
                   <div style={{ ...styles.chargerCard, backgroundColor: "rgba(239, 248, 231, 0.55)" }}>
-                    <div style={{ ...styles.label, marginBottom: "8px" }}>Charger Sayısı</div>
+                    <div style={{ ...styles.label, marginBottom: "8px" }}>Charger Sayisi</div>
                     <div style={{ fontSize: "16px", fontWeight: 1000, color: "#10352E" }}>
                       {selectedStation.chargers?.length ?? 0}
                     </div>
@@ -844,12 +844,12 @@ export default function StationChargerManagementScreen() {
                           <div>
                             <p style={styles.chargerTitle}>Charger {charger.id}</p>
                             <div style={styles.chargerMeta}>
-                              {charger.type} • {charger.powerOutput} • {charger.connectorType} <br />
-                              {chargerStatusLabel(charger.status)} • ₺{charger.pricePerKwh}/kWh
+                              {charger.type} - {charger.powerOutput} - {charger.connectorType} <br />
+                              {chargerStatusLabel(charger.status)} - TL{charger.pricePerKwh}/kWh
                             </div>
                           </div>
                           <button type="button" style={styles.smallButton} onClick={() => openEditCharger(charger)}>
-                            Düzenle
+                            Duzenle
                           </button>
                         </div>
                       </div>
@@ -857,7 +857,7 @@ export default function StationChargerManagementScreen() {
                   </div>
                 ) : (
                   <div style={{ ...styles.empty, marginTop: "14px" }}>
-                    Bu istasyonda charger yok. “Yeni Charger” ile ekleyin.
+                    Bu istasyonda charger yok. "Yeni Charger" ile ekleyin.
                   </div>
                 )}
               </div>
@@ -871,8 +871,8 @@ export default function StationChargerManagementScreen() {
           <div style={styles.modal}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>{stationModalEditingId ? "İstasyon Düzenle" : "Yeni İstasyon"}</h3>
-                <p style={styles.modalSubtitle}>İstasyon bilgilerini doldurun. ID alanı doküman ID olarak kullanılır.</p>
+                <h3 style={styles.modalTitle}>{stationModalEditingId ? "Istasyon Duzenle" : "Yeni Istasyon"}</h3>
+                <p style={styles.modalSubtitle}>Istasyon bilgilerini doldurun. ID alani dokuman ID olarak kullanilir.</p>
               </div>
               <button type="button" style={styles.modalClose} onClick={() => setStationModalOpen(false)}>
                 Kapat
@@ -910,7 +910,7 @@ export default function StationChargerManagementScreen() {
               </div>
 
               <div style={styles.field}>
-                <div style={styles.label}>İstasyon Adı</div>
+                <div style={styles.label}>Istasyon Adi</div>
                 <input
                   style={styles.input}
                   value={stationDraft.name}
@@ -925,7 +925,7 @@ export default function StationChargerManagementScreen() {
                   style={styles.input}
                   value={stationDraft.address}
                   onChange={(e) => setStationDraft((p) => ({ ...p, address: e.target.value }))}
-                  placeholder="Bornova Meydanı, İzmir"
+                  placeholder="Bornova Meydani, Izmir"
                 />
               </div>
 
@@ -945,20 +945,20 @@ export default function StationChargerManagementScreen() {
                     setLocationPickerOpen(true);
                   }}
                 >
-                  Konum seç (harita / arama)
+                  Konum sec (harita / arama)
                 </button>
                 <div style={{ marginTop: "8px", color: "#5B736A", fontSize: "12px", fontWeight: 800, lineHeight: 1.6 }}>
-                  Koordinat gösterilmez. Konumu haritadan veya arama ile seçtiğinizde en yakın adres/semt bilgisi otomatik doldurulur.
+                  Koordinat gosterilmez. Konumu haritadan veya arama ile sectiginizde en yakin adres/semt bilgisi otomatik doldurulur.
                 </div>
               </div>
             </div>
 
             <div style={styles.modalActions}>
               <button type="button" style={styles.saveButton} disabled={stationSaving} onClick={() => saveStation()}>
-                {stationSaving ? "Kaydediliyor…" : "Kaydet"}
+                {stationSaving ? "Kaydediliyor..." : "Kaydet"}
               </button>
               <button type="button" style={styles.cancelButton} onClick={() => setStationModalOpen(false)}>
-                Vazgeç
+                Vazgec
               </button>
             </div>
           </div>
@@ -970,8 +970,8 @@ export default function StationChargerManagementScreen() {
           <div style={styles.modal}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Konum Seç</h3>
-                <p style={styles.modalSubtitle}>Harita veya arama ile seçin. Seçim sonrası koordinat değil, adres/semt gösterilir.</p>
+                <h3 style={styles.modalTitle}>Konum Sec</h3>
+                <p style={styles.modalSubtitle}>Harita veya arama ile secin. Secim sonrasi koordinat degil, adres/semt gosterilir.</p>
               </div>
               <button type="button" style={styles.modalClose} onClick={() => setLocationPickerOpen(false)}>
                 Kapat
@@ -986,7 +986,7 @@ export default function StationChargerManagementScreen() {
                   <p style={styles.mapTitle}>Harita</p>
                   <span style={styles.badge}>
                     <span style={styles.dot} />
-                    {pickedAddressLoading ? "Adres bulunuyor…" : pickedAddressLabel || "Konum seçin"}
+                    {pickedAddressLoading ? "Adres bulunuyor..." : pickedAddressLabel || "Konum secin"}
                   </span>
                 </div>
                 <div style={styles.tabRow}>
@@ -1012,7 +1012,7 @@ export default function StationChargerManagementScreen() {
                       <div style={styles.label}>Arama</div>
                       <input
                         style={styles.input}
-                        placeholder="İlçe / semt / cadde / yer adı…"
+                        placeholder="Ilce / semt / cadde / yer adi..."
                         value={placeQuery}
                         onChange={(e) => setPlaceQuery(e.target.value)}
                       />
@@ -1063,7 +1063,7 @@ export default function StationChargerManagementScreen() {
                 )}
 
                 <div style={styles.mapHint}>
-                  İpucu: İstasyonun tam noktasını seçmek için yakınlaştırın. Yanlış seçimi düzeltmek için tekrar tıklayabilirsiniz.
+                  Ipucu: Istasyonun tam noktasini secmek icin yakinlastirin. Yanlis secimi duzeltmek icin tekrar tiklayabilirsiniz.
                 </div>
 
                 <div style={{ height: "420px" }}>
@@ -1095,7 +1095,7 @@ export default function StationChargerManagementScreen() {
                     </GoogleMap>
                   ) : (
                     <div style={{ padding: "14px", fontWeight: 850, color: "#37594D" }}>
-                      Harita yükleniyor…
+                      Harita yukleniyor...
                     </div>
                   )}
                 </div>
@@ -1121,7 +1121,7 @@ export default function StationChargerManagementScreen() {
                 Konumu kullan
               </button>
               <button type="button" style={styles.cancelButton} onClick={() => setLocationPickerOpen(false)}>
-                Vazgeç
+                Vazgec
               </button>
             </div>
           </div>
@@ -1133,9 +1133,9 @@ export default function StationChargerManagementScreen() {
           <div style={styles.modal}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>{chargerModalEditingId ? "Charger Düzenle" : "Yeni Charger"}</h3>
+                <h3 style={styles.modalTitle}>{chargerModalEditingId ? "Charger Duzenle" : "Yeni Charger"}</h3>
                 <p style={styles.modalSubtitle}>
-                  Seçili istasyon: <b>{selectedStation.name}</b> ({selectedStation.id})
+                  Secili istasyon: <b>{selectedStation.name}</b> ({selectedStation.id})
                 </p>
               </div>
               <button type="button" style={styles.modalClose} onClick={() => setChargerModalOpen(false)}>
@@ -1189,7 +1189,7 @@ export default function StationChargerManagementScreen() {
                   </select>
                 </div>
                 <div style={styles.field}>
-                  <div style={styles.label}>Güç</div>
+                  <div style={styles.label}>Guc</div>
                   <select
                     style={styles.input}
                     value={chargerDraft.powerOutput}
@@ -1206,7 +1206,7 @@ export default function StationChargerManagementScreen() {
 
               <div style={styles.row2}>
                 <div style={styles.field}>
-                  <div style={styles.label}>Konnektör</div>
+                  <div style={styles.label}>Konnektor</div>
                   <select
                     style={styles.input}
                     value={chargerDraft.connectorType}
@@ -1220,7 +1220,7 @@ export default function StationChargerManagementScreen() {
                   </select>
                 </div>
                 <div style={styles.field}>
-                  <div style={styles.label}>kWh Ücreti (₺)</div>
+                  <div style={styles.label}>kWh Ucreti (TL)</div>
                   <input
                     style={styles.input}
                     value={chargerDraft.pricePerKwh}
@@ -1233,10 +1233,10 @@ export default function StationChargerManagementScreen() {
 
             <div style={styles.modalActions}>
               <button type="button" style={styles.saveButton} disabled={chargerSaving} onClick={() => saveCharger()}>
-                {chargerSaving ? "Kaydediliyor…" : "Kaydet"}
+                {chargerSaving ? "Kaydediliyor..." : "Kaydet"}
               </button>
               <button type="button" style={styles.cancelButton} onClick={() => setChargerModalOpen(false)}>
-                Vazgeç
+                Vazgec
               </button>
             </div>
           </div>

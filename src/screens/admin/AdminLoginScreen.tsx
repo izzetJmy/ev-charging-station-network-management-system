@@ -131,12 +131,12 @@ export default function AdminLoginScreen() {
   return (
     <div style={styles.page}>
       <section style={styles.card}>
-        <h1 style={styles.title}>Admin Girişi</h1>
+        <h1 style={styles.title}>Admin Girisi</h1>
         <p style={styles.subtitle}>
-          Yönetim paneline erişmek için giriş yapın.
+          Yonetim paneline erismek icin giris yapin.
         </p>
 
-        <label style={styles.label}>Kullanıcı adı</label>
+        <label style={styles.label}>Kullanici adi</label>
         <input
           value={username}
           onChange={(event) => setUsername(event.target.value)}
@@ -144,7 +144,7 @@ export default function AdminLoginScreen() {
           style={styles.input}
         />
 
-        <label style={styles.label}>Şifre</label>
+        <label style={styles.label}>Sifre</label>
         <input
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -164,21 +164,21 @@ export default function AdminLoginScreen() {
               setError(null);
               const ok = adminLogin(username, password);
               if (!ok) {
-                setError("Kullanıcı adı veya şifre hatalı. (admin / admin)");
+                setError("Kullanici adi veya sifre hatali. (admin / admin)");
                 return;
               }
               navigate(redirectTo, {
                 replace: true,
-                state: { snackbar: { message: "Admin girişi başarılı.", variant: "success" } },
+                state: { snackbar: { message: "Admin girisi basarili.", variant: "success" } },
               });
             }}
           >
-            Uygulamaya geç
+            Uygulamaya gec
           </button>
         </div>
 
         {isAdminAuthenticated() && (
-          <div style={styles.message}>Zaten giriş yapılmış. Admin paneline yönlendirilebilirsin.</div>
+          <div style={styles.message}>Zaten giris yapilmis. Admin paneline yonlendirilebilirsin.</div>
         )}
         {error && <div style={styles.error}>{error}</div>}
       </section>

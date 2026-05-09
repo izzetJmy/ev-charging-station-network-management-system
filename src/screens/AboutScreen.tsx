@@ -1,7 +1,7 @@
 import { type CSSProperties } from "react";
 import SiteHeader from "../components/SiteHeader";
 
-const developers = ["Arda Ferad", "Ecesu Kocaerler", "İsmail Varol", "İzzet Jumaev"];
+const developers = ["Arda Ferad", "Ecesu Kocaerler", "Ismail Varol", "Izzet Jumaev"];
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -121,12 +121,12 @@ export default function AboutScreen() {
         <SiteHeader />
 
         <main style={styles.main}>
-          <section style={styles.card} aria-label="Hakkımızda">
-            <h1 style={styles.title}>Hakkımızda</h1>
+          <section style={styles.card} aria-label="Hakkimizda">
+            <h1 style={styles.title}>Hakkimizda</h1>
             <p style={styles.desc}>
-              EV Network; araç profili, rezervasyon ve şarj oturumu akışını tek bir arayüzde
-              toplayarak istasyon deneyimini hızlandırmayı hedefler. Bu proje; kullanım kolaylığı,
-              şeffaf maliyet hesaplama ve istasyon yönetimi odaklı geliştirilmiştir.
+              EV Network; arac profili, rezervasyon ve sarj oturumu akisini tek bir arayuzde
+              toplayarak istasyon deneyimini hizlandirmayi hedefler. Bu proje; kullanim kolayligi,
+              seffaf maliyet hesaplama ve istasyon yonetimi odakli gelistirilmistir.
             </p>
 
             <div className="about-grid" style={styles.grid}>

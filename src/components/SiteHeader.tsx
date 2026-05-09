@@ -97,7 +97,7 @@ export default function SiteHeader() {
             }}
             onClick={() => navigate("/about")}
           >
-            Hakkımızda
+            Hakkimizda
           </button>
           <button
             type="button"
@@ -107,12 +107,12 @@ export default function SiteHeader() {
             }}
             onClick={() => navigate("/contact")}
           >
-            İletişim
+            Iletisim
           </button>
         </nav>
 
         <button type="button" style={styles.adminButton} onClick={() => navigate("/admin")}>
-          Admin Girişi
+          Admin Girisi
         </button>
       </div>
     </header>

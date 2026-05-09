@@ -3,19 +3,29 @@ import {
   type FormEvent,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import TimeSeriesChart from "../../components/charts/TimeSeriesChart";
+import Snackbar, { type SnackbarVariant } from "../../components/Snackbar";
 import type { Charger } from "../../models/Charger";
 import type { Station } from "../../models/Station";
 import type { Vehicle } from "../../models/vehicle";
-import { getVehicleById, getVehicleByUserId } from "../../services/firebase/vehicleService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
-import { createChargingSession } from "../../services/firebase/chargingSessionService";
+import {
+  completeLiveChargingSession,
+  createLiveChargingSession,
+  subscribeToChargingSession,
+  updateLiveChargingSession,
+  type ChargingSessionRecord,
+} from "../../services/firebase/chargingSessionService";
+import { getVehicleById, getVehicleByUserId } from "../../services/firebase/vehicleService";
 import {
   getWallet,
   InsufficientWalletBalanceError,
 } from "../../services/firebase/walletService";
+import { getChargerStatusBlockMessage } from "../../utils/chargerCompatibility";
 
 interface ChargingSessionLocationState {
   station?: Station;
@@ -26,6 +36,15 @@ interface ChargingSessionLocationState {
   reservationStartTime?: string;
   reservationEndTime?: string;
 }
+
+interface TrendPoint {
+  label: string;
+  kwh: number;
+  cost: number;
+}
+
+const LIVE_TICK_MS = 1000;
+const FIRESTORE_SYNC_MS = 5000;
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -44,19 +63,19 @@ const styles: Record<string, CSSProperties> = {
     boxSizing: "border-box",
   },
   shell: {
-    width: "min(1040px, 100%)",
+    width: "min(1100px, 100%)",
     display: "grid",
-    gridTemplateColumns: "0.95fr 1.05fr",
+    gridTemplateColumns: "0.92fr 1.08fr",
     borderRadius: "28px",
     overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.88)",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     border: "1px solid rgba(31, 94, 77, 0.16)",
     boxShadow:
       "0 24px 80px rgba(28, 74, 61, 0.16), 0 4px 18px rgba(23, 35, 31, 0.06)",
     backdropFilter: "blur(14px)",
   },
   summaryPanel: {
-    minHeight: "640px",
+    minHeight: "690px",
     padding: "34px",
     background:
       "linear-gradient(155deg, #10352E 0%, #1F5E4D 48%, #A9D869 140%)",
@@ -76,10 +95,7 @@ const styles: Record<string, CSSProperties> = {
       "linear-gradient(120deg, transparent 12%, rgba(255,255,255,0.16) 12%, rgba(255,255,255,0.16) 13%, transparent 13%, transparent 52%, rgba(255,255,255,0.14) 52%, rgba(255,255,255,0.14) 53%, transparent 53%), linear-gradient(25deg, transparent 24%, rgba(255,255,255,0.12) 24%, rgba(255,255,255,0.12) 25%, transparent 25%)",
     backgroundSize: "240px 220px, 190px 180px",
   },
-  summaryContent: {
-    position: "relative",
-    zIndex: 1,
-  },
+  summaryContent: { position: "relative", zIndex: 1 },
   eyebrow: {
     display: "inline-flex",
     alignItems: "center",
@@ -109,8 +125,8 @@ const styles: Record<string, CSSProperties> = {
   },
   summaryText: {
     margin: 0,
-    maxWidth: "360px",
-    color: "rgba(255,255,255,0.76)",
+    maxWidth: "390px",
+    color: "rgba(255,255,255,0.78)",
     fontSize: "15px",
     lineHeight: 1.7,
   },
@@ -147,18 +163,55 @@ const styles: Record<string, CSSProperties> = {
     color: "#FFFFFF",
     lineHeight: 1.4,
   },
+  livePanel: {
+    position: "relative",
+    zIndex: 1,
+    borderRadius: "22px",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    border: "1px solid rgba(255,255,255,0.2)",
+    padding: "18px",
+  },
+  liveStatus: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    marginBottom: "14px",
+  },
+  statusPill: {
+    borderRadius: "999px",
+    backgroundColor: "rgba(184,240,97,0.18)",
+    border: "1px solid rgba(184,240,97,0.34)",
+    padding: "8px 10px",
+    color: "#F7FFE9",
+    fontSize: "12px",
+    fontWeight: 900,
+  },
+  progressTrack: {
+    width: "100%",
+    height: "12px",
+    borderRadius: "999px",
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.16)",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: "999px",
+    background: "linear-gradient(90deg, #B8F061, #FFFFFF)",
+    transition: "width 0.4s ease",
+  },
   formPanel: {
-    padding: "38px",
-    backgroundColor: "rgba(255,255,255,0.94)",
+    padding: "34px",
+    backgroundColor: "rgba(255,255,255,0.95)",
     display: "flex",
     flexDirection: "column",
+    gap: "18px",
   },
   topBar: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
     gap: "18px",
-    marginBottom: "28px",
   },
   panelTitle: {
     margin: "0 0 8px",
@@ -172,7 +225,7 @@ const styles: Record<string, CSSProperties> = {
     color: "#66756E",
     fontSize: "14px",
     lineHeight: 1.6,
-    maxWidth: "430px",
+    maxWidth: "480px",
   },
   sectionLabel: {
     fontSize: "11px",
@@ -187,9 +240,7 @@ const styles: Record<string, CSSProperties> = {
     gridTemplateColumns: "1fr 1fr",
     gap: "14px",
   },
-  formGroup: {
-    marginBottom: "16px",
-  },
+  formGroup: { marginBottom: "16px" },
   label: {
     display: "block",
     color: "#263A33",
@@ -217,33 +268,38 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "12px",
     lineHeight: 1.5,
   },
-  message: {
-    padding: "12px 14px",
-    borderRadius: "14px",
-    fontSize: "13px",
-    lineHeight: 1.55,
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "14px",
+  metricGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "12px",
   },
-  warningMessage: {
-    backgroundColor: "#FFF8E8",
-    border: "1px solid #F0D488",
-    color: "#8A6500",
-  },
-  errorMessage: {
-    backgroundColor: "#FFF3F1",
-    border: "1px solid #F4B8AE",
-    color: "#A63E30",
-  },
-  costCard: {
+  metricCard: {
     borderRadius: "16px",
     backgroundColor: "#EEF6F0",
     border: "1px solid #D3E5D8",
     padding: "14px",
-    marginTop: "6px",
     color: "#37594D",
+  },
+  metricLabel: {
+    fontSize: "11px",
+    fontWeight: 900,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#6E8178",
+  },
+  metricValue: {
+    marginTop: "8px",
+    fontSize: "24px",
+    fontWeight: 950,
+    color: "#143D34",
+    lineHeight: 1.1,
+  },
+  costCard: {
+    borderRadius: "16px",
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #D8E2DB",
+    padding: "14px",
+    color: "#17231F",
   },
   costTitle: {
     margin: "0 0 8px",
@@ -260,22 +316,11 @@ const styles: Record<string, CSSProperties> = {
     padding: "6px 0",
     borderBottom: "1px solid rgba(55,89,77,0.12)",
   },
-  costRowLast: {
-    borderBottom: "none",
-  },
-  walletCard: {
-    borderRadius: "16px",
-    backgroundColor: "#FFFFFF",
-    border: "1px solid #D8E2DB",
-    padding: "14px",
-    marginTop: "14px",
-    color: "#17231F",
-  },
+  costRowLast: { borderBottom: "none" },
   actionRow: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "12px",
-    marginTop: "18px",
   },
   primaryButton: {
     minHeight: "52px",
@@ -334,6 +379,30 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value));
 }
 
+function round2(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function parsePowerKw(powerOutput: string) {
+  const parsed = Number(powerOutput.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 22;
+}
+
+function formatMinutes(minutes: number) {
+  if (!Number.isFinite(minutes)) return "--";
+  const rounded = Math.max(0, Math.ceil(minutes));
+  const hours = Math.floor(rounded / 60);
+  const mins = rounded % 60;
+  if (hours <= 0) return `${mins} dk`;
+  return `${hours} sa ${mins} dk`;
+}
+
+function getStatusLabel(session: ChargingSessionRecord | null, started: boolean) {
+  if (session?.status === "completed") return "Tamamlandi";
+  if (started) return "Canli takip aktif";
+  return "Hazir";
+}
+
 function ChargingSessionScreen() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -353,10 +422,23 @@ function ChargingSessionScreen() {
   const [vehicleLoading, setVehicleLoading] = useState(true);
   const [startBattery, setStartBattery] = useState("");
   const [endBattery, setEndBattery] = useState("");
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [remoteSession, setRemoteSession] = useState<ChargingSessionRecord | null>(null);
+  const [currentKwh, setCurrentKwh] = useState(0);
+  const [estimatedRemainingMinutes, setEstimatedRemainingMinutes] = useState(0);
+  const [liveCost, setLiveCost] = useState(0);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [warningMessage, setWarningMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    variant: SnackbarVariant;
+  } | null>(null);
+
+  const startedAtRef = useRef<number | null>(null);
+  const lastSyncedAtRef = useRef(0);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -380,12 +462,10 @@ function ChargingSessionScreen() {
 
     getWallet(userId)
       .then((wallet) => {
-        if (cancelled) return;
-        setWalletBalance(wallet.balance);
+        if (!cancelled) setWalletBalance(wallet.balance);
       })
       .catch(() => {
-        if (cancelled) return;
-        setWalletBalance(null);
+        if (!cancelled) setWalletBalance(null);
       });
 
     return () => {
@@ -393,78 +473,152 @@ function ChargingSessionScreen() {
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (!activeSessionId) return undefined;
+
+    return subscribeToChargingSession(
+      activeSessionId,
+      (session) => {
+        setRemoteSession(session);
+        if (!session) return;
+        setCurrentKwh(Number(session.currentKwh ?? 0));
+        setLiveCost(Number(session.liveCost ?? 0));
+        setEstimatedRemainingMinutes(Number(session.estimatedRemainingMinutes ?? 0));
+      },
+      () => {
+        setSnackbar({
+          message: "Canli oturum bilgisi okunamadi.",
+          variant: "error",
+        });
+      },
+    );
+  }, [activeSessionId]);
+
   const batteryCapacity = vehicle?.batteryCapacity ?? 0;
   const startBatteryValue = clampPercent(Number(startBattery));
   const endBatteryValue = clampPercent(Number(endBattery));
+  const chargerPowerKw = charger ? parsePowerKw(charger.powerOutput) : 0;
+  const statusBlockMessage = useMemo(() => {
+    if (!station || !charger) return "";
+    return getChargerStatusBlockMessage(station, charger);
+  }, [charger, station]);
 
-  const consumedKwh = useMemo(() => {
-    if (!batteryCapacity || batteryCapacity <= 0) {
-      return null;
-    }
-
+  const targetKwh = useMemo(() => {
+    if (!batteryCapacity || batteryCapacity <= 0) return null;
     if (!Number.isFinite(startBatteryValue) || !Number.isFinite(endBatteryValue)) {
       return null;
     }
-
-    if (endBatteryValue <= startBatteryValue) {
-      return null;
-    }
-
+    if (endBatteryValue <= startBatteryValue) return null;
     return (batteryCapacity * (endBatteryValue - startBatteryValue)) / 100;
   }, [batteryCapacity, endBatteryValue, startBatteryValue]);
 
-  const totalCost = useMemo(() => {
-    if (consumedKwh == null || !charger) {
-      return null;
-    }
+  const plannedTotalCost = useMemo(() => {
+    if (targetKwh == null || !charger) return null;
+    return targetKwh * charger.pricePerKwh;
+  }, [charger, targetKwh]);
 
-    return consumedKwh * charger.pricePerKwh;
-  }, [charger, consumedKwh]);
+  const progressPercentage = useMemo(() => {
+    if (!targetKwh || targetKwh <= 0) return 0;
+    return Math.min(100, Math.max(0, (currentKwh / targetKwh) * 100));
+  }, [currentKwh, targetKwh]);
+
+  const finalBatteryPercentage = useMemo(() => {
+    if (!batteryCapacity || !Number.isFinite(startBatteryValue)) return null;
+    return Math.min(100, startBatteryValue + (currentKwh / batteryCapacity) * 100);
+  }, [batteryCapacity, currentKwh, startBatteryValue]);
+
+  useEffect(() => {
+    if (!activeSessionId || !charger || !targetKwh || targetKwh <= 0) return undefined;
+    if (remoteSession?.status === "completed") return undefined;
+
+    const tick = window.setInterval(() => {
+      const startedAt = startedAtRef.current;
+      if (!startedAt) return;
+
+      const elapsedHours = (Date.now() - startedAt) / 3_600_000;
+      const calculatedKwh = Math.min(targetKwh, chargerPowerKw * elapsedHours);
+      const nextCurrentKwh = round2(calculatedKwh);
+      const nextCost = round2(nextCurrentKwh * charger.pricePerKwh);
+      const remainingKwh = Math.max(0, targetKwh - nextCurrentKwh);
+      const nextRemainingMinutes =
+        chargerPowerKw > 0 ? (remainingKwh / chargerPowerKw) * 60 : 0;
+      const nextProgress = Math.min(100, (nextCurrentKwh / targetKwh) * 100);
+
+      setCurrentKwh(nextCurrentKwh);
+      setLiveCost(nextCost);
+      setEstimatedRemainingMinutes(nextRemainingMinutes);
+      setTrend((previous) => {
+        const next = [
+          ...previous,
+          {
+            label: new Date().toLocaleTimeString("tr-TR", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }),
+            kwh: nextCurrentKwh,
+            cost: nextCost,
+          },
+        ];
+        return next.slice(-12);
+      });
+
+      if (Date.now() - lastSyncedAtRef.current >= FIRESTORE_SYNC_MS) {
+        lastSyncedAtRef.current = Date.now();
+        void updateLiveChargingSession(activeSessionId, {
+          currentKwh: nextCurrentKwh,
+          liveCost: nextCost,
+          estimatedRemainingMinutes: nextRemainingMinutes,
+          progressPercentage: nextProgress,
+        }).catch(() => {
+          setSnackbar({
+            message: "Canli oturum Firestore'a guncellenemedi.",
+            variant: "error",
+          });
+        });
+      }
+    }, LIVE_TICK_MS);
+
+    return () => window.clearInterval(tick);
+  }, [
+    activeSessionId,
+    charger,
+    chargerPowerKw,
+    remoteSession?.status,
+    targetKwh,
+  ]);
 
   const validate = () => {
-    if (!station || !charger) {
-      return "İstasyon veya şarj cihazı bilgisi eksik.";
-    }
-
-    if (vehicleLoading) {
-      return "Araç bilgileri yükleniyor. Lütfen tekrar deneyin.";
-    }
-
-    if (!vehicle?.id) {
-      return "Şarj oturumu için uygun bir araç bulunamadı.";
-    }
-
-    if (!batteryCapacity || batteryCapacity <= 0) {
-      return "Araç batarya kapasitesi bulunamadı.";
-    }
-
+    if (statusBlockMessage) return statusBlockMessage;
+    if (!station || !charger) return "Istasyon veya sarj cihazi bilgisi eksik.";
+    if (vehicleLoading) return "Arac bilgileri yukleniyor. Lutfen tekrar deneyin.";
+    if (!vehicle?.id) return "Sarj oturumu icin uygun bir arac bulunamadi.";
+    if (!batteryCapacity || batteryCapacity <= 0) return "Arac batarya kapasitesi bulunamadi.";
     if (!startBattery.trim() || !endBattery.trim()) {
-      return "Lütfen başlangıç ve bitiş batarya yüzdesini girin.";
+      return "Lutfen baslangic ve hedef batarya yuzdesini girin.";
     }
-
     if (!Number.isFinite(startBatteryValue) || !Number.isFinite(endBatteryValue)) {
-      return "Batarya yüzdesi sayısal olmalıdır.";
+      return "Batarya yuzdesi sayisal olmalidir.";
     }
-
     if (startBatteryValue < 0 || startBatteryValue > 100) {
-      return "Başlangıç batarya yüzdesi 0-100 arasında olmalıdır.";
+      return "Baslangic batarya yuzdesi 0-100 arasinda olmalidir.";
     }
-
     if (endBatteryValue < 0 || endBatteryValue > 100) {
-      return "Bitiş batarya yüzdesi 0-100 arasında olmalıdır.";
+      return "Hedef batarya yuzdesi 0-100 arasinda olmalidir.";
     }
-
     if (endBatteryValue <= startBatteryValue) {
-      return "Bitiş batarya yüzdesi başlangıçtan büyük olmalıdır.";
+      return "Hedef batarya yuzdesi baslangictan buyuk olmalidir.";
     }
-
+    if (targetKwh == null || targetKwh <= 0) return "Hedef enerji hesaplanamadi.";
     return "";
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleStart = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setWarningMessage("");
     setErrorMessage("");
+
+    if (activeSessionId) return;
 
     const validationError = validate();
     if (validationError) {
@@ -472,44 +626,102 @@ function ChargingSessionScreen() {
       return;
     }
 
-    if (!station || !charger || !vehicle || consumedKwh == null || totalCost == null) {
-      setErrorMessage("Hesaplama yapılamadı. Lütfen alanları kontrol edin.");
+    if (!station || !charger || !vehicle || targetKwh == null) {
+      setErrorMessage("Canli oturum baslatilamadi. Lutfen alanlari kontrol edin.");
       return;
     }
 
     try {
       setSaving(true);
-
-      await createChargingSession({
+      const estimatedTotalMinutes = (targetKwh / chargerPowerKw) * 60;
+      const sessionId = await createLiveChargingSession({
         userId,
         reservationId,
         vehicleId: vehicle.id,
         stationId: station.id,
         chargerId: charger.id,
         startBatteryPercentage: startBatteryValue,
-        endBatteryPercentage: endBatteryValue,
-        consumedKwh,
+        targetBatteryPercentage: endBatteryValue,
+        batteryCapacityKwh: batteryCapacity,
+        targetKwh,
         pricePerKwh: charger.pricePerKwh,
-        totalCost,
+        chargerPowerKw,
+        estimatedTotalMinutes,
       });
 
+      startedAtRef.current = Date.now();
+      lastSyncedAtRef.current = 0;
+      setActiveSessionId(sessionId);
+      setEstimatedRemainingMinutes(estimatedTotalMinutes);
+      setTrend([
+        {
+          label: new Date().toLocaleTimeString("tr-TR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+          kwh: 0,
+          cost: 0,
+        },
+      ]);
+      setSnackbar({ message: "Canli sarj oturumu baslatildi.", variant: "success" });
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Canli sarj oturumu baslatilamadi. Lutfen tekrar deneyin.";
+      setErrorMessage(message);
+      setSnackbar({ message, variant: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    setWarningMessage("");
+    setErrorMessage("");
+
+    if (!activeSessionId || !charger) return;
+    if (currentKwh <= 0) {
+      setWarningMessage("Oturumu tamamlamak icin once enerji tuketimi olusmali.");
+      return;
+    }
+
+    const finalEndBattery = finalBatteryPercentage ?? endBatteryValue;
+    const finalCost = round2(currentKwh * charger.pricePerKwh);
+
+    try {
+      setSaving(true);
+      await updateLiveChargingSession(activeSessionId, {
+        currentKwh,
+        liveCost: finalCost,
+        estimatedRemainingMinutes: 0,
+        progressPercentage,
+      });
+      await completeLiveChargingSession(activeSessionId, userId, {
+        endBatteryPercentage: round2(finalEndBattery),
+        consumedKwh: currentKwh,
+        totalCost: finalCost,
+      });
+
+      setSnackbar({ message: "Sarj oturumu kaydedildi.", variant: "success" });
       navigate("/app", {
         state: {
           snackbar: {
-            message: "Şarj oturumu kaydedildi.",
+            message: "Sarj oturumu kaydedildi.",
             variant: "success",
           },
         },
       });
     } catch (error) {
       if (error instanceof InsufficientWalletBalanceError) {
-        setErrorMessage(
-          "Wallet bakiyesi yetersiz. Lutfen bakiye yukleyip tekrar deneyin.",
-        );
+        setErrorMessage("Wallet bakiyesi yetersiz. Lutfen bakiye yukleyip tekrar deneyin.");
+        setSnackbar({ message: "Wallet bakiyesi yetersiz.", variant: "error" });
         return;
       }
 
-      setErrorMessage("Şarj oturumu kaydedilemedi. Lütfen tekrar deneyin.");
+      setErrorMessage("Sarj oturumu tamamlanamadi. Lutfen tekrar deneyin.");
+      setSnackbar({ message: "Sarj oturumu tamamlanamadi.", variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -519,9 +731,9 @@ function ChargingSessionScreen() {
     return (
       <div style={styles.page}>
         <div style={styles.fallbackCard}>
-          <h1 style={styles.fallbackTitle}>Şarj oturumu bilgisi eksik</h1>
+          <h1 style={styles.fallbackTitle}>Sarj oturumu bilgisi eksik</h1>
           <p style={styles.fallbackText}>
-            Lütfen önce rezervasyon oluşturun ve bu ekrana rezervasyon üzerinden gelin.
+            Lutfen once rezervasyon olusturun ve bu ekrana rezervasyon uzerinden gelin.
           </p>
           <div style={{ ...styles.actionRow, marginTop: "18px" }}>
             <button
@@ -529,10 +741,10 @@ function ChargingSessionScreen() {
               style={styles.secondaryButton}
               onClick={() => navigate("/station-map")}
             >
-              İstasyon Haritasına Dön
+              Istasyon Haritasina Don
             </button>
             <button type="button" style={styles.primaryButton} onClick={() => navigate("/app")}>
-              Kayıtlı Araçlara Git
+              Kayitli Araclara Git
             </button>
           </div>
         </div>
@@ -543,7 +755,7 @@ function ChargingSessionScreen() {
   return (
     <div style={styles.page}>
       <main className="charging-session-shell" style={styles.shell}>
-        <section style={styles.summaryPanel} aria-label="Şarj oturumu özeti">
+        <section style={styles.summaryPanel} aria-label="Sarj oturumu ozeti">
           <div style={styles.routeLayer} />
           <div style={styles.summaryContent}>
             <div style={styles.eyebrow}>
@@ -551,34 +763,33 @@ function ChargingSessionScreen() {
               EV Network
             </div>
 
-            <h1 style={styles.title}>Şarj Oturumu</h1>
+            <h1 style={styles.title}>Canli Sarj Oturumu</h1>
             <p style={styles.summaryText}>
-              Rezervasyon detaylarını kontrol edin, batarya yüzdelerini girin ve maliyeti hesaplayın.
+              Oturum basladiginda anlik kWh, kalan sure ve maliyet duzenli olarak
+              hesaplanir ve Firestore'a yazilir.
             </p>
 
             <div style={styles.specCard}>
               <div style={styles.specGrid}>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>İstasyon adı</div>
+                  <div style={styles.specLabel}>Istasyon adi</div>
                   <div style={styles.specValue}>{station.name}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Seçilen şarj cihazı</div>
+                  <div style={styles.specLabel}>Sarj cihazi</div>
                   <div style={styles.specValue}>{charger.id}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Konnektör tipi</div>
+                  <div style={styles.specLabel}>Konnektor tipi</div>
                   <div style={styles.specValue}>{charger.connectorType}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Güç çıkışı</div>
+                  <div style={styles.specLabel}>Guc cikisi</div>
                   <div style={styles.specValue}>{charger.powerOutput}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>kWh başına ücret</div>
-                  <div style={styles.specValue}>
-                    {charger.pricePerKwh.toFixed(2)} TL
-                  </div>
+                  <div style={styles.specLabel}>kWh basina ucret</div>
+                  <div style={styles.specValue}>{charger.pricePerKwh.toFixed(2)} TL</div>
                 </div>
                 <div style={styles.specItem}>
                   <div style={styles.specLabel}>Rezervasyon</div>
@@ -591,23 +802,39 @@ function ChargingSessionScreen() {
               </div>
             </div>
           </div>
+
+          <div style={styles.livePanel}>
+            <div style={styles.liveStatus}>
+              <strong>{getStatusLabel(remoteSession, Boolean(activeSessionId))}</strong>
+              <span style={styles.statusPill}>{Math.round(progressPercentage)}%</span>
+            </div>
+            <div style={styles.progressTrack}>
+              <div
+                style={{
+                  ...styles.progressFill,
+                  width: `${Math.round(progressPercentage)}%`,
+                }}
+              />
+            </div>
+          </div>
         </section>
 
-        <section style={styles.formPanel} aria-label="Şarj oturumu formu">
+        <section style={styles.formPanel} aria-label="Sarj oturumu formu">
           <div style={styles.topBar}>
             <div>
-              <h2 style={styles.panelTitle}>Batarya ve Maliyet</h2>
+              <h2 style={styles.panelTitle}>Canli Takip</h2>
               <p style={styles.subtitle}>
-                Batarya yüzdeleri 0-100 aralığında olmalı ve bitiş yüzdesi başlangıçtan büyük olmalıdır.
+                Baslangic ve hedef batarya yuzdesini girin. Oturum aktifken final
+                maliyet, canli tuketilen kWh uzerinden hesaplanir.
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div style={styles.sectionLabel}>Batarya Yüzdesi</div>
+          <form onSubmit={handleStart}>
+            <div style={styles.sectionLabel}>Batarya Yuzdesi</div>
             <div style={styles.formGrid}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Başlangıç (%)</label>
+                <label style={styles.label}>Baslangic (%)</label>
                 <input
                   type="number"
                   min={0}
@@ -615,12 +842,12 @@ function ChargingSessionScreen() {
                   value={startBattery}
                   onChange={(event) => setStartBattery(event.target.value)}
                   style={styles.input}
-                  disabled={saving}
-                  placeholder="Örn. 20"
+                  disabled={saving || Boolean(activeSessionId)}
+                  placeholder="Orn. 20"
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Bitiş (%)</label>
+                <label style={styles.label}>Hedef (%)</label>
                 <input
                   type="number"
                   min={0}
@@ -628,75 +855,127 @@ function ChargingSessionScreen() {
                   value={endBattery}
                   onChange={(event) => setEndBattery(event.target.value)}
                   style={styles.input}
-                  disabled={saving}
-                  placeholder="Örn. 75"
+                  disabled={saving || Boolean(activeSessionId)}
+                  placeholder="Orn. 75"
                 />
               </div>
             </div>
 
             <p style={styles.helperText}>
-              Araç kapasitesi: {vehicleLoading ? "..." : batteryCapacity ? `${batteryCapacity} kWh` : "--"}
+              Arac kapasitesi:{" "}
+              {vehicleLoading ? "..." : batteryCapacity ? `${batteryCapacity} kWh` : "--"}
             </p>
 
             {warningMessage && (
-              <div style={{ ...styles.message, ...styles.warningMessage }}>
-                <span>!</span>
-                <span>{warningMessage}</span>
+              <div style={{ ...styles.costCard, borderColor: "#F0D488", color: "#8A6500" }}>
+                {warningMessage}
+              </div>
+            )}
+
+            {!warningMessage && statusBlockMessage && (
+              <div style={{ ...styles.costCard, borderColor: "#F0D488", color: "#8A6500" }}>
+                {statusBlockMessage}
               </div>
             )}
 
             {errorMessage && (
-              <div style={{ ...styles.message, ...styles.errorMessage }}>
-                <span>!</span>
-                <span>{errorMessage}</span>
+              <div style={{ ...styles.costCard, borderColor: "#F4B8AE", color: "#A63E30" }}>
+                {errorMessage}
               </div>
             )}
 
+            <div style={styles.metricGrid}>
+              <div style={styles.metricCard}>
+                <div style={styles.metricLabel}>Current kWh</div>
+                <div style={styles.metricValue}>{currentKwh.toFixed(2)}</div>
+              </div>
+              <div style={styles.metricCard}>
+                <div style={styles.metricLabel}>Kalan Sure</div>
+                <div style={styles.metricValue}>{formatMinutes(estimatedRemainingMinutes)}</div>
+              </div>
+              <div style={styles.metricCard}>
+                <div style={styles.metricLabel}>Live Cost</div>
+                <div style={styles.metricValue}>{liveCost.toFixed(2)} TL</div>
+              </div>
+            </div>
+
             <div style={styles.costCard}>
-              <div style={styles.costTitle}>Maliyet özeti</div>
+              <div style={styles.costTitle}>Maliyet ozeti</div>
               <div style={styles.costRow}>
-                <span>Tüketilen kWh</span>
-                <span>{consumedKwh == null ? "--" : consumedKwh.toFixed(2)}</span>
+                <span>Hedef kWh</span>
+                <span>{targetKwh == null ? "--" : targetKwh.toFixed(2)}</span>
               </div>
               <div style={styles.costRow}>
                 <span>Birim fiyat</span>
                 <span>{charger.pricePerKwh.toFixed(2)} TL/kWh</span>
               </div>
-              <div style={{ ...styles.costRow, ...styles.costRowLast }}>
-                <span>Toplam</span>
-                <span>{totalCost == null ? "--" : `${totalCost.toFixed(2)} TL`}</span>
-              </div>
-            </div>
-
-            <div style={styles.walletCard}>
-              <div style={styles.costTitle}>Wallet</div>
               <div style={styles.costRow}>
-                <span>Mevcut bakiye</span>
-                <span>
-                  {walletBalance == null ? "--" : `${walletBalance.toFixed(2)} TL`}
-                </span>
+                <span>Planlanan toplam</span>
+                <span>{plannedTotalCost == null ? "--" : `${plannedTotalCost.toFixed(2)} TL`}</span>
+              </div>
+              <div style={styles.costRow}>
+                <span>Wallet bakiyesi</span>
+                <span>{walletBalance == null ? "--" : `${walletBalance.toFixed(2)} TL`}</span>
               </div>
               <div style={{ ...styles.costRow, ...styles.costRowLast }}>
                 <span>Islem sonrasi</span>
                 <span>
-                  {walletBalance == null || totalCost == null
-                    ? "--"
-                    : `${(walletBalance - totalCost).toFixed(2)} TL`}
+                  {walletBalance == null ? "--" : `${(walletBalance - liveCost).toFixed(2)} TL`}
                 </span>
               </div>
             </div>
 
-            <div style={styles.actionRow}>
-              <button
-                type="submit"
-                style={{
-                  ...styles.primaryButton,
-                  ...(saving ? styles.disabledButton : {}),
-                }}
-                disabled={saving}
-              >
-                {saving ? "Kaydediliyor..." : "Şarj Oturumunu Kaydet"}
-              </button>
+            {trend.length > 0 && (
+              <TimeSeriesChart
+                title="Canli kWh / Cost trend"
+                description="Oturum boyunca son olcumler"
+                labels={trend.map((point) => point.label)}
+                series={[
+                  {
+                    name: "kWh",
+                    color: "#1F5E4D",
+                    data: trend.map((point) => point.kwh),
+                  },
+                  {
+                    name: "TL",
+                    color: "#8FAF2B",
+                    data: trend.map((point) => point.cost),
+                  },
+                ]}
+                height={170}
+                valueFormatter={(value, seriesName) =>
+                  seriesName === "TL" ? `${value.toFixed(2)} TL` : `${value.toFixed(2)} kWh`
+                }
+                yAxisLabel="Canli"
+                xAxisLabel="Zaman"
+              />
+            )}
+
+            <div style={{ ...styles.actionRow, marginTop: "18px" }}>
+              {!activeSessionId ? (
+                <button
+                  type="submit"
+                  style={{
+                    ...styles.primaryButton,
+                    ...(saving || statusBlockMessage ? styles.disabledButton : {}),
+                  }}
+                  disabled={saving || Boolean(statusBlockMessage)}
+                >
+                  {saving ? "Baslatiliyor..." : "Canli Sarji Baslat"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  style={{
+                    ...styles.primaryButton,
+                    ...(saving ? styles.disabledButton : {}),
+                  }}
+                  disabled={saving}
+                  onClick={handleComplete}
+                >
+                  {saving ? "Kaydediliyor..." : "Oturumu Tamamla ve Kaydet"}
+                </button>
+              )}
 
               <button
                 type="button"
@@ -704,12 +983,20 @@ function ChargingSessionScreen() {
                 onClick={() => navigate("/station-map")}
                 disabled={saving}
               >
-                Haritaya Dön
+                Haritaya Don
               </button>
             </div>
           </form>
         </section>
       </main>
+
+      {snackbar && (
+        <Snackbar
+          message={snackbar.message}
+          variant={snackbar.variant}
+          onClose={() => setSnackbar(null)}
+        />
+      )}
 
       <style>{`
         input[type=number]::-webkit-inner-spin-button,
@@ -722,19 +1009,23 @@ function ChargingSessionScreen() {
           -moz-appearance: textfield;
         }
 
-        @media (max-width: 920px) {
+        @media (max-width: 980px) {
           .charging-session-shell {
             grid-template-columns: 1fr !important;
           }
         }
 
-        @media (max-width: 560px) {
+        @media (max-width: 660px) {
           .charging-session-shell {
             border-radius: 20px !important;
           }
 
           .charging-session-shell > section {
             padding: 24px !important;
+          }
+
+          .charging-session-shell form > div {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

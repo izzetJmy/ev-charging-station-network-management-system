@@ -7,7 +7,8 @@ import type { Charger } from "../models/Charger";
 import type { Station } from "../models/Station";
 import type { Vehicle } from "../models/vehicle";
 import {
-  calculateDistanceInKilometers,
+  calculateDistanceFromCurrentLocation,
+  formatDistanceLabel,
   type UserCoordinates,
 } from "../services/maps/locationService";
 import { reverseGeocodeCoordinates } from "../services/maps/geocodingService";
@@ -222,20 +223,12 @@ function formatDistance(
   currentLocation: UserCoordinates | null,
   station: Station,
 ) {
-  if (!currentLocation) {
-    return "--";
-  }
-
-  const distanceInKilometers = calculateDistanceInKilometers(currentLocation, {
+  const distanceInKilometers = calculateDistanceFromCurrentLocation(currentLocation, {
     latitude: station.latitude,
     longitude: station.longitude,
   });
 
-  if (distanceInKilometers < 1) {
-    return `${Math.round(distanceInKilometers * 1000)} m`;
-  }
-
-  return `${distanceInKilometers.toFixed(1)} km`;
+  return formatDistanceLabel(distanceInKilometers);
 }
 
 function StationDetailCard({
@@ -256,9 +249,11 @@ function StationDetailCard({
     null,
   );
   const [reportSuccessMessage, setReportSuccessMessage] = useState("");
+  const [statusWarningMessage, setStatusWarningMessage] = useState("");
   const [stationLocationLabel, setStationLocationLabel] = useState<string>("");
 
   const handleReserve = (charger: Charger) => {
+    setStatusWarningMessage("");
     navigate("/reservation", {
       state: {
         station,
@@ -266,6 +261,10 @@ function StationDetailCard({
         vehicleId: vehicle?.id ?? "",
       },
     });
+  };
+
+  const handleBlockedAction = (message: string) => {
+    setStatusWarningMessage(message);
   };
 
   const handleOpenStationReport = () => {
@@ -288,14 +287,13 @@ function StationDetailCard({
   const handleReportSubmitSuccess = () => {
     setReportSuccessMessage(
       reportTargetCharger
-        ? `Şarj cihazı ${reportTargetCharger.id} için sorun bildirimi kaydedildi.`
-        : "İstasyon için sorun bildirimi kaydedildi.",
+        ? `Sarj cihazi ${reportTargetCharger.id} icin sorun bildirimi kaydedildi.`
+        : "Istasyon icin sorun bildirimi kaydedildi.",
     );
   };
 
   useEffect(() => {
     let cancelled = false;
-    setStationLocationLabel("");
 
     reverseGeocodeCoordinates({ lat: station.latitude, lng: station.longitude })
       .then((result) => {
@@ -368,6 +366,13 @@ function StationDetailCard({
           </div>
         )}
 
+        {statusWarningMessage && (
+          <div style={{ ...styles.message, ...styles.errorMessage }}>
+            <span>!</span>
+            <span>{statusWarningMessage}</span>
+          </div>
+        )}
+
         {directionsError && (
           <div style={{ ...styles.message, ...styles.errorMessage }}>
             <span>!</span>
@@ -422,6 +427,7 @@ function StationDetailCard({
                   vehicle={vehicle}
                   onReserve={handleReserve}
                   onReportIssue={handleOpenChargerReport}
+                  onBlockedAction={handleBlockedAction}
                 />
               ))}
             </div>

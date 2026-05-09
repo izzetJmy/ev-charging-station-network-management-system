@@ -244,11 +244,11 @@ export default function AdminLayout() {
 
   const defaultMenu = useMemo<AdminMenuItem[]>(
     () => [
-      { id: "dashboard", to: "/admin/dashboard", label: "Genel Özet" },
+      { id: "dashboard", to: "/admin/dashboard", label: "Genel Ozet" },
       { id: "reports", to: "/admin/reports", label: "Raporlar" },
       { id: "revenue", to: "/admin/revenue", label: "Gelir Raporu" },
-      { id: "stations", to: "/admin/stations", label: "İstasyon İstatistikleri" },
-      { id: "manage", to: "/admin/manage", label: "İstasyon/Charger Ekle" },
+      { id: "stations", to: "/admin/stations", label: "Istasyon Istatistikleri" },
+      { id: "manage", to: "/admin/manage", label: "Istasyon/Charger Ekle" },
     ],
     [],
   );
@@ -285,8 +285,8 @@ export default function AdminLayout() {
           <div style={styles.brand}>
             <span style={styles.dot} />
             <div style={styles.brandText}>
-              <div style={styles.brandTitle}>EV Network • Admin Panel</div>
-              <div style={styles.brandSub}>Rezervasyon ve şarj oturumu raporları</div>
+              <div style={styles.brandTitle}>EV Network - Admin Panel</div>
+              <div style={styles.brandSub}>Rezervasyon ve sarj oturumu raporlari</div>
             </div>
           </div>
           <div style={styles.headerRight}>
@@ -297,11 +297,11 @@ export default function AdminLayout() {
                 adminLogout();
                 navigate("/", {
                   replace: true,
-                  state: { snackbar: { message: "Çıkış yapıldı.", variant: "info" } },
+                  state: { snackbar: { message: "Cikis yapildi.", variant: "info" } },
                 });
               }}
             >
-              Çıkış
+              Cikis
             </button>
           </div>
         </header>
@@ -309,7 +309,7 @@ export default function AdminLayout() {
         <div className="admin-body" style={styles.body}>
           <aside className="admin-side" style={styles.side}>
             <div style={styles.sideCard}>
-              <div style={styles.sideTitle}>Menü</div>
+              <div style={styles.sideTitle}>Menu</div>
               <div style={styles.sideNav}>
                 {menuItems.map((item) => (
                   <div
@@ -341,7 +341,7 @@ export default function AdminLayout() {
                       {item.label}
                     </NavLink>
                     <div
-                      title="Sürükleyip bırakın"
+                      title="Surukleyip birakin"
                       style={{
                         ...styles.dragHandle,
                         ...(draggingId === item.id ? styles.dragHandleActive : {}),
@@ -357,7 +357,7 @@ export default function AdminLayout() {
                         setDropOverId(null);
                       }}
                     >
-                      ⋮⋮
+                      ::
                     </div>
                   </div>
                 ))}

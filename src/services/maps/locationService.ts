@@ -24,6 +24,11 @@ export interface LocationResult {
   message: string;
 }
 
+export interface LocationWatchHandlers {
+  onChange: (result: LocationResult) => void;
+  onError?: (result: LocationResult) => void;
+}
+
 export function createCurrentLocation(
   latitude: number,
   longitude: number,
@@ -61,6 +66,37 @@ export function calculateDistanceInKilometers(
     2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 
   return earthRadiusKm * angularDistance;
+}
+
+export function calculateDistanceFromCurrentLocation(
+  currentLocation: Location | UserCoordinates | null,
+  target: DistanceTarget,
+) {
+  if (!currentLocation) {
+    return null;
+  }
+
+  const coords =
+    "lat" in currentLocation
+      ? currentLocation
+      : {
+          lat: currentLocation.latitude,
+          lng: currentLocation.longitude,
+        };
+
+  return calculateDistanceInKilometers(coords, target);
+}
+
+export function formatDistanceLabel(distanceInKilometers: number | null) {
+  if (distanceInKilometers == null || !Number.isFinite(distanceInKilometers)) {
+    return "--";
+  }
+
+  if (distanceInKilometers < 1) {
+    return `${Math.round(distanceInKilometers * 1000)} m`;
+  }
+
+  return `${distanceInKilometers.toFixed(1)} km`;
 }
 
 export function getCurrentLocation(): Promise<LocationResult> {
@@ -107,4 +143,50 @@ export function getCurrentLocation(): Promise<LocationResult> {
       },
     );
   });
+}
+
+export function watchCurrentLocation(handlers: LocationWatchHandlers) {
+  if (!navigator.geolocation) {
+    handlers.onError?.({
+      coords: null,
+      currentLocation: null,
+      permissionState: "error",
+      message: "Tarayiciniz konum ozelligini desteklemiyor.",
+    });
+    return () => undefined;
+  }
+
+  const watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const currentLocation = createCurrentLocation(
+        position.coords.latitude,
+        position.coords.longitude,
+      );
+
+      handlers.onChange({
+        coords: {
+          lat: currentLocation.latitude,
+          lng: currentLocation.longitude,
+        },
+        currentLocation,
+        permissionState: "granted",
+        message: "Konum guncellendi.",
+      });
+    },
+    () => {
+      handlers.onError?.({
+        coords: null,
+        currentLocation: null,
+        permissionState: "denied",
+        message: "Konum izni verilmeden harita gosterilemez.",
+      });
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 5000,
+    },
+  );
+
+  return () => navigator.geolocation.clearWatch(watchId);
 }

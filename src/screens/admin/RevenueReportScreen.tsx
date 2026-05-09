@@ -144,7 +144,7 @@ export default function RevenueReportScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Gelir raporu alınamadı. Firestore bağlantısını kontrol edin.");
+        setError("Gelir raporu alinamadi. Firestore baglantisini kontrol edin.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -162,11 +162,11 @@ export default function RevenueReportScreen() {
     <div>
       <h2 style={styles.title}>Gelir Raporu</h2>
       <p style={styles.subtitle}>
-        Tamamlanan şarj oturumlarından elde edilen gelirleri toplam, ortalama ve istasyon bazında
+        Tamamlanan sarj oturumlarindan elde edilen gelirleri toplam, ortalama ve istasyon bazinda
         inceleyin.
       </p>
 
-      {loading && <div style={styles.loading}>Yükleniyor…</div>}
+      {loading && <div style={styles.loading}>Yukleniyor...</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && data && (
@@ -192,14 +192,14 @@ export default function RevenueReportScreen() {
             <div style={{ marginTop: "14px" }}>
               <TimeSeriesChart
                 title="Gelir Trendi"
-                description="Son 30 gün günlük toplam gelir."
-                yAxisLabel="₺"
+                description="Son 30 gun gunluk toplam gelir."
+                yAxisLabel="TL"
                 xAxisLabel="Tarih"
                 xAxisNote="X ekseni: Tarih (gg.aa)"
                 labels={timeSeries.map((row) => row.dateLabel)}
                 series={[
                   {
-                    name: "Gelir (₺)",
+                    name: "Gelir (TL)",
                     color: "#1F5E4D",
                     data: timeSeries.map((row) => row.revenue),
                   },
@@ -223,7 +223,7 @@ export default function RevenueReportScreen() {
                   {rows.length === 0 && (
                     <tr>
                       <td style={styles.td} colSpan={2}>
-                        Henüz şarj oturumu yok.
+                        Henuz sarj oturumu yok.
                       </td>
                     </tr>
                   )}

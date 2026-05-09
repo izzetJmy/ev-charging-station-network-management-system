@@ -306,9 +306,9 @@ function WalletPanel({ userId }: WalletPanelProps) {
             <div>
               <p style={styles.rowTitle}>{transaction.type}</p>
               <div style={styles.rowMeta}>
-                {formatDate(transaction.createdAt)} · {transaction.paymentStatus}
+                {formatDate(transaction.createdAt)} - {transaction.paymentStatus}
                 {transaction.energyConsumed != null
-                  ? ` · ${Number(transaction.energyConsumed).toFixed(2)} kWh`
+                  ? ` - ${Number(transaction.energyConsumed).toFixed(2)} kWh`
                   : ""}
               </div>
               <button

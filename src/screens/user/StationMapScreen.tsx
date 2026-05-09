@@ -21,11 +21,13 @@ import {
 import { getStationsWithChargers } from "../../services/firebase/stationService";
 import { useGoogleMapsLoader } from "../../services/maps/googleMapsLoader";
 import {
+  calculateDistanceFromCurrentLocation,
+  formatDistanceLabel,
   getCurrentLocation,
   type LocationPermissionState,
   type UserCoordinates,
+  watchCurrentLocation,
 } from "../../services/maps/locationService";
-import { calculateDistanceInKilometers } from "../../services/maps/locationService";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { useFavoriteStations } from "../../hooks/useFavoriteStations";
@@ -822,6 +824,7 @@ function StationMapScreen() {
   const [isNavigationPreviewOpen, setIsNavigationPreviewOpen] = useState(false);
   const [favoriteActionLoadingId, setFavoriteActionLoadingId] = useState("");
   const vehicleIdRef = useRef("");
+  const coordsRef = useRef<UserCoordinates | null>(null);
 
   const stationCounts = useMemo(() => {
     const totalStations = stations.length;
@@ -874,7 +877,7 @@ function StationMapScreen() {
 
       return {
         station,
-        distanceKm: calculateDistanceInKilometers(coords, station),
+        distanceKm: calculateDistanceFromCurrentLocation(coords, station),
       };
     });
 
@@ -907,12 +910,12 @@ function StationMapScreen() {
         setStationsError(
           result.length
             ? ""
-            : "İstasyon verisi bulunamadı. Admin panelden stations/chargers seed edebilirsiniz.",
+            : "Istasyon verisi bulunamadi. Admin panelden stations/chargers seed edebilirsiniz.",
         );
       })
       .catch(() => {
         if (cancelled) return;
-        setStationsError("İstasyon verisi alınamadı. Firestore bağlantısını kontrol edin.");
+        setStationsError("Istasyon verisi alinamadi. Firestore baglantisini kontrol edin.");
       });
 
     return () => {
@@ -929,9 +932,13 @@ function StationMapScreen() {
     }
 
     const station = stations.find((candidate) => candidate.id === requestedStationId);
-    if (station) {
-      setSelectedStation(station);
-    }
+    const timerId = window.setTimeout(() => {
+      if (station) {
+        setSelectedStation(station);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
   }, [location.state, stations]);
 
   useEffect(() => {
@@ -946,6 +953,14 @@ function StationMapScreen() {
 
         setVehicle(vehicle);
         setVehicleId(vehicle?.id ?? "");
+        if (vehicle?.currentLocation) {
+          setCoords({
+            lat: vehicle.currentLocation.latitude,
+            lng: vehicle.currentLocation.longitude,
+          });
+          setPermissionState("granted");
+          setMessage("Kayitli currentLocation verisi kullaniliyor.");
+        }
       } catch {
         setVehicle(null);
         setVehicleId("");
@@ -960,6 +975,10 @@ function StationMapScreen() {
   }, [vehicleId]);
 
   useEffect(() => {
+    coordsRef.current = coords;
+  }, [coords]);
+
+  useEffect(() => {
     let isCancelled = false;
 
     const resolveAddress = async () => {
@@ -968,7 +987,7 @@ function StationMapScreen() {
         return;
       }
 
-      setCoordsLabel("Konum çözümleniyor...");
+      setCoordsLabel("Konum cozumleniyor...");
       const result = await reverseGeocodeCoordinates(coords);
       if (isCancelled) return;
 
@@ -1045,6 +1064,27 @@ function StationMapScreen() {
     return () => window.clearTimeout(timerId);
   }, [requestLocation]);
 
+  useEffect(() => {
+    if (permissionState === "denied" || permissionState === "error") {
+      return undefined;
+    }
+
+    return watchCurrentLocation({
+      onChange: (result) => {
+        setPermissionState(result.permissionState);
+        setCoords(result.coords);
+        setMessage(result.message);
+      },
+      onError: (result) => {
+        if (coordsRef.current) {
+          return;
+        }
+        setPermissionState(result.permissionState);
+        setMessage(result.message);
+      },
+    });
+  }, [permissionState]);
+
   const progressValue = getProgressValue(
     permissionState,
     coords,
@@ -1068,7 +1108,7 @@ function StationMapScreen() {
     permissionState === "error" || (permissionState === "granted" && !!mapsError);
   const directionsLeg = directionsResult?.routes[0]?.legs[0] ?? null;
   const navigationOriginLabel =
-    coordsLabel && coordsLabel !== "Konum Ã§Ã¶zÃ¼mleniyor..."
+    coordsLabel && coordsLabel !== "Konum cozumleniyor..."
       ? coordsLabel
       : "Konumunuz";
 
@@ -1224,7 +1264,7 @@ function StationMapScreen() {
                   <div style={styles.locationStatus}>Guncel konum</div>
                   <div style={styles.locationValue}>
                     {coords
-                      ? coordsLabel && coordsLabel !== "Konum çözümleniyor..."
+                      ? coordsLabel && coordsLabel !== "Konum cozumleniyor..."
                         ? coordsLabel
                         : formatCoordinates(coords)
                       : "Konum bekleniyor"}
@@ -1245,7 +1285,7 @@ function StationMapScreen() {
               <input
                 value={stationSearch}
                 onChange={(event) => setStationSearch(event.target.value)}
-                placeholder="İstasyon adı veya adres ara..."
+                placeholder="Istasyon adi veya adres ara..."
                 style={styles.searchInput}
               />
 
@@ -1265,7 +1305,7 @@ function StationMapScreen() {
 
             <div style={styles.listCard}>
               <div style={styles.listHeader}>
-                <p style={styles.listTitle}>Yakınımdakiler</p>
+                <p style={styles.listTitle}>Yakinimdakiler</p>
                 <div style={styles.listCount}>{filteredStations.length} istasyon</div>
               </div>
 
@@ -1275,9 +1315,7 @@ function StationMapScreen() {
                   const distanceLabel =
                     distanceKm == null
                       ? "Konum yok"
-                      : distanceKm < 1
-                        ? `${Math.round(distanceKm * 1000)} m`
-                        : `${distanceKm.toFixed(1)} km`;
+                      : formatDistanceLabel(distanceKm);
 
                   return (
                     <div
@@ -1295,7 +1333,7 @@ function StationMapScreen() {
                       >
                       <span style={styles.stationName}>{station.name}</span>
                       <span style={styles.stationMeta}>
-                        {distanceLabel} · {station.status}
+                        {distanceLabel} - {station.status}
                       </span>
                       </button>
                       <button
@@ -1394,7 +1432,7 @@ function StationMapScreen() {
                 <div style={styles.infoLabel}>Konum</div>
                 <div style={styles.infoValue}>
                   {coords
-                    ? coordsLabel && coordsLabel !== "Konum çözümleniyor..."
+                    ? coordsLabel && coordsLabel !== "Konum cozumleniyor..."
                       ? coordsLabel
                       : formatCoordinates(coords)
                     : "--"}

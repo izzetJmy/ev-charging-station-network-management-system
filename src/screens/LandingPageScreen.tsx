@@ -206,10 +206,10 @@ export default function LandingPageScreen() {
         <main style={styles.main}>
           <section style={styles.heroCard}>
             <div style={styles.heroContent}>
-              <h1 style={styles.title}>EV istasyonlarını tek ekrandan yönetin.</h1>
+              <h1 style={styles.title}>EV istasyonlarini tek ekrandan yonetin.</h1>
               <p style={styles.subtitle}>
-                Araç profilini oluşturun, uygun istasyonları haritada görün, rezervasyon yapın ve
-                şarj oturumu maliyetinizi anında hesaplayın.
+                Arac profilini olusturun, uygun istasyonlari haritada gorun, rezervasyon yapin ve
+                sarj oturumu maliyetinizi aninda hesaplayin.
               </p>
 
               <button
@@ -218,14 +218,14 @@ export default function LandingPageScreen() {
                 style={styles.primaryButton}
                 onClick={() => navigate("/app")}
               >
-                Başla
+                Basla
               </button>
             </div>
           </section>
         </main>
 
         <footer style={styles.footer}>
-          <div>© {new Date().getFullYear()} EV Network</div>
+          <div>(c) {new Date().getFullYear()} EV Network</div>
         </footer>
       </div>
 

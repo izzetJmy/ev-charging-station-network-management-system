@@ -1,38 +1,19 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import WalletPanel from "../../components/WalletPanel";
 import type { Charger } from "../../models/Charger";
 import type { Station } from "../../models/Station";
-import { getOrCreateLocalUserId } from "../../services/auth/localUser";
-import { getVehicleById, getVehicleByUserId } from "../../services/firebase/vehicleService";
 import type { Vehicle } from "../../models/vehicle";
+import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import {
-  collection,
-  getDocs,
-  query,
-  where,
-  type DocumentData,
-} from "firebase/firestore";
-import { db } from "../../services/firebase/firebaseConfig";
+  getChargingSessionHistory,
+  type ChargingSessionRecord,
+} from "../../services/firebase/chargingSessionService";
 import { getStationsWithChargers } from "../../services/firebase/stationService";
-import WalletPanel from "../../components/WalletPanel";
+import { getVehicleById, getVehicleByUserId } from "../../services/firebase/vehicleService";
 
 interface ChargingHistoryLocationState {
   vehicleId?: string;
-}
-
-interface ChargingSessionRecord {
-  id: string;
-  reservationId?: string | null;
-  vehicleId: string;
-  stationId: string;
-  chargerId: string;
-  startBatteryPercentage: number;
-  endBatteryPercentage: number;
-  consumedKwh: number;
-  pricePerKwh: number;
-  totalCost: number;
-  status?: string;
-  createdAt?: unknown;
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -77,10 +58,7 @@ const styles: Record<string, CSSProperties> = {
       "linear-gradient(120deg, transparent 12%, rgba(255,255,255,0.16) 12%, rgba(255,255,255,0.16) 13%, transparent 13%, transparent 52%, rgba(255,255,255,0.14) 52%, rgba(255,255,255,0.14) 53%, transparent 53%), linear-gradient(25deg, transparent 24%, rgba(255,255,255,0.12) 24%, rgba(255,255,255,0.12) 25%, transparent 25%)",
     backgroundSize: "240px 220px, 190px 180px",
   },
-  headerContent: {
-    position: "relative",
-    zIndex: 1,
-  },
+  headerContent: { position: "relative", zIndex: 1 },
   eyebrow: {
     display: "inline-flex",
     alignItems: "center",
@@ -109,10 +87,18 @@ const styles: Record<string, CSSProperties> = {
   },
   subtitle: {
     margin: 0,
-    maxWidth: "520px",
+    maxWidth: "560px",
     color: "rgba(255,255,255,0.78)",
     fontSize: "14px",
     lineHeight: 1.7,
+  },
+  body: { padding: "26px 30px 30px" },
+  card: {
+    borderRadius: "22px",
+    border: "1px solid #DCE8DF",
+    backgroundColor: "#FFFFFF",
+    padding: "18px",
+    boxShadow: "0 12px 28px rgba(31,94,77,0.06)",
   },
   vehicleInfo: {
     borderRadius: "18px",
@@ -129,25 +115,8 @@ const styles: Record<string, CSSProperties> = {
     textTransform: "uppercase",
     letterSpacing: "0.08em",
   },
-  vehicleValue: {
-    marginTop: "6px",
-    fontSize: "16px",
-    fontWeight: 950,
-  },
-  body: {
-    padding: "26px 30px 30px",
-  },
-  card: {
-    borderRadius: "22px",
-    border: "1px solid #DCE8DF",
-    backgroundColor: "#FFFFFF",
-    padding: "18px",
-    boxShadow: "0 12px 28px rgba(31,94,77,0.06)",
-  },
-  list: {
-    display: "grid",
-    gap: "12px",
-  },
+  vehicleValue: { marginTop: "6px", fontSize: "16px", fontWeight: 950 },
+  list: { display: "grid", gap: "12px" },
   item: {
     borderRadius: "18px",
     border: "1px solid #DCE8DF",
@@ -160,11 +129,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: "space-between",
     gap: "12px",
   },
-  itemTitle: {
-    margin: 0,
-    fontSize: "15px",
-    fontWeight: 950,
-  },
+  itemTitle: { margin: 0, fontSize: "15px", fontWeight: 950 },
   itemMeta: {
     marginTop: "6px",
     color: "#66756E",
@@ -181,6 +146,32 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "12px",
     fontWeight: 900,
     whiteSpace: "nowrap",
+  },
+  detailGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "10px",
+    marginTop: "12px",
+  },
+  detailCell: {
+    borderRadius: "14px",
+    border: "1px solid #DCE8DF",
+    backgroundColor: "#F7FBF7",
+    padding: "10px",
+  },
+  detailLabel: {
+    color: "#7A8982",
+    fontSize: "10px",
+    fontWeight: 850,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+  },
+  detailValue: {
+    marginTop: "5px",
+    color: "#17231F",
+    fontSize: "13px",
+    lineHeight: 1.4,
+    fontWeight: 900,
   },
   empty: {
     borderRadius: "18px",
@@ -199,19 +190,6 @@ const styles: Record<string, CSSProperties> = {
     gridTemplateColumns: "1fr",
     gap: "12px",
   },
-  primaryButton: {
-    minHeight: "52px",
-    padding: "14px 16px",
-    background: "linear-gradient(135deg, #173C34 0%, #24705B 100%)",
-    border: "none",
-    borderRadius: "16px",
-    color: "#FFFFFF",
-    fontSize: "15px",
-    fontWeight: 850,
-    cursor: "pointer",
-    boxShadow: "0 12px 24px rgba(31,94,77,0.26)",
-    fontFamily: "inherit",
-  },
   secondaryButton: {
     minHeight: "52px",
     padding: "14px 16px",
@@ -227,11 +205,9 @@ const styles: Record<string, CSSProperties> = {
 };
 
 function formatCreatedAt(createdAt: unknown) {
-  const asAny = createdAt as { toDate?: () => Date } | null;
-  const date = asAny?.toDate?.() ?? null;
-  if (!date) {
-    return "--";
-  }
+  const date = (createdAt as { toDate?: () => Date } | null)?.toDate?.() ?? null;
+  if (!date) return "--";
+
   return `${String(date.getDate()).padStart(2, "0")}.${String(
     date.getMonth() + 1,
   ).padStart(2, "0")}.${date.getFullYear()} ${String(date.getHours()).padStart(
@@ -240,11 +216,16 @@ function formatCreatedAt(createdAt: unknown) {
   )}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function formatNumber(value: unknown, suffix = "") {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) return "--";
+  return `${numeric.toFixed(2)}${suffix}`;
+}
+
 export default function ChargingHistoryScreen() {
   const location = useLocation();
   const navigate = useNavigate();
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
-
   const locationState = (location.state as ChargingHistoryLocationState | null) ?? null;
   const requestedVehicleId = locationState?.vehicleId ?? "";
 
@@ -269,11 +250,13 @@ export default function ChargingHistoryScreen() {
         setVehicleLoading(false);
       }
     };
+
     void loadVehicle();
   }, [requestedVehicleId, userId]);
 
   useEffect(() => {
     let cancelled = false;
+
     getStationsWithChargers()
       .then((stations) => {
         if (cancelled) return;
@@ -293,6 +276,7 @@ export default function ChargingHistoryScreen() {
         setStationsById({});
         setChargersById({});
       });
+
     return () => {
       cancelled = true;
     };
@@ -309,38 +293,24 @@ export default function ChargingHistoryScreen() {
       try {
         setLoading(true);
         setError("");
-
-        const sessionsRef = collection(db, "chargingSessions");
-        const sessionsQuery = query(sessionsRef, where("vehicleId", "==", vehicle.id));
-        const snapshot = await getDocs(sessionsQuery);
-
-        const result = snapshot.docs
-          .map((doc) => ({ id: doc.id, ...(doc.data() as DocumentData) }) as ChargingSessionRecord)
-          .filter((session) => (session.status ? session.status === "completed" : true));
-
-        result.sort((a, b) => {
-          const aDate = (a.createdAt as { toDate?: () => Date } | undefined)?.toDate?.();
-          const bDate = (b.createdAt as { toDate?: () => Date } | undefined)?.toDate?.();
-          if (!aDate && !bDate) return 0;
-          if (!aDate) return 1;
-          if (!bDate) return -1;
-          return bDate.getTime() - aDate.getTime();
+        const result = await getChargingSessionHistory({
+          userId,
+          vehicleId: vehicle.id,
         });
-
         setSessions(result);
       } catch {
-        setError("Şarj geçmişi alınamadı. Lütfen tekrar deneyin.");
+        setError("Sarj gecmisi alinamadi. Lutfen tekrar deneyin.");
       } finally {
         setLoading(false);
       }
     };
 
     void loadSessions();
-  }, [vehicle?.id]);
+  }, [userId, vehicle?.id]);
 
   const headerTitle = useMemo(() => {
     const name = [vehicle?.brand?.trim(), vehicle?.model?.trim()].filter(Boolean).join(" ");
-    return name || "Şarj Geçmişi";
+    return name || "Sarj Gecmisi";
   }, [vehicle?.brand, vehicle?.model]);
 
   return (
@@ -353,7 +323,11 @@ export default function ChargingHistoryScreen() {
               <span style={styles.signalDot} />
               EV Network
             </div>
-            <h1 style={styles.title}>Şarj Geçmişi</h1>
+            <h1 style={styles.title}>Sarj Gecmisi</h1>
+            <p style={styles.subtitle}>
+              Firestore'da tamamlanmis charging session kayitlari; istasyon,
+              enerji, maliyet ve tarih bilgileriyle listelenir.
+            </p>
           </div>
         </header>
 
@@ -362,16 +336,18 @@ export default function ChargingHistoryScreen() {
 
           <div style={styles.card}>
             <div style={styles.vehicleInfo}>
-              <div style={styles.vehicleLabel}>Araç</div>
+              <div style={styles.vehicleLabel}>Arac</div>
               <div style={styles.vehicleValue}>
-                {vehicleLoading ? "Yükleniyor..." : headerTitle}
+                {vehicleLoading ? "Yukleniyor..." : headerTitle}
               </div>
             </div>
 
             {error && <div style={styles.empty}>{error}</div>}
 
+            {!error && loading && <div style={styles.empty}>Sarj gecmisi yukleniyor...</div>}
+
             {!error && !loading && sessions.length === 0 && (
-              <div style={styles.empty}>Bu araç için kayıtlı şarj oturumu yok.</div>
+              <div style={styles.empty}>Bu arac icin kayitli sarj oturumu yok.</div>
             )}
 
             {!error && sessions.length > 0 && (
@@ -380,9 +356,11 @@ export default function ChargingHistoryScreen() {
                   const station = stationsById[session.stationId] ?? null;
                   const charger = chargersById[session.chargerId] ?? null;
                   const stationName = station?.name ?? session.stationId;
+                  const stationAddress = station?.address ?? "Istasyon adresi bulunamadi";
                   const chargerInfo = charger
-                    ? `${charger.connectorType} • ${charger.powerOutput} • ${charger.type}`
+                    ? `${charger.connectorType} - ${charger.powerOutput} - ${charger.type}`
                     : session.chargerId;
+                  const dateLabel = formatCreatedAt(session.completedAt ?? session.createdAt);
 
                   return (
                     <article key={session.id} style={styles.item}>
@@ -390,24 +368,52 @@ export default function ChargingHistoryScreen() {
                         <div>
                           <p style={styles.itemTitle}>{stationName}</p>
                           <div style={styles.itemMeta}>
-                            Şarj cihazı: {chargerInfo}
+                            Session: {session.id}
                             <br />
-                            Tarih: {formatCreatedAt(session.createdAt)}
+                            Sarj cihazi: {chargerInfo}
+                            <br />
+                            Tarih: {dateLabel}
+                            <br />
+                            Adres: {stationAddress}
                           </div>
                         </div>
                         <div style={styles.badge}>
-                          {session.totalCost?.toFixed?.(2) ?? Number(session.totalCost).toFixed(2)} TL
+                          {formatNumber(session.totalCost, " TL")}
                         </div>
                       </div>
 
-                      <div style={{ ...styles.itemMeta, marginTop: "10px" }}>
-                        Tüketim:{" "}
-                        {session.consumedKwh?.toFixed?.(2) ??
-                          Number(session.consumedKwh).toFixed(2)}{" "}
-                        kWh · Birim:{" "}
-                        {session.pricePerKwh?.toFixed?.(2) ??
-                          Number(session.pricePerKwh).toFixed(2)}{" "}
-                        TL/kWh
+                      <div
+                        className="charging-history-detail-grid"
+                        style={styles.detailGrid}
+                      >
+                        <div style={styles.detailCell}>
+                          <div style={styles.detailLabel}>Energy consumed</div>
+                          <div style={styles.detailValue}>
+                            {formatNumber(session.consumedKwh, " kWh")}
+                          </div>
+                        </div>
+                        <div style={styles.detailCell}>
+                          <div style={styles.detailLabel}>Total cost</div>
+                          <div style={styles.detailValue}>
+                            {formatNumber(session.totalCost, " TL")}
+                          </div>
+                        </div>
+                        <div style={styles.detailCell}>
+                          <div style={styles.detailLabel}>Battery</div>
+                          <div style={styles.detailValue}>
+                            {session.startBatteryPercentage ?? "--"}% -{" "}
+                            {session.endBatteryPercentage ??
+                              session.targetBatteryPercentage ??
+                              "--"}
+                            %
+                          </div>
+                        </div>
+                        <div style={styles.detailCell}>
+                          <div style={styles.detailLabel}>Unit price</div>
+                          <div style={styles.detailValue}>
+                            {formatNumber(session.pricePerKwh, " TL/kWh")}
+                          </div>
+                        </div>
                       </div>
                     </article>
                   );
@@ -423,6 +429,20 @@ export default function ChargingHistoryScreen() {
           </div>
         </section>
       </main>
+
+      <style>{`
+        @media (max-width: 760px) {
+          .charging-history-detail-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .charging-history-detail-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

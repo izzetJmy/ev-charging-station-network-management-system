@@ -14,6 +14,40 @@ export interface ChargerCompatibilityResult {
   reason: string;
 }
 
+export function getChargerStatusBlockMessage(
+  station: Station,
+  charger: Charger,
+) {
+  if (station.status === "offline") {
+    return "Bu istasyon su anda kullanilamiyor.";
+  }
+
+  if (charger.status === "occupied") {
+    return "Bu sarj cihazi su anda kullanimda.";
+  }
+
+  if (charger.status === "offline") {
+    return "Bu sarj cihazi su anda cevrim disi.";
+  }
+
+  return "";
+}
+
+export function getReservationStatusBlockMessage(
+  station: Station,
+  charger: Charger,
+) {
+  if (station.status === "offline" || charger.status === "offline") {
+    return "Bu istasyon su anda kullanilamiyor.";
+  }
+
+  return "";
+}
+
+export function canUseChargerForCharging(station: Station, charger: Charger) {
+  return !getChargerStatusBlockMessage(station, charger);
+}
+
 export function checkVehicleChargerCompatibility(
   vehicle: Vehicle | null,
   charger: Charger,
@@ -31,15 +65,7 @@ export function checkVehicleChargerCompatibility(
     return {
       isCompatible: false,
       state: "offline",
-      reason: "Offline",
-    };
-  }
-
-  if (charger.status === "occupied") {
-    return {
-      isCompatible: false,
-      state: "occupied",
-      reason: "Occupied",
+      reason: getChargerStatusBlockMessage(station, charger),
     };
   }
 

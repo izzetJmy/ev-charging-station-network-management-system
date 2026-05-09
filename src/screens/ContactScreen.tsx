@@ -157,11 +157,11 @@ export default function ContactScreen() {
         <SiteHeader />
 
         <main style={styles.main}>
-          <section style={styles.card} aria-label="İletişim">
-            <h1 style={styles.title}>İletişim</h1>
+          <section style={styles.card} aria-label="Iletisim">
+            <h1 style={styles.title}>Iletisim</h1>
             <p style={styles.desc}>
-              Sorularınız ve geri bildirimleriniz için bize ulaşın. Mesajınız kayıt altına alınır ve
-              en kısa sürede dönüş yapılır.
+              Sorulariniz ve geri bildirimleriniz icin bize ulasin. Mesajiniz kayit altina alinir ve
+              en kisa surede donus yapilir.
             </p>
 
             <div className="contact-grid" style={styles.grid}>
@@ -172,7 +172,7 @@ export default function ContactScreen() {
                 <div style={{ height: "12px" }} />
 
                 <div style={styles.label}>Adres</div>
-                <div style={styles.value}>FSE Project • İzmir, Türkiye</div>
+                <div style={styles.value}>FSE Project - Izmir, Turkiye</div>
               </div>
 
               <form
@@ -184,14 +184,14 @@ export default function ContactScreen() {
               >
                 <input style={styles.input} placeholder="Ad Soyad" required />
                 <input style={styles.input} placeholder="E-posta" type="email" required />
-                <textarea style={styles.textarea} placeholder="Mesajınız" required />
+                <textarea style={styles.textarea} placeholder="Mesajiniz" required />
                 <button type="submit" style={styles.button}>
-                  Mesaj Gönder
+                  Mesaj Gonder
                 </button>
                 <div style={styles.note}>
                   {sent
-                    ? "Mesaj alındı (demo)."
-                    : "Not: Bu form şu an demo. İstersen Firestore’a bağlayabiliriz."}
+                    ? "Mesaj alindi (demo)."
+                    : "Not: Bu form su an demo. Istersen Firestore'a baglayabiliriz."}
                 </div>
               </form>
             </div>

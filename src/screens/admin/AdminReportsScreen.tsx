@@ -154,12 +154,12 @@ const styles: Record<string, CSSProperties> = {
 };
 
 const ISSUE_LABELS: Record<ReportIssueType, string> = {
-  charger_not_working: "Şarj cihazı çalışmıyor",
-  wrong_price: "Fiyat yanlış",
-  station_offline: "İstasyon offline",
+  charger_not_working: "Sarj cihazi calismiyor",
+  wrong_price: "Fiyat yanlis",
+  station_offline: "Istasyon offline",
   location_problem: "Konum problemi",
-  payment_problem: "Ödeme problemi",
-  other: "Diğer",
+  payment_problem: "Odeme problemi",
+  other: "Diger",
 };
 
 function formatCreatedAt(createdAt: unknown) {
@@ -205,7 +205,7 @@ export default function AdminReportsScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Raporlar alınamadı. Firestore bağlantısını kontrol edin.");
+        setError("Raporlar alinamadi. Firestore baglantisini kontrol edin.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -238,27 +238,27 @@ export default function AdminReportsScreen() {
   return (
     <div>
       <h2 style={styles.title}>Raporlar</h2>
-      <p style={styles.subtitle}>Kullanıcıların bildirdiği istasyon/şarj cihazı sorunlarını görüntüleyin.</p>
+      <p style={styles.subtitle}>Kullanicilarin bildirdigi istasyon/sarj cihazi sorunlarini goruntuleyin.</p>
 
       <div className="admin-reports-toolbar" style={styles.toolbar}>
         <div style={styles.field}>
           <div style={styles.label}>Arama</div>
           <input
             style={styles.input}
-            placeholder="İstasyon adı, issue type, açıklama…"
+            placeholder="Istasyon adi, issue type, aciklama..."
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
           />
         </div>
 
         <div style={styles.field}>
-          <div style={styles.label}>Tür</div>
+          <div style={styles.label}>Tur</div>
           <select
             style={styles.input}
             value={issueType}
             onChange={(e) => setIssueType(e.target.value as ReportIssueType | "all")}
           >
-            <option value="all">Tümü</option>
+            <option value="all">Tumu</option>
             {Object.entries(ISSUE_LABELS).map(([key, label]) => (
               <option key={key} value={key}>
                 {label}
@@ -270,9 +270,9 @@ export default function AdminReportsScreen() {
         <div style={styles.field}>
           <div style={styles.label}>Kapsam</div>
           <select style={styles.input} value={target} onChange={(e) => setTarget(e.target.value as TargetFilter)}>
-            <option value="all">Tümü</option>
+            <option value="all">Tumu</option>
             <option value="station">Sadece istasyon</option>
-            <option value="charger">Sadece şarj cihazı</option>
+            <option value="charger">Sadece sarj cihazi</option>
           </select>
         </div>
       </div>
@@ -281,11 +281,11 @@ export default function AdminReportsScreen() {
         <div style={styles.count}>{filtered.length} rapor</div>
       </div>
 
-      {loading && <div style={styles.loading}>Yükleniyor…</div>}
+      {loading && <div style={styles.loading}>Yukleniyor...</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && !error && filtered.length === 0 && (
-        <div style={styles.empty}>Filtrelere uygun rapor bulunamadı.</div>
+        <div style={styles.empty}>Filtrelere uygun rapor bulunamadi.</div>
       )}
 
       {!loading && !error && filtered.length > 0 && (
@@ -295,9 +295,9 @@ export default function AdminReportsScreen() {
             const charger = report.chargerId ? chargersById[report.chargerId] ?? null : null;
             const stationName = station?.name ?? report.stationId;
             const issue = ISSUE_LABELS[report.issueType] ?? report.issueType;
-            const badgeText = charger ? `Şarj Cihazı • ${issue}` : `İstasyon • ${issue}`;
+            const badgeText = charger ? `Sarj Cihazi - ${issue}` : `Istasyon - ${issue}`;
             const chargerLine = charger
-              ? `${charger.connectorType} • ${charger.powerOutput} • ${charger.type}`
+              ? `${charger.connectorType} - ${charger.powerOutput} - ${charger.type}`
               : "--";
 
             return (
@@ -311,7 +311,7 @@ export default function AdminReportsScreen() {
 
                   <div style={styles.details}>
                     Tarih: {formatCreatedAt(report.createdAt)} <br />
-                    İstasyon ID: {report.stationId} <br />
+                    Istasyon ID: {report.stationId} <br />
                     Charger: {report.chargerId ? chargerLine : "--"}
                   </div>
 
