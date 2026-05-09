@@ -89,6 +89,8 @@ export interface ChargingSessionRecord extends Partial<LiveChargingSessionUpdate
   walletTransactionId?: string;
   receiptId?: string;
   startedAt?: unknown;
+  startTime?: unknown;
+  estimatedEndTime?: unknown;
   updatedAt?: unknown;
   completedAt?: unknown;
   createdAt?: unknown;
@@ -100,6 +102,38 @@ function roundMoney(value: number) {
 
 function roundEnergy(value: number) {
   return Math.round((value + Number.EPSILON) * 1000) / 1000;
+}
+
+function buildDateTime(date: string, time: string) {
+  if (!date || !time) {
+    return null;
+  }
+
+  const dateTime = new Date(`${date}T${time}:00`);
+
+  if (Number.isNaN(dateTime.getTime())) {
+    return null;
+  }
+
+  return dateTime;
+}
+
+function getReservationDateRange(date: string, startTime: string, endTime: string) {
+  const startDateTime = buildDateTime(date, startTime);
+  const endDateTime = buildDateTime(date, endTime);
+
+  if (!startDateTime || !endDateTime) {
+    return null;
+  }
+
+  if (endDateTime.getTime() <= startDateTime.getTime()) {
+    endDateTime.setDate(endDateTime.getDate() + 1);
+  }
+
+  return {
+    startDateTime,
+    endDateTime,
+  };
 }
 
 function toChargingSessionRecord(
@@ -175,6 +209,9 @@ async function assertReservationMatchesSession(
     stationId?: string;
     chargerId?: string;
     status?: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
   };
 
   if (
@@ -184,6 +221,30 @@ async function assertReservationMatchesSession(
     reservation.chargerId !== session.chargerId
   ) {
     throw new Error("Rezervasyon bilgisi sarj oturumu ile uyusmuyor.");
+  }
+
+  if (!reservation.date || !reservation.startTime || !reservation.endTime) {
+    throw new Error("Rezervasyon saat bilgisi bulunamadi.");
+  }
+
+  const reservationDateRange = getReservationDateRange(
+    reservation.date,
+    reservation.startTime,
+    reservation.endTime,
+  );
+
+  if (!reservationDateRange) {
+    throw new Error("Rezervasyon saat araligi gecersiz.");
+  }
+
+  const nowTime = Date.now();
+  if (
+    nowTime < reservationDateRange.startDateTime.getTime() ||
+    nowTime > reservationDateRange.endDateTime.getTime()
+  ) {
+    throw new Error(
+      "Sarj oturumu sadece rezervasyon saat araliginda baslatilabilir.",
+    );
   }
 
   return true;
@@ -280,6 +341,10 @@ export async function createChargingSession(session: ChargingSessionInput) {
 export async function createLiveChargingSession(session: LiveChargingSessionInput) {
   const sessionRef = doc(collection(db, "chargingSessions"));
   const currentKwh = 0;
+  const sessionDurationMs = Math.max(
+    0,
+    (session.sessionLimitMinutes ?? session.estimatedTotalMinutes) * 60 * 1000,
+  );
 
   await runTransaction(db, async (firestoreTransaction) => {
     const stationRef = doc(db, "stations", session.stationId);
@@ -297,6 +362,9 @@ export async function createLiveChargingSession(session: LiveChargingSessionInpu
       allowOccupied: hasMatchingReservation,
     });
 
+    const now = new Date();
+    const estimatedEndDate = new Date(now.getTime() + sessionDurationMs);
+
     firestoreTransaction.set(sessionRef, {
       ...session,
       currentKwh,
@@ -308,6 +376,8 @@ export async function createLiveChargingSession(session: LiveChargingSessionInpu
       progressPercentage: 0,
       status: "active",
       paymentStatus: "pending",
+      startTime: now,
+      estimatedEndTime: estimatedEndDate,
       startedAt: serverTimestamp(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),

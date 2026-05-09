@@ -21,6 +21,7 @@ import {
   updateLiveChargingSession,
   type ChargingSessionRecord,
 } from "../../services/firebase/chargingSessionService";
+import { isWithinReservationWindow } from "../../services/firebase/reservationService";
 import { getVehicleById, getVehicleByUserId } from "../../services/firebase/vehicleService";
 import {
   getWallet,
@@ -67,6 +68,7 @@ const styles: Record<string, CSSProperties> = {
     width: "min(1100px, 100%)",
     display: "grid",
     gridTemplateColumns: "0.92fr 1.08fr",
+    gridAutoRows: "auto",
     borderRadius: "28px",
     overflow: "hidden",
     backgroundColor: "rgba(255, 255, 255, 0.9)",
@@ -76,27 +78,29 @@ const styles: Record<string, CSSProperties> = {
     backdropFilter: "blur(14px)",
   },
   summaryPanel: {
-    minHeight: "690px",
+    minHeight: "auto",
     padding: "34px",
     background:
       "linear-gradient(155deg, #10352E 0%, #1F5E4D 48%, #A9D869 140%)",
     color: "#FFFFFF",
     position: "relative",
-    overflow: "hidden",
+    overflow: "visible",
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
     gap: "24px",
   },
   routeLayer: {
-    position: "absolute",
+    position: "fixed",
     inset: 0,
     opacity: 0.34,
     backgroundImage:
       "linear-gradient(120deg, transparent 12%, rgba(255,255,255,0.16) 12%, rgba(255,255,255,0.16) 13%, transparent 13%, transparent 52%, rgba(255,255,255,0.14) 52%, rgba(255,255,255,0.14) 53%, transparent 53%), linear-gradient(25deg, transparent 24%, rgba(255,255,255,0.12) 24%, rgba(255,255,255,0.12) 25%, transparent 25%)",
     backgroundSize: "240px 220px, 190px 180px",
+    pointerEvents: "none",
+    zIndex: 0,
   },
-  summaryContent: { position: "relative", zIndex: 1 },
+  summaryContent: { position: "relative", zIndex: 2 },
   eyebrow: {
     display: "inline-flex",
     alignItems: "center",
@@ -166,7 +170,7 @@ const styles: Record<string, CSSProperties> = {
   },
   livePanel: {
     position: "relative",
-    zIndex: 1,
+    zIndex: 2,
     borderRadius: "22px",
     backgroundColor: "rgba(255,255,255,0.14)",
     border: "1px solid rgba(255,255,255,0.2)",
@@ -207,6 +211,7 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: "18px",
+    minHeight: "100%",
   },
   topBar: {
     display: "flex",
@@ -477,6 +482,7 @@ function ChargingSessionScreen() {
   const startedAtRef = useRef<number | null>(null);
   const lastSyncedAtRef = useRef(0);
   const completingRef = useRef(false);
+  const completeChargingSessionRef = useRef<((kwh: number, progress: number, autoComplete: boolean) => Promise<void>) | null>(null);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -543,6 +549,27 @@ function ChargingSessionScreen() {
     }
     return getChargerStatusBlockMessage(station, charger);
   }, [charger, reservationId, station]);
+  const reservationWindowBlockedMessage = useMemo(() => {
+    if (!reservationId) {
+      return "";
+    }
+
+    if (!reservationDate || !reservationStartTime || !reservationEndTime) {
+      return "Rezervasyon saat bilgisi eksik.";
+    }
+
+    const canStartNow = isWithinReservationWindow({
+      date: reservationDate,
+      startTime: reservationStartTime,
+      endTime: reservationEndTime,
+    });
+
+    if (!canStartNow) {
+      return "Sarj oturumu sadece rezervasyon saat araliginda baslatilabilir.";
+    }
+
+    return "";
+  }, [reservationDate, reservationEndTime, reservationId, reservationStartTime]);
 
   const targetKwh = useMemo(() => {
     if (!batteryCapacity || batteryCapacity <= 0) return null;
@@ -767,8 +794,41 @@ function ChargingSessionScreen() {
     targetKwh,
   ]);
 
+  useEffect(() => {
+    completeChargingSessionRef.current = completeChargingSession;
+  }, [completeChargingSession]);
+
+  useEffect(() => {
+    if (!activeSessionId || !reservationDate || !reservationStartTime || !reservationEndTime) {
+      return undefined;
+    }
+
+    const checkReservationEndTime = () => {
+      if (!completeChargingSessionRef.current || !remoteSession) return;
+      if (remoteSession.status !== "active") return;
+
+      const endDateTime = buildDateTime(reservationDate, reservationEndTime);
+      if (!endDateTime) return;
+
+      const now = Date.now();
+      const endTimeMs = endDateTime.getTime();
+
+      if (now >= endTimeMs) {
+        const progress = remoteSession.progressPercentage ?? 0;
+        const kwh = remoteSession.currentKwh ?? currentKwh;
+        void completeChargingSessionRef.current(kwh, progress, true);
+      }
+    };
+
+    const interval = window.setInterval(checkReservationEndTime, 30_000);
+    checkReservationEndTime();
+
+    return () => window.clearInterval(interval);
+  }, [activeSessionId, reservationDate, reservationEndTime, reservationStartTime, remoteSession, currentKwh]);
+
   const validate = () => {
     if (statusBlockMessage) return statusBlockMessage;
+    if (reservationWindowBlockedMessage) return reservationWindowBlockedMessage;
     if (!station || !charger) return "Istasyon veya sarj cihazi bilgisi eksik.";
     if (vehicleLoading) return "Arac bilgileri yukleniyor. Lutfen tekrar deneyin.";
     if (!vehicle?.id) return "Sarj oturumu icin uygun bir arac bulunamadi.";
@@ -1009,9 +1069,9 @@ function ChargingSessionScreen() {
               </div>
             )}
 
-            {!warningMessage && statusBlockMessage && (
+            {!warningMessage && (statusBlockMessage || reservationWindowBlockedMessage) && (
               <div style={{ ...styles.costCard, borderColor: "#F0D488", color: "#8A6500" }}>
-                {statusBlockMessage}
+                {statusBlockMessage || reservationWindowBlockedMessage}
               </div>
             )}
 
@@ -1094,9 +1154,17 @@ function ChargingSessionScreen() {
                   type="submit"
                   style={{
                     ...styles.primaryButton,
-                    ...(saving || statusBlockMessage ? styles.disabledButton : {}),
+                    ...(saving ||
+                    statusBlockMessage ||
+                    reservationWindowBlockedMessage
+                      ? styles.disabledButton
+                      : {}),
                   }}
-                  disabled={saving || Boolean(statusBlockMessage)}
+                  disabled={
+                    saving ||
+                    Boolean(statusBlockMessage) ||
+                    Boolean(reservationWindowBlockedMessage)
+                  }
                 >
                   {saving ? "Baslatiliyor..." : "Canli Sarji Baslat"}
                 </button>
@@ -1146,9 +1214,22 @@ function ChargingSessionScreen() {
           -moz-appearance: textfield;
         }
 
-        @media (max-width: 980px) {
+        .charging-session-shell {
+          width: 100%;
+          max-width: 1100px;
+          margin: 0 auto;
+        }
+
+        @media (max-width: 1020px) {
           .charging-session-shell {
             grid-template-columns: 1fr !important;
+            grid-template-rows: auto auto;
+            border-radius: 24px !important;
+          }
+
+          .charging-session-shell > section {
+            min-height: unset !important;
+            max-height: unset !important;
           }
         }
 
@@ -1161,8 +1242,24 @@ function ChargingSessionScreen() {
             padding: 24px !important;
           }
 
+          .charging-session-shell form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+
           .charging-session-shell form > div {
             grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .charging-session-shell {
+            border-radius: 16px !important;
+          }
+
+          .charging-session-shell > section {
+            padding: 18px !important;
           }
         }
       `}</style>
