@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   type FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -388,6 +389,42 @@ function parsePowerKw(powerOutput: string) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 22;
 }
 
+function buildDateTime(dateValue: string, timeValue: string) {
+  if (!dateValue || !timeValue) {
+    return null;
+  }
+
+  const dateTime = new Date(`${dateValue}T${timeValue}:00`);
+
+  if (Number.isNaN(dateTime.getTime())) {
+    return null;
+  }
+
+  return dateTime;
+}
+
+function getReservationDurationMinutes(
+  dateValue: string,
+  startTimeValue: string,
+  endTimeValue: string,
+) {
+  const startDateTime = buildDateTime(dateValue, startTimeValue);
+  const endDateTime = buildDateTime(dateValue, endTimeValue);
+
+  if (!startDateTime || !endDateTime) {
+    return null;
+  }
+
+  if (endDateTime.getTime() <= startDateTime.getTime()) {
+    endDateTime.setDate(endDateTime.getDate() + 1);
+  }
+
+  const durationMinutes =
+    (endDateTime.getTime() - startDateTime.getTime()) / 60_000;
+
+  return durationMinutes > 0 ? durationMinutes : null;
+}
+
 function formatMinutes(minutes: number) {
   if (!Number.isFinite(minutes)) return "--";
   const rounded = Math.max(0, Math.ceil(minutes));
@@ -439,6 +476,7 @@ function ChargingSessionScreen() {
 
   const startedAtRef = useRef<number | null>(null);
   const lastSyncedAtRef = useRef(0);
+  const completingRef = useRef(false);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -500,8 +538,11 @@ function ChargingSessionScreen() {
   const chargerPowerKw = charger ? parsePowerKw(charger.powerOutput) : 0;
   const statusBlockMessage = useMemo(() => {
     if (!station || !charger) return "";
+    if (reservationId && charger.status === "occupied" && station.status !== "offline") {
+      return "";
+    }
     return getChargerStatusBlockMessage(station, charger);
-  }, [charger, station]);
+  }, [charger, reservationId, station]);
 
   const targetKwh = useMemo(() => {
     if (!batteryCapacity || batteryCapacity <= 0) return null;
@@ -517,32 +558,163 @@ function ChargingSessionScreen() {
     return targetKwh * charger.pricePerKwh;
   }, [charger, targetKwh]);
 
-  const progressPercentage = useMemo(() => {
-    if (!targetKwh || targetKwh <= 0) return 0;
-    return Math.min(100, Math.max(0, (currentKwh / targetKwh) * 100));
-  }, [currentKwh, targetKwh]);
+  const reservationDurationMinutes = useMemo(
+    () =>
+      getReservationDurationMinutes(
+        reservationDate,
+        reservationStartTime,
+        reservationEndTime,
+      ),
+    [reservationDate, reservationEndTime, reservationStartTime],
+  );
 
-  const finalBatteryPercentage = useMemo(() => {
-    if (!batteryCapacity || !Number.isFinite(startBatteryValue)) return null;
-    return Math.min(100, startBatteryValue + (currentKwh / batteryCapacity) * 100);
-  }, [batteryCapacity, currentKwh, startBatteryValue]);
+  const targetChargeMinutes = useMemo(() => {
+    if (targetKwh == null || targetKwh <= 0 || chargerPowerKw <= 0) {
+      return null;
+    }
+
+    return (targetKwh / chargerPowerKw) * 60;
+  }, [chargerPowerKw, targetKwh]);
+
+  const sessionLimitMinutes = useMemo(() => {
+    if (targetChargeMinutes == null) {
+      return reservationDurationMinutes;
+    }
+
+    if (reservationDurationMinutes == null) {
+      return targetChargeMinutes;
+    }
+
+    return Math.min(targetChargeMinutes, reservationDurationMinutes);
+  }, [reservationDurationMinutes, targetChargeMinutes]);
+
+  const effectiveSessionTargetKwh = useMemo(() => {
+    if (targetKwh == null || targetKwh <= 0) return null;
+    if (sessionLimitMinutes == null || chargerPowerKw <= 0) return targetKwh;
+
+    return Math.min(targetKwh, chargerPowerKw * (sessionLimitMinutes / 60));
+  }, [chargerPowerKw, sessionLimitMinutes, targetKwh]);
+
+  const progressPercentage = useMemo(() => {
+    const progressTargetKwh = effectiveSessionTargetKwh ?? targetKwh;
+    if (!progressTargetKwh || progressTargetKwh <= 0) return 0;
+    return Math.min(100, Math.max(0, (currentKwh / progressTargetKwh) * 100));
+  }, [currentKwh, effectiveSessionTargetKwh, targetKwh]);
+
+  const completeChargingSession = useCallback(
+    async (
+      finalKwh: number,
+      finalProgressPercentage: number,
+      autoComplete = false,
+    ) => {
+      setWarningMessage("");
+      setErrorMessage("");
+
+      if (!activeSessionId || !charger) return;
+
+      if (completingRef.current) return;
+
+      if (finalKwh <= 0) {
+        if (!autoComplete) {
+          setWarningMessage("Oturumu tamamlamak icin once enerji tuketimi olusmali.");
+        }
+        return;
+      }
+
+      completingRef.current = true;
+      const finalEndBattery = batteryCapacity && Number.isFinite(startBatteryValue)
+        ? Math.min(100, startBatteryValue + (finalKwh / batteryCapacity) * 100)
+        : endBatteryValue;
+      const finalCost = round2(finalKwh * charger.pricePerKwh);
+      const successMessage = autoComplete
+        ? "Rezervasyon suresi doldu. Sarj oturumu kaydedildi."
+        : "Sarj oturumu kaydedildi.";
+
+      try {
+        setSaving(true);
+        await updateLiveChargingSession(activeSessionId, {
+          currentKwh: finalKwh,
+          liveCost: finalCost,
+          estimatedRemainingMinutes: 0,
+          progressPercentage: finalProgressPercentage,
+        });
+        await completeLiveChargingSession(activeSessionId, userId, {
+          endBatteryPercentage: round2(finalEndBattery),
+          consumedKwh: finalKwh,
+          totalCost: finalCost,
+        });
+
+        setSnackbar({ message: successMessage, variant: "success" });
+        navigate("/app", {
+          state: {
+            snackbar: {
+              message: successMessage,
+              variant: "success",
+            },
+          },
+        });
+      } catch (error) {
+        completingRef.current = false;
+
+        if (error instanceof InsufficientWalletBalanceError) {
+          setErrorMessage("Wallet bakiyesi yetersiz. Lutfen bakiye yukleyip tekrar deneyin.");
+          setSnackbar({ message: "Wallet bakiyesi yetersiz.", variant: "error" });
+          return;
+        }
+
+        setErrorMessage("Sarj oturumu tamamlanamadi. Lutfen tekrar deneyin.");
+        setSnackbar({ message: "Sarj oturumu tamamlanamadi.", variant: "error" });
+      } finally {
+        setSaving(false);
+      }
+    },
+    [
+      activeSessionId,
+      batteryCapacity,
+      charger,
+      endBatteryValue,
+      navigate,
+      startBatteryValue,
+      userId,
+    ],
+  );
 
   useEffect(() => {
-    if (!activeSessionId || !charger || !targetKwh || targetKwh <= 0) return undefined;
+    const sessionTargetKwh = effectiveSessionTargetKwh ?? targetKwh;
+    if (!activeSessionId || !charger || !sessionTargetKwh || sessionTargetKwh <= 0) {
+      return undefined;
+    }
     if (remoteSession?.status === "completed") return undefined;
 
     const tick = window.setInterval(() => {
       const startedAt = startedAtRef.current;
       if (!startedAt) return;
 
-      const elapsedHours = (Date.now() - startedAt) / 3_600_000;
-      const calculatedKwh = Math.min(targetKwh, chargerPowerKw * elapsedHours);
+      const now = Date.now();
+      const elapsedMinutes = (now - startedAt) / 60_000;
+      const cappedElapsedMinutes =
+        sessionLimitMinutes == null
+          ? elapsedMinutes
+          : Math.min(elapsedMinutes, sessionLimitMinutes);
+      const elapsedHours = cappedElapsedMinutes / 60;
+      const calculatedKwh = Math.min(sessionTargetKwh, chargerPowerKw * elapsedHours);
       const nextCurrentKwh = round2(calculatedKwh);
       const nextCost = round2(nextCurrentKwh * charger.pricePerKwh);
-      const remainingKwh = Math.max(0, targetKwh - nextCurrentKwh);
-      const nextRemainingMinutes =
+      const remainingKwh = Math.max(0, sessionTargetKwh - nextCurrentKwh);
+      const energyRemainingMinutes =
         chargerPowerKw > 0 ? (remainingKwh / chargerPowerKw) * 60 : 0;
-      const nextProgress = Math.min(100, (nextCurrentKwh / targetKwh) * 100);
+      const timeRemainingMinutes =
+        sessionLimitMinutes == null
+          ? energyRemainingMinutes
+          : Math.max(0, sessionLimitMinutes - elapsedMinutes);
+      const nextRemainingMinutes = Math.min(
+        energyRemainingMinutes,
+        timeRemainingMinutes,
+      );
+      const nextProgress = Math.min(100, (nextCurrentKwh / sessionTargetKwh) * 100);
+      const shouldComplete =
+        nextProgress >= 100 ||
+        (sessionLimitMinutes != null && elapsedMinutes >= sessionLimitMinutes);
 
       setCurrentKwh(nextCurrentKwh);
       setLiveCost(nextCost);
@@ -577,6 +749,10 @@ function ChargingSessionScreen() {
           });
         });
       }
+
+      if (shouldComplete) {
+        void completeChargingSession(nextCurrentKwh, nextProgress, true);
+      }
     }, LIVE_TICK_MS);
 
     return () => window.clearInterval(tick);
@@ -584,7 +760,10 @@ function ChargingSessionScreen() {
     activeSessionId,
     charger,
     chargerPowerKw,
+    completeChargingSession,
+    effectiveSessionTargetKwh,
     remoteSession?.status,
+    sessionLimitMinutes,
     targetKwh,
   ]);
 
@@ -633,7 +812,8 @@ function ChargingSessionScreen() {
 
     try {
       setSaving(true);
-      const estimatedTotalMinutes = (targetKwh / chargerPowerKw) * 60;
+      const estimatedTotalMinutes = targetChargeMinutes ?? (targetKwh / chargerPowerKw) * 60;
+      const effectiveTotalMinutes = sessionLimitMinutes ?? estimatedTotalMinutes;
       const sessionId = await createLiveChargingSession({
         userId,
         reservationId,
@@ -647,12 +827,15 @@ function ChargingSessionScreen() {
         pricePerKwh: charger.pricePerKwh,
         chargerPowerKw,
         estimatedTotalMinutes,
+        reservationDurationMinutes,
+        sessionLimitMinutes: effectiveTotalMinutes,
       });
 
       startedAtRef.current = Date.now();
       lastSyncedAtRef.current = 0;
+      completingRef.current = false;
       setActiveSessionId(sessionId);
-      setEstimatedRemainingMinutes(estimatedTotalMinutes);
+      setEstimatedRemainingMinutes(effectiveTotalMinutes);
       setTrend([
         {
           label: new Date().toLocaleTimeString("tr-TR", {
@@ -677,54 +860,8 @@ function ChargingSessionScreen() {
     }
   };
 
-  const handleComplete = async () => {
-    setWarningMessage("");
-    setErrorMessage("");
-
-    if (!activeSessionId || !charger) return;
-    if (currentKwh <= 0) {
-      setWarningMessage("Oturumu tamamlamak icin once enerji tuketimi olusmali.");
-      return;
-    }
-
-    const finalEndBattery = finalBatteryPercentage ?? endBatteryValue;
-    const finalCost = round2(currentKwh * charger.pricePerKwh);
-
-    try {
-      setSaving(true);
-      await updateLiveChargingSession(activeSessionId, {
-        currentKwh,
-        liveCost: finalCost,
-        estimatedRemainingMinutes: 0,
-        progressPercentage,
-      });
-      await completeLiveChargingSession(activeSessionId, userId, {
-        endBatteryPercentage: round2(finalEndBattery),
-        consumedKwh: currentKwh,
-        totalCost: finalCost,
-      });
-
-      setSnackbar({ message: "Sarj oturumu kaydedildi.", variant: "success" });
-      navigate("/app", {
-        state: {
-          snackbar: {
-            message: "Sarj oturumu kaydedildi.",
-            variant: "success",
-          },
-        },
-      });
-    } catch (error) {
-      if (error instanceof InsufficientWalletBalanceError) {
-        setErrorMessage("Wallet bakiyesi yetersiz. Lutfen bakiye yukleyip tekrar deneyin.");
-        setSnackbar({ message: "Wallet bakiyesi yetersiz.", variant: "error" });
-        return;
-      }
-
-      setErrorMessage("Sarj oturumu tamamlanamadi. Lutfen tekrar deneyin.");
-      setSnackbar({ message: "Sarj oturumu tamamlanamadi.", variant: "error" });
-    } finally {
-      setSaving(false);
-    }
+  const handleComplete = () => {
+    void completeChargingSession(currentKwh, progressPercentage);
   };
 
   if (!station || !charger) {
