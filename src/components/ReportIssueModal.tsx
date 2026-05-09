@@ -14,12 +14,12 @@ interface ReportIssueModalProps {
 }
 
 const issueOptions: Array<{ value: ReportIssueType; label: string }> = [
-  { value: "charger_not_working", label: "Şarj cihazı çalışmıyor" },
-  { value: "wrong_price", label: "Yanlış ücret" },
-  { value: "station_offline", label: "İstasyon çevrimdışı" },
+  { value: "charger_not_working", label: "Sarj cihazi calismiyor" },
+  { value: "wrong_price", label: "Yanlis ucret" },
+  { value: "station_offline", label: "Istasyon cevrimdisi" },
   { value: "location_problem", label: "Konum sorunu" },
-  { value: "payment_problem", label: "Ödeme sorunu" },
-  { value: "other", label: "Diğer" },
+  { value: "payment_problem", label: "Odeme sorunu" },
+  { value: "other", label: "Diger" },
 ];
 
 const styles: Record<string, CSSProperties> = {
@@ -200,7 +200,7 @@ function ReportIssueModal({
   const [saving, setSaving] = useState(false);
 
   const issueTarget = useMemo(
-    () => (charger ? `Şarj cihazı ${charger.id}` : "İstasyon seviyesi sorun"),
+    () => (charger ? `Sarj cihazi ${charger.id}` : "Istasyon seviyesi sorun"),
     [charger],
   );
 
@@ -210,12 +210,12 @@ function ReportIssueModal({
     const trimmedDescription = description.trim();
 
     if (!issueType) {
-      setErrorMessage("Sorun türü seçilmelidir.");
+      setErrorMessage("Sorun turu secilmelidir.");
       return;
     }
 
     if (!trimmedDescription) {
-      setErrorMessage("Açıklama alanı boş bırakılamaz.");
+      setErrorMessage("Aciklama alani bos birakilamaz.");
       return;
     }
 
@@ -235,7 +235,7 @@ function ReportIssueModal({
       onSubmitSuccess();
       onClose();
     } catch {
-      setErrorMessage("Sorun bildirimi kaydedilemedi. Lütfen tekrar deneyin.");
+      setErrorMessage("Sorun bildirimi kaydedilemedi. Lutfen tekrar deneyin.");
     } finally {
       setSaving(false);
     }
@@ -247,7 +247,7 @@ function ReportIssueModal({
         <div style={styles.topBar}>
           <div style={styles.titleWrap}>
             <div style={styles.eyebrow}>Sorun Bildirimi</div>
-            <h3 style={styles.title}>İstasyon / Şarj Cihazı Sorunu Bildir</h3>
+            <h3 style={styles.title}>Istasyon / Sarj Cihazi Sorunu Bildir</h3>
           </div>
           <button
             type="button"
@@ -268,14 +268,14 @@ function ReportIssueModal({
 
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
-            <label style={styles.label}>Sorun Türü</label>
+            <label style={styles.label}>Sorun Turu</label>
             <select
               value={issueType}
               onChange={(event) => setIssueType(event.target.value as ReportIssueType)}
               style={styles.input}
               disabled={saving}
             >
-              <option value="">Sorun türü seçin</option>
+              <option value="">Sorun turu secin</option>
               {issueOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -285,12 +285,12 @@ function ReportIssueModal({
           </div>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>Açıklama</label>
+            <label style={styles.label}>Aciklama</label>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               style={styles.textarea}
-              placeholder="Sorunu detaylı şekilde yazın..."
+              placeholder="Sorunu detayli sekilde yazin..."
               disabled={saving}
             />
           </div>
@@ -311,7 +311,7 @@ function ReportIssueModal({
               }}
               disabled={saving}
             >
-              {saving ? "Gönderiliyor..." : "Gönder"}
+              {saving ? "Gonderiliyor..." : "Gonder"}
             </button>
             <button
               type="button"
@@ -319,7 +319,7 @@ function ReportIssueModal({
               onClick={onClose}
               disabled={saving}
             >
-              Vazgeç
+              Vazgec
             </button>
           </div>
         </form>

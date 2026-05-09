@@ -377,7 +377,7 @@ function getVehicleDisplayName(vehicle: Vehicle) {
   const name = [vehicle.brand?.trim(), vehicle.model?.trim()]
     .filter(Boolean)
     .join(" ");
-  return name || "Kayıtlı araç";
+  return name || "Kayitli arac";
 }
 
 function formatCoordinates(latitude: number, longitude: number) {
@@ -412,7 +412,7 @@ function VehicleHomeScreen() {
         setVehicles(result);
         setSelectedVehicleId(result[0]?.id ?? "");
       } catch {
-        setError("Araç listesi alınamadı. Lütfen tekrar deneyin.");
+        setError("Arac listesi alinamadi. Lutfen tekrar deneyin.");
       } finally {
         setLoading(false);
       }
@@ -435,7 +435,7 @@ function VehicleHomeScreen() {
         return;
       }
 
-      setSelectedVehicleLocationLabel("Konum çözümleniyor...");
+      setSelectedVehicleLocationLabel("Konum cozumleniyor...");
       const result = await reverseGeocodeCoordinates({
         lat: location.latitude,
         lng: location.longitude,
@@ -492,10 +492,10 @@ function VehicleHomeScreen() {
                 style={styles.secondaryButton}
                 onClick={handleGoToLanding}
               >
-                Ana sayfaya dön
+                Ana sayfaya don
               </button>
             </div>
-            <h1 style={styles.title}>Kayıtlı Araçlar</h1>
+            <h1 style={styles.title}>Kayitli Araclar</h1>
           </div>
 
           <div style={styles.headerMedia} aria-hidden="true">
@@ -522,26 +522,26 @@ function VehicleHomeScreen() {
           </div>
         </header>
 
-        <section style={styles.body} aria-label="Araç listesi">
+        <section style={styles.body} aria-label="Arac listesi">
           <div style={styles.listTitleRow}>
-            <h2 style={styles.listTitle}>Araç listesi</h2>
+            <h2 style={styles.listTitle}>Arac listesi</h2>
             <div style={styles.listTitleRight}>
               <div style={styles.counter}>
-                {loading ? "Yükleniyor..." : `${vehicles.length} araç`}
+                {loading ? "Yukleniyor..." : `${vehicles.length} arac`}
               </div>
             </div>
           </div>
 
           <p style={styles.listSubtitle}>
-            Araç seçmek için listeden tıklayın. Detaylar tıkladığınızda açılır.
+            Arac secmek icin listeden tiklayin. Detaylar tikladiginizda acilir.
           </p>
 
           {error && <div style={styles.emptyMessage}>{error}</div>}
 
           {!error && !loading && vehicles.length === 0 && (
             <div style={styles.emptyMessage}>
-              Kayıtlı araç yok. Yeni bir araç eklemek için aşağıdaki “Yeni Araç
-              Oluştur” butonunu kullanın.
+              Kayitli arac yok. Yeni bir arac eklemek icin asagidaki "Yeni Arac
+              Olustur" butonunu kullanin.
             </div>
           )}
 
@@ -568,7 +568,7 @@ function VehicleHomeScreen() {
                     {getVehicleDisplayName(vehicle)}
                   </span>
                   <span style={styles.vehicleMeta}>
-                    Plaka: {vehicle.plateNumber?.trim().toUpperCase() || "--"} ·
+                    Plaka: {vehicle.plateNumber?.trim().toUpperCase() || "--"} -
                     Soket: {vehicle.connectorType || "--"}
                   </span>
                   </button>
@@ -578,7 +578,7 @@ function VehicleHomeScreen() {
                     style={styles.compactButton}
                     onClick={() => handleOpenHistoryForVehicle(vehicle.id)}
                   >
-                    Şarj Geçmişi
+                    Sarj Gecmisi
                   </button>
                 </article>
               );
@@ -591,7 +591,7 @@ function VehicleHomeScreen() {
               style={styles.primaryButton}
               onClick={handleCreateVehicle}
             >
-              Yeni Araç Oluştur
+              Yeni Arac Olustur
             </button>
           </div>
         </section>
@@ -610,7 +610,7 @@ function VehicleHomeScreen() {
               <div style={styles.modalTop}>
                 <div>
                   <div style={{ color: "#7A8982", fontSize: "11px", fontWeight: 850, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                    Seçili Araç
+                    Secili Arac
                   </div>
                   <h3 style={styles.modalTitle}>
                     {getVehicleDisplayName(selectedVehicle)}
@@ -656,12 +656,12 @@ function VehicleHomeScreen() {
                         typeof location.latitude !== "number" ||
                         typeof location.longitude !== "number"
                       ) {
-                        return "Konum kaydı yok";
+                        return "Konum kaydi yok";
                       }
 
                       if (
                         selectedVehicleLocationLabel &&
-                        selectedVehicleLocationLabel !== "Konum çözümleniyor..."
+                        selectedVehicleLocationLabel !== "Konum cozumleniyor..."
                       ) {
                         return selectedVehicleLocationLabel;
                       }
@@ -678,14 +678,14 @@ function VehicleHomeScreen() {
                   style={styles.primaryButton}
                   onClick={handleGoToMap}
                 >
-                  Bu Araçla Haritaya Geç
+                  Bu Aracla Haritaya Gec
                 </button>
                 <button
                   type="button"
                   style={styles.secondaryButton}
                   onClick={handleEditVehicle}
                 >
-                  Aracı Güncelle
+                  Araci Guncelle
                 </button>
               </div>
 
@@ -695,7 +695,7 @@ function VehicleHomeScreen() {
                   style={styles.secondaryButton}
                   onClick={handleOpenHistory}
                 >
-                  Şarj Geçmişi
+                  Sarj Gecmisi
                 </button>
               </div>
             </section>

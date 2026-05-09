@@ -486,7 +486,7 @@ function VehicleRegistrationScreen() {
         return;
       }
 
-      setCurrentLocationLabel("Konum çözümleniyor...");
+      setCurrentLocationLabel("Konum cozumleniyor...");
       const result = await reverseGeocodeCoordinates({
         lat: currentLocation.latitude,
         lng: currentLocation.longitude,
@@ -559,7 +559,7 @@ function VehicleRegistrationScreen() {
       navigate("/app", {
         state: {
           snackbar: {
-            message: "Yeni araç kaydedildi.",
+            message: "Yeni arac kaydedildi.",
             variant: "success",
           },
         },
@@ -714,7 +714,7 @@ function VehicleRegistrationScreen() {
                   onBlur={() => setFocusedField(null)}
                 >
                   <option value="" disabled>
-                    Connector seçin
+                    Connector secin
                   </option>
                   {connectorOptions.map((option) => (
                     <option key={option} value={option}>
@@ -798,7 +798,7 @@ function VehicleRegistrationScreen() {
                   Konum alindi:{" "}
                   <strong>
                     {currentLocationLabel &&
-                    currentLocationLabel !== "Konum çözümleniyor..."
+                    currentLocationLabel !== "Konum cozumleniyor..."
                       ? currentLocationLabel
                       : `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`}
                   </strong>

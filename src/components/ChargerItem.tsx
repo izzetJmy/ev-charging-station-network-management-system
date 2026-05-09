@@ -3,7 +3,10 @@ import { STATION_STATUS_COLORS } from "../constants/mapConstants";
 import type { Charger } from "../models/Charger";
 import type { Station } from "../models/Station";
 import type { Vehicle } from "../models/vehicle";
-import { checkVehicleChargerCompatibility } from "../utils/chargerCompatibility";
+import {
+  checkVehicleChargerCompatibility,
+  getReservationStatusBlockMessage,
+} from "../utils/chargerCompatibility";
 
 interface ChargerItemProps {
   charger: Charger;
@@ -11,6 +14,7 @@ interface ChargerItemProps {
   vehicle: Vehicle | null;
   onReserve?: (charger: Charger) => void;
   onReportIssue?: (charger: Charger) => void;
+  onBlockedAction?: (message: string) => void;
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -139,6 +143,13 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
   },
+  disabledButton: {
+    background: "#AEB8B2",
+    borderColor: "#AEB8B2",
+    color: "#FFFFFF",
+    cursor: "not-allowed",
+    boxShadow: "none",
+  },
 };
 
 function ChargerItem({
@@ -147,12 +158,18 @@ function ChargerItem({
   vehicle,
   onReserve,
   onReportIssue,
+  onBlockedAction,
 }: ChargerItemProps) {
   const compatibility = checkVehicleChargerCompatibility(
     vehicle,
     charger,
     station,
   );
+  const statusBlockMessage = getReservationStatusBlockMessage(station, charger);
+  const reserveBlockMessage =
+    statusBlockMessage ||
+    (!compatibility.isCompatible ? compatibility.reason : "");
+  const canReserve = !reserveBlockMessage;
 
   const compatibilityStyle =
     compatibility.state === "compatible"
@@ -207,8 +224,17 @@ function ChargerItem({
         <div style={styles.actionRow}>
           <button
             type="button"
-            style={styles.reserveButton}
-            onClick={() => onReserve?.(charger)}
+            style={{
+              ...styles.reserveButton,
+              ...(!canReserve ? styles.disabledButton : {}),
+            }}
+            onClick={() => {
+              if (!canReserve) {
+                onBlockedAction?.(reserveBlockMessage);
+                return;
+              }
+              onReserve?.(charger);
+            }}
             disabled={!onReserve}
           >
             Rezerve Et

@@ -417,7 +417,7 @@ function formatLocation(
 ) {
   if (!location) return "Konum kaydi yok";
 
-  if (resolvedLabel && resolvedLabel !== "Konum çözümleniyor...") {
+  if (resolvedLabel && resolvedLabel !== "Konum cozumleniyor...") {
     return resolvedLabel;
   }
 
@@ -505,7 +505,7 @@ function VehicleProfileScreen() {
         return;
       }
 
-      setCurrentLocationLabel("Konum çözümleniyor...");
+      setCurrentLocationLabel("Konum cozumleniyor...");
       const result = await reverseGeocodeCoordinates({
         lat: currentLocation.latitude,
         lng: currentLocation.longitude,
@@ -614,7 +614,7 @@ function VehicleProfileScreen() {
       navigate("/app", {
         state: {
           snackbar: {
-            message: "Araç bilgileri güncellendi.",
+            message: "Arac bilgileri guncellendi.",
             variant: "success",
           },
         },
@@ -638,8 +638,8 @@ function VehicleProfileScreen() {
             </div>
             <h1 style={styles.title}>{displayName}</h1>
             <p style={styles.summaryText}>
-              Profil bilgilerini güncelleyin. Soket ve batarya bilgisi, istasyon
-              eşleşmesi için kullanılır.
+              Profil bilgilerini guncelleyin. Soket ve batarya bilgisi, istasyon
+              eslesmesi icin kullanilir.
             </p>
 
             <div style={styles.vehiclePlate} aria-hidden="true">
@@ -754,7 +754,7 @@ function VehicleProfileScreen() {
                     disabled={!vehicleId || saving}
                   >
                     <option value="" disabled>
-                      Connector seçin
+                      Connector secin
                     </option>
                     {connectorOptions.map((option) => (
                       <option key={option} value={option}>

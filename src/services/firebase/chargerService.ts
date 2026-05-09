@@ -4,7 +4,9 @@ import {
   getDoc,
   getDocs,
   query,
+  serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -81,6 +83,16 @@ export async function upsertCharger(charger: Charger) {
     connectorType: charger.connectorType,
     pricePerKwh: charger.pricePerKwh,
     status: charger.status,
+  });
+}
+
+export async function updateChargerStatus(
+  chargerId: string,
+  status: Charger["status"],
+) {
+  await updateDoc(doc(db, "chargers", chargerId), {
+    status,
+    updatedAt: serverTimestamp(),
   });
 }
 

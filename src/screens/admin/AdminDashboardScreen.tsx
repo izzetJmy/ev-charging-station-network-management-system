@@ -124,7 +124,7 @@ export default function AdminDashboardScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Özet metrikler alınamadı. Firestore bağlantısını kontrol edin.");
+        setError("Ozet metrikler alinamadi. Firestore baglantisini kontrol edin.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -138,13 +138,13 @@ export default function AdminDashboardScreen() {
 
   return (
     <div>
-      <h2 style={styles.title}>Genel Özet</h2>
+      <h2 style={styles.title}>Genel Ozet</h2>
       <p style={styles.subtitle}>
-        Firestore verilerine göre rezervasyon ve tamamlanan şarj oturumlarının genel durumunu
-        görüntüleyin.
+        Firestore verilerine gore rezervasyon ve tamamlanan sarj oturumlarinin genel durumunu
+        goruntuleyin.
       </p>
 
-      {loading && <div style={styles.loading}>Yükleniyor…</div>}
+      {loading && <div style={styles.loading}>Yukleniyor...</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && metrics && (
@@ -179,7 +179,7 @@ export default function AdminDashboardScreen() {
               <div style={styles.cardInner}>
                 <div style={styles.label}>Total Energy Consumed</div>
                 <div style={styles.value}>{metrics.totalEnergyConsumed} kWh</div>
-                <div style={styles.hint}>Toplam tüketim</div>
+                <div style={styles.hint}>Toplam tuketim</div>
               </div>
             </div>
           </div>
@@ -187,8 +187,8 @@ export default function AdminDashboardScreen() {
           {series.length > 1 && (
             <div style={styles.chartWrap}>
               <TimeSeriesChart
-                title="Kullanım Trendi"
-                description="Son 14 gün rezervasyon ve şarj oturumu sayısı."
+                title="Kullanim Trendi"
+                description="Son 14 gun rezervasyon ve sarj oturumu sayisi."
                 yAxisLabel="Adet"
                 xAxisLabel="Tarih"
                 xAxisNote="X ekseni: Tarih (gg.aa)"
@@ -200,7 +200,7 @@ export default function AdminDashboardScreen() {
                     data: series.map((row) => row.reservations),
                   },
                   {
-                    name: "Şarj oturumu",
+                    name: "Sarj oturumu",
                     color: "#1F5E4D",
                     data: series.map((row) => row.sessions),
                   },

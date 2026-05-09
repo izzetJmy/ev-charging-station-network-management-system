@@ -1,4 +1,4 @@
-import {
+﻿import {
   type CSSProperties,
   type FormEvent,
   useEffect,
@@ -11,13 +11,16 @@ import type { Station } from "../../models/Station";
 import type { Vehicle } from "../../models/vehicle";
 import {
   createReservation,
+  getActiveReservationsByChargerId,
   hasActiveReservationConflict,
+  type ReservationRecord,
 } from "../../services/firebase/reservationService";
 import {
   getVehicleById,
   getVehicleByUserId,
 } from "../../services/firebase/vehicleService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
+import { getReservationStatusBlockMessage } from "../../utils/chargerCompatibility";
 
 const SLOT_INTERVAL_MINUTES = 15;
 const SLOT_INTERVAL_MS = SLOT_INTERVAL_MINUTES * 60 * 1000;
@@ -39,6 +42,7 @@ interface ReservationConfirmation {
 interface PickerOption {
   value: string;
   label: string;
+  disabled?: boolean;
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -302,6 +306,22 @@ const styles: Record<string, CSSProperties> = {
     border: "1px solid #D3E5D8",
     color: "#37594D",
   },
+  busySlotsCard: {
+    borderRadius: "16px",
+    backgroundColor: "#F7FBF7",
+    border: "1px solid #D8E2DB",
+    padding: "12px 14px",
+    color: "#37594D",
+    marginBottom: "14px",
+  },
+  busySlotList: {
+    margin: "8px 0 0",
+    paddingLeft: "18px",
+    color: "#66756E",
+    fontSize: "12px",
+    lineHeight: 1.6,
+    fontWeight: 750,
+  },
   warningMessage: {
     backgroundColor: "#FFF8E8",
     border: "1px solid #F0D488",
@@ -475,6 +495,42 @@ function getSelectedChargerName(charger: Charger) {
   return `${charger.type} - ${charger.id}`;
 }
 
+function hasReservationOverlap(
+  reservations: ReservationRecord[],
+  dateValue: string,
+  startTimeValue: string,
+  endTimeValue: string,
+) {
+  const requestedRange = resolveReservationDateTimes(
+    dateValue,
+    startTimeValue,
+    endTimeValue,
+  );
+
+  if (!requestedRange) {
+    return false;
+  }
+
+  return reservations.some((reservation) => {
+    const reservedRange = resolveReservationDateTimes(
+      reservation.date,
+      reservation.startTime,
+      reservation.endTime,
+    );
+
+    if (!reservedRange) {
+      return false;
+    }
+
+    return (
+      requestedRange.startDateTime.getTime() <
+        reservedRange.endDateTime.getTime() &&
+      requestedRange.endDateTime.getTime() >
+        reservedRange.startDateTime.getTime()
+    );
+  });
+}
+
 function ReservationScreen() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -494,6 +550,8 @@ function ReservationScreen() {
   const [errorMessage, setErrorMessage] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [busyReservations, setBusyReservations] = useState<ReservationRecord[]>([]);
+  const [busyLoading, setBusyLoading] = useState(false);
   const [confirmation, setConfirmation] = useState<ReservationConfirmation | null>(
     null,
   );
@@ -524,6 +582,31 @@ function ReservationScreen() {
 
     return () => window.clearInterval(timerId);
   }, []);
+
+  useEffect(() => {
+    if (!charger?.id) {
+      return;
+    }
+
+    let cancelled = false;
+    getActiveReservationsByChargerId(charger.id)
+      .then((reservations) => {
+        if (cancelled) return;
+        setBusyReservations(reservations);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setBusyReservations([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setBusyLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [charger?.id]);
 
   const nowDateTime = useMemo(() => new Date(nowTimestamp), [nowTimestamp]);
   const maxSelectableDateTime = useMemo(
@@ -567,14 +650,14 @@ function ReservationScreen() {
       if (key === todayKey) {
         return {
           value: key,
-          label: `Bugün (${formattedDate})`,
+          label: `Bugun (${formattedDate})`,
         };
       }
 
       if (key === tomorrowKey) {
         return {
           value: key,
-          label: `Yarın (${formattedDate})`,
+          label: `Yarin (${formattedDate})`,
         };
       }
 
@@ -603,16 +686,26 @@ function ReservationScreen() {
       .filter((slotDateTime) => formatDateKey(slotDateTime) === effectiveDate)
       .map((slotDateTime) => {
         const timeValue = formatTimeValue(slotDateTime);
+        const slotEndTimeValue = formatTimeValue(
+          new Date(slotDateTime.getTime() + SLOT_INTERVAL_MS),
+        );
+        const isBusy = hasReservationOverlap(
+          busyReservations,
+          effectiveDate,
+          timeValue,
+          slotEndTimeValue,
+        );
         return {
           value: timeValue,
-          label: timeValue,
+          label: isBusy ? `${timeValue} (dolu)` : timeValue,
+          disabled: isBusy,
         };
       });
-  }, [effectiveDate, selectableStartDateTimes]);
+  }, [busyReservations, effectiveDate, selectableStartDateTimes]);
 
   const effectiveStartTime = useMemo(() => {
     const isStartTimeValid = startTimeOptions.some(
-      (option) => option.value === startTime,
+      (option) => option.value === startTime && !option.disabled,
     );
 
     return isStartTimeValid ? startTime : "";
@@ -646,18 +739,29 @@ function ReservationScreen() {
     ) {
       const timeValue = formatTimeValue(cursor);
       const isNextDay = formatDateKey(cursor) !== effectiveDate;
+      const isBusy = hasReservationOverlap(
+        busyReservations,
+        effectiveDate,
+        effectiveStartTime,
+        timeValue,
+      );
 
       options.push({
         value: timeValue,
-        label: isNextDay ? `${timeValue} (ertesi gün)` : timeValue,
+        disabled: isBusy,
+        label: `${isNextDay ? `${timeValue} (ertesi gun)` : timeValue}${
+          isBusy ? " (dolu)" : ""
+        }`,
       });
     }
 
     return options;
-  }, [effectiveDate, effectiveStartTime]);
+  }, [busyReservations, effectiveDate, effectiveStartTime]);
 
   const effectiveEndTime = useMemo(() => {
-    const isEndTimeValid = endTimeOptions.some((option) => option.value === endTime);
+    const isEndTimeValid = endTimeOptions.some(
+      (option) => option.value === endTime && !option.disabled,
+    );
     return isEndTimeValid ? endTime : "";
   }, [endTime, endTimeOptions]);
 
@@ -690,13 +794,29 @@ function ReservationScreen() {
     return `${formatDateTimeLabel(resolvedDateTimes.startDateTime)} - ${formatDateTimeLabel(resolvedDateTimes.endDateTime)}`;
   }, [effectiveDate, effectiveEndTime, effectiveStartTime]);
 
+  const statusBlockMessage = useMemo(() => {
+    if (!station || !charger) {
+      return "";
+    }
+
+    return getReservationStatusBlockMessage(station, charger);
+  }, [charger, station]);
+
+  const busyReservationsForDate = useMemo(
+    () =>
+      busyReservations.filter(
+        (reservation) => reservation.date === effectiveDate,
+      ),
+    [busyReservations, effectiveDate],
+  );
+
   const validateReservation = () => {
     if (
       !effectiveDate.trim() ||
       !effectiveStartTime.trim() ||
       !effectiveEndTime.trim()
     ) {
-      return "Lütfen tarih, başlangıç saati ve bitiş saatini eksiksiz seçin.";
+      return "Lutfen tarih, baslangic saati ve bitis saatini eksiksiz secin.";
     }
 
     const resolvedDateTimes = resolveReservationDateTimes(
@@ -705,31 +825,31 @@ function ReservationScreen() {
       effectiveEndTime,
     );
     if (!resolvedDateTimes) {
-      return "Seçilen tarih veya saat bilgisi geçersiz.";
+      return "Secilen tarih veya saat bilgisi gecersiz.";
     }
 
     const { startDateTime, endDateTime } = resolvedDateTimes;
 
     if (startDateTime.getTime() >= endDateTime.getTime()) {
-      return "Başlangıç saati bitiş saatinden önce olmalıdır.";
+      return "Baslangic saati bitis saatinden once olmalidir.";
     }
 
     if (
       startDateTime.getTime() < nowDateTime.getTime() ||
       endDateTime.getTime() <= nowDateTime.getTime()
     ) {
-      return "Geçmiş zaman aralığı için rezervasyon oluşturulamaz.";
+      return "Gecmis zaman araligi icin rezervasyon olusturulamaz.";
     }
 
     if (startDateTime.getTime() - nowDateTime.getTime() > MAX_ADVANCE_MS) {
-      return "Rezervasyon 24 saatten daha ileri bir zamana yapılamaz.";
+      return "Rezervasyon 24 saatten daha ileri bir zamana yapilamaz.";
     }
 
     if (
       endDateTime.getTime() - startDateTime.getTime() >
       MAX_RESERVATION_DURATION_MS
     ) {
-      return "Rezervasyon süresi en fazla 2 saat olabilir.";
+      return "Rezervasyon suresi en fazla 2 saat olabilir.";
     }
 
     return "";
@@ -742,7 +862,12 @@ function ReservationScreen() {
     setConfirmation(null);
 
     if (!station || !charger) {
-      setErrorMessage("İstasyon veya şarj cihazı bilgisi eksik.");
+      setErrorMessage("Istasyon veya sarj cihazi bilgisi eksik.");
+      return;
+    }
+
+    if (statusBlockMessage) {
+      setWarningMessage(statusBlockMessage);
       return;
     }
 
@@ -753,29 +878,29 @@ function ReservationScreen() {
     }
 
     if (vehicleLoading) {
-      setWarningMessage("Araç bilgileri yükleniyor. Lütfen tekrar deneyin.");
+      setWarningMessage("Arac bilgileri yukleniyor. Lutfen tekrar deneyin.");
       return;
     }
 
     if (!vehicle?.id) {
-      setWarningMessage("Rezervasyon için uygun bir araç bulunamadı.");
+      setWarningMessage("Rezervasyon icin uygun bir arac bulunamadi.");
       return;
     }
 
     if (vehicle.connectorType !== charger.connectorType) {
       setWarningMessage(
-        "Araç konnektör tipi seçilen şarj cihazı ile uyumlu değil.",
+        "Arac konnektor tipi secilen sarj cihazi ile uyumlu degil.",
       );
       return;
     }
 
-    if (charger.status !== "available") {
-      setWarningMessage("Seçilen şarj cihazı şu anda uygun değil.");
+    if (charger.status === "offline") {
+      setWarningMessage("Bu istasyon su anda kullanilamiyor.");
       return;
     }
 
     if (station.status === "offline") {
-      setWarningMessage("Bu istasyon şu anda çevrimdışı.");
+      setWarningMessage("Bu istasyon su anda kullanilamiyor.");
       return;
     }
 
@@ -789,9 +914,7 @@ function ReservationScreen() {
       });
 
       if (hasConflict) {
-        setWarningMessage(
-          "Bu şarj cihazı seçilen saat aralığında zaten rezerve edilmiş.",
-        );
+        setWarningMessage("Secilen saat araligi dolu.");
         return;
       }
 
@@ -810,8 +933,9 @@ function ReservationScreen() {
         chargerName: getSelectedChargerName(charger),
         dateTimeRange: selectedDateTimeRange,
       });
-    } catch {
-      setErrorMessage("Rezervasyon kaydedilirken bir hata oluştu.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setErrorMessage(message || "Rezervasyon kaydedilirken bir hata olustu.");
     } finally {
       setSaving(false);
     }
@@ -823,7 +947,7 @@ function ReservationScreen() {
         <div style={styles.fallbackCard}>
           <h1 style={styles.fallbackTitle}>Rezervasyon bilgisi eksik</h1>
           <p style={styles.fallbackText}>
-            Lütfen önce istasyon detay kartını açıp bir şarj cihazı seçin.
+            Lutfen once istasyon detay kartini acip bir sarj cihazi secin.
           </p>
           <div style={{ ...styles.actionRow, marginTop: "18px" }}>
             <button
@@ -831,14 +955,14 @@ function ReservationScreen() {
               style={styles.secondaryButton}
               onClick={() => navigate("/station-map")}
             >
-              İstasyon Haritasına Dön
+              Istasyon Haritasina Don
             </button>
             <button
               type="button"
               style={styles.primaryButton}
               onClick={() => navigate("/app")}
             >
-              Araç Profiline Git
+              Arac Profiline Git
             </button>
           </div>
         </div>
@@ -849,7 +973,7 @@ function ReservationScreen() {
   return (
     <div style={styles.page}>
       <main className="reservation-shell" style={styles.shell}>
-        <section style={styles.summaryPanel} aria-label="Rezervasyon özeti">
+        <section style={styles.summaryPanel} aria-label="Rezervasyon ozeti">
           <div style={styles.routeLayer} />
 
           <div style={styles.summaryContent}>
@@ -858,38 +982,38 @@ function ReservationScreen() {
               EV Network
             </div>
 
-            <h1 style={styles.title}>Şarj slotunu rezerve et</h1>
+            <h1 style={styles.title}>Sarj slotunu rezerve et</h1>
             <p style={styles.summaryText}>
-              İstasyon ve şarj cihazı bilgilerini kontrol edip size uygun tarih
-              ve saat aralığını seçin.
+              Istasyon ve sarj cihazi bilgilerini kontrol edip size uygun tarih
+              ve saat araligini secin.
             </p>
 
             <div style={styles.specCard}>
               <div style={styles.specGrid}>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>İstasyon adı</div>
+                  <div style={styles.specLabel}>Istasyon adi</div>
                   <div style={styles.specValue}>{station.name}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Seçilen şarj cihazı</div>
+                  <div style={styles.specLabel}>Secilen sarj cihazi</div>
                   <div style={styles.specValue}>{getSelectedChargerName(charger)}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Konnektör tipi</div>
+                  <div style={styles.specLabel}>Konnektor tipi</div>
                   <div style={styles.specValue}>{summaryConnector}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Güç çıkışı</div>
+                  <div style={styles.specLabel}>Guc cikisi</div>
                   <div style={styles.specValue}>{charger.powerOutput}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>kWh başına ücret</div>
+                  <div style={styles.specLabel}>kWh basina ucret</div>
                   <div style={styles.specValue}>
                     {charger.pricePerKwh.toFixed(2)} TL
                   </div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>İstasyon durumu</div>
+                  <div style={styles.specLabel}>Istasyon durumu</div>
                   <div style={styles.specValue}>{station.status}</div>
                 </div>
               </div>
@@ -898,16 +1022,16 @@ function ReservationScreen() {
 
           <div style={styles.metricGrid}>
             <div style={styles.metric}>
-              <div style={styles.metricValue}>{vehicleLoading ? "..." : "Hazır"}</div>
-              <div style={styles.metricLabel}>Araç kontrolü</div>
+              <div style={styles.metricValue}>{vehicleLoading ? "..." : "Hazir"}</div>
+              <div style={styles.metricLabel}>Arac kontrolu</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{charger.status}</div>
-              <div style={styles.metricLabel}>Şarj cihazı</div>
+              <div style={styles.metricLabel}>Sarj cihazi</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{station.status}</div>
-              <div style={styles.metricLabel}>İstasyon</div>
+              <div style={styles.metricLabel}>Istasyon</div>
             </div>
           </div>
         </section>
@@ -917,15 +1041,15 @@ function ReservationScreen() {
             <div>
               <h2 style={styles.panelTitle}>Rezervasyon Formu</h2>
               <p style={styles.subtitle}>
-                Tarih, başlangıç saati ve bitiş saati seçimi zorunludur.
-                Rezervasyon süresi en fazla 2 saattir ve seçimler en fazla 24
-                saat ileriye yapılabilir.
+                Tarih, baslangic saati ve bitis saati secimi zorunludur.
+                Rezervasyon suresi en fazla 2 saattir ve secimler en fazla 24
+                saat ileriye yapilabilir.
               </p>
             </div>
 
             <div style={styles.progressWrap}>
               <div style={styles.progressValue}>{completionPercent}%</div>
-              <div style={styles.progressLabel}>Tamamlandı</div>
+              <div style={styles.progressLabel}>Tamamlandi</div>
             </div>
           </div>
 
@@ -941,6 +1065,25 @@ function ReservationScreen() {
           <form onSubmit={handleSubmit}>
             <div style={styles.sectionLabel}>Rezervasyon Bilgileri</div>
 
+            <div style={styles.busySlotsCard}>
+              <strong>Uygun saat kontrolu</strong>
+              {busyLoading ? (
+                <div style={styles.helperText}>Dolu saatler yukleniyor...</div>
+              ) : busyReservationsForDate.length > 0 ? (
+                <ul style={styles.busySlotList}>
+                  {busyReservationsForDate.map((reservation) => (
+                    <li key={reservation.id}>
+                      {reservation.startTime} - {reservation.endTime} dolu
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div style={styles.helperText}>
+                  Secili tarih icin tum saatler uygun gorunuyor.
+                </div>
+              )}
+            </div>
+
             <div style={styles.formGrid}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Tarih</label>
@@ -954,7 +1097,7 @@ function ReservationScreen() {
                   style={styles.input}
                   disabled={saving || dateOptions.length === 0}
                 >
-                  <option value="">Tarih seçin</option>
+                  <option value="">Tarih secin</option>
                   {dateOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -963,13 +1106,13 @@ function ReservationScreen() {
                 </select>
                 {dateOptions.length === 0 && (
                   <p style={styles.helperText}>
-                    Şu anda seçilebilir tarih bulunmuyor.
+                    Su anda secilebilir tarih bulunmuyor.
                   </p>
                 )}
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Başlangıç saati</label>
+                <label style={styles.label}>Baslangic saati</label>
                 <select
                   value={effectiveStartTime}
                   onChange={(event) => {
@@ -979,16 +1122,20 @@ function ReservationScreen() {
                   style={styles.input}
                   disabled={saving || !effectiveDate || startTimeOptions.length === 0}
                 >
-                  <option value="">Başlangıç saati seçin</option>
+                  <option value="">Baslangic saati secin</option>
                   {startTimeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      disabled={option.disabled}
+                    >
                       {option.label}
                     </option>
                   ))}
                 </select>
                 {effectiveDate && startTimeOptions.length === 0 && (
                   <p style={styles.helperText}>
-                    Bu tarih için uygun başlangıç saati bulunmuyor.
+                    Bu tarih icin uygun baslangic saati bulunmuyor.
                   </p>
                 )}
               </div>
@@ -996,7 +1143,7 @@ function ReservationScreen() {
 
             <div style={{ ...styles.formGrid, gridTemplateColumns: "1fr" }}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Bitiş saati</label>
+                <label style={styles.label}>Bitis saati</label>
                 <select
                   value={effectiveEndTime}
                   onChange={(event) => setEndTime(event.target.value)}
@@ -1005,16 +1152,20 @@ function ReservationScreen() {
                     saving || !effectiveStartTime || endTimeOptions.length === 0
                   }
                 >
-                  <option value="">Bitiş saati seçin</option>
+                  <option value="">Bitis saati secin</option>
                   {endTimeOptions.map((option) => (
-                    <option key={option.label} value={option.value}>
+                    <option
+                      key={option.label}
+                      value={option.value}
+                      disabled={option.disabled}
+                    >
                       {option.label}
                     </option>
                   ))}
                 </select>
                 {effectiveStartTime && endTimeOptions.length === 0 && (
                   <p style={styles.helperText}>
-                    Seçilen başlangıç saatine göre uygun bitiş saati bulunmuyor.
+                    Secilen baslangic saatine gore uygun bitis saati bulunmuyor.
                   </p>
                 )}
               </div>
@@ -1024,6 +1175,13 @@ function ReservationScreen() {
               <div style={{ ...styles.message, ...styles.warningMessage }}>
                 <span>!</span>
                 <span>{warningMessage}</span>
+              </div>
+            )}
+
+            {!warningMessage && statusBlockMessage && (
+              <div style={{ ...styles.message, ...styles.warningMessage }}>
+                <span>!</span>
+                <span>{statusBlockMessage}</span>
               </div>
             )}
 
@@ -1039,9 +1197,9 @@ function ReservationScreen() {
                 type="submit"
                 style={{
                   ...styles.primaryButton,
-                  ...(saving ? styles.disabledButton : {}),
+                  ...(saving || statusBlockMessage ? styles.disabledButton : {}),
                 }}
-                disabled={saving}
+                disabled={saving || Boolean(statusBlockMessage)}
               >
                 {saving ? "Kaydediliyor..." : "Rezervasyonu Onayla"}
               </button>
@@ -1054,22 +1212,22 @@ function ReservationScreen() {
                 }
                 disabled={saving}
               >
-                İstasyon Haritasına Dön
+                Istasyon Haritasina Don
               </button>
             </div>
           </form>
 
           {confirmation && (
             <div style={styles.confirmationCard}>
-              <h3 style={styles.confirmationTitle}>Rezervasyon onaylandı</h3>
+              <h3 style={styles.confirmationTitle}>Rezervasyon onaylandi</h3>
               <p style={styles.confirmationValue}>
-                İstasyon adı: {confirmation.stationName}
+                Istasyon adi: {confirmation.stationName}
               </p>
               <p style={styles.confirmationValue}>
-                Seçilen şarj cihazı: {confirmation.chargerName}
+                Secilen sarj cihazi: {confirmation.chargerName}
               </p>
               <p style={styles.confirmationValue}>
-                Tarih ve saat aralığı: {confirmation.dateTimeRange}
+                Tarih ve saat araligi: {confirmation.dateTimeRange}
               </p>
               <div style={{ ...styles.actionRow, marginTop: "14px" }}>
                 <button
@@ -1089,14 +1247,14 @@ function ReservationScreen() {
                     })
                   }
                 >
-                  Şarj Oturumu Başlat
+                  Sarj Oturumu Baslat
                 </button>
                 <button
                   type="button"
                   style={styles.secondaryButton}
                   onClick={() => navigate("/station-map", { state: { vehicleId: vehicle?.id ?? "" } })}
                 >
-                  Haritaya Dön
+                  Haritaya Don
                 </button>
               </div>
             </div>
@@ -1126,3 +1284,5 @@ function ReservationScreen() {
 }
 
 export default ReservationScreen;
+
+

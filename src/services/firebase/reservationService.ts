@@ -11,6 +11,9 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { refundWallet } from "./walletService";
+import type { ChargerStatus } from "../../models/Charger";
+import type { StationStatus } from "../../models/Station";
+import { getReservationStatusBlockMessage } from "../../utils/chargerCompatibility";
 
 interface ReservationTimeRange {
   date: string;
@@ -22,6 +25,12 @@ export interface ReservationInput extends ReservationTimeRange {
   vehicleId: string;
   stationId: string;
   chargerId: string;
+}
+
+export interface ReservationRecord extends ReservationInput {
+  id: string;
+  status?: string;
+  createdAt?: unknown;
 }
 
 function buildDateTime(date: string, time: string) {
@@ -124,7 +133,69 @@ export async function hasActiveReservationConflict(
   });
 }
 
+export async function getActiveReservationsByChargerId(
+  chargerId: string,
+): Promise<ReservationRecord[]> {
+  const reservationsRef = collection(db, "reservations");
+  const reservationsQuery = query(
+    reservationsRef,
+    where("chargerId", "==", chargerId),
+  );
+  const snapshot = await getDocs(reservationsQuery);
+
+  return snapshot.docs
+    .map((reservationDoc) => ({
+      id: reservationDoc.id,
+      ...(reservationDoc.data() as Omit<ReservationRecord, "id">),
+    }))
+    .filter(
+      (reservation) =>
+        Boolean(reservation.date) &&
+        Boolean(reservation.startTime) &&
+        Boolean(reservation.endTime) &&
+        reservation.status === "active",
+    );
+}
+
 export async function createReservation(reservation: ReservationInput) {
+  const [stationSnapshot, chargerSnapshot] = await Promise.all([
+    getDoc(doc(db, "stations", reservation.stationId)),
+    getDoc(doc(db, "chargers", reservation.chargerId)),
+  ]);
+  const statusBlockMessage = getReservationStatusBlockMessage(
+    {
+      id: reservation.stationId,
+      name: "",
+      address: "",
+      latitude: 0,
+      longitude: 0,
+      status: (stationSnapshot.data()?.status ?? "offline") as StationStatus,
+      chargers: [],
+    },
+    {
+      id: reservation.chargerId,
+      stationId: reservation.stationId,
+      type: "AC",
+      powerOutput: "22kW",
+      connectorType: "Type 2",
+      pricePerKwh: 0,
+      status: (chargerSnapshot.data()?.status ?? "offline") as ChargerStatus,
+    },
+  );
+
+  if (statusBlockMessage) {
+    throw new Error(statusBlockMessage);
+  }
+
+  const hasConflict = await hasActiveReservationConflict(
+    reservation.chargerId,
+    reservation,
+  );
+
+  if (hasConflict) {
+    throw new Error("Secilen saat araligi dolu.");
+  }
+
   const reservationRef = await addDoc(collection(db, "reservations"), {
     vehicleId: reservation.vehicleId,
     stationId: reservation.stationId,

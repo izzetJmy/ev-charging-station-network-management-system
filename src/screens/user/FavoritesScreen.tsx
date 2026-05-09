@@ -259,7 +259,7 @@ function FavoritesScreen() {
                     <div style={styles.meta}>
                       {station?.address ?? "Station detail bekleniyor"}
                       <br />
-                      Durum: {station?.status ?? "--"} · Charger:{" "}
+                      Durum: {station?.status ?? "--"} - Charger:{" "}
                       {station?.chargers.length ?? "--"}
                     </div>
                   </div>

@@ -223,7 +223,7 @@ export default function StationStatisticsScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("İstasyon istatistikleri alınamadı. Firestore bağlantısını kontrol edin.");
+        setError("Istasyon istatistikleri alinamadi. Firestore baglantisini kontrol edin.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -268,13 +268,13 @@ export default function StationStatisticsScreen() {
 
   return (
     <div>
-      <h2 style={styles.title}>İstasyon İstatistikleri</h2>
+      <h2 style={styles.title}>Istasyon Istatistikleri</h2>
       <p style={styles.subtitle}>
-        İstasyonların kullanım yoğunluğunu, şarj oturumu sayısını ve tüketilen enerjiyi istasyon
-        bazında görüntüleyin.
+        Istasyonlarin kullanim yogunlugunu, sarj oturumu sayisini ve tuketilen enerjiyi istasyon
+        bazinda goruntuleyin.
       </p>
 
-      {loading && <div style={styles.loading}>Yükleniyor…</div>}
+      {loading && <div style={styles.loading}>Yukleniyor...</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && data && (
@@ -296,7 +296,7 @@ export default function StationStatisticsScreen() {
               <div style={styles.cardInner}>
                 <div style={styles.label}>Station status summary</div>
                 <div style={styles.value}>
-                  {data.stationStatusSummary.available} uygun • {data.stationStatusSummary.occupied} dolu •{" "}
+                  {data.stationStatusSummary.available} uygun - {data.stationStatusSummary.occupied} dolu -{" "}
                   {data.stationStatusSummary.offline} offline
                 </div>
               </div>
@@ -325,7 +325,7 @@ export default function StationStatisticsScreen() {
                   {sessionRows.length === 0 && energyRows.length === 0 && (
                     <tr>
                       <td style={styles.td} colSpan={3}>
-                        Henüz veri yok.
+                        Henuz veri yok.
                       </td>
                     </tr>
                   )}
@@ -396,7 +396,7 @@ export default function StationStatisticsScreen() {
                 <div style={styles.metaItem}>
                   <div style={styles.metaGlow} aria-hidden="true" />
                   <div style={styles.metaInner}>
-                    <div style={styles.metaLabel}>Revenue (₺)</div>
+                    <div style={styles.metaLabel}>Revenue (TL)</div>
                     <div style={styles.metaValue}>{round2(selectedStats.revenue)}</div>
                   </div>
                 </div>
