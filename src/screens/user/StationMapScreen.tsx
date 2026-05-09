@@ -28,6 +28,8 @@ import {
 import { calculateDistanceInKilometers } from "../../services/maps/locationService";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
+import { useFavoriteStations } from "../../hooks/useFavoriteStations";
+import { toggleFavoriteStation } from "../../services/firebase/favoriteService";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -297,6 +299,34 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
     transition: "transform 0.18s ease, box-shadow 0.18s ease",
+  },
+  stationCardRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "8px",
+    alignItems: "center",
+  },
+  stationMainButton: {
+    border: "none",
+    background: "transparent",
+    color: "inherit",
+    textAlign: "left",
+    padding: 0,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  favoriteIconButton: {
+    minWidth: "38px",
+    minHeight: "38px",
+    borderRadius: "13px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    color: "#FFD7D1",
+    fontSize: "20px",
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    lineHeight: 1,
   },
   stationButtonActive: {
     boxShadow: "0 0 0 3px rgba(184,240,97,0.14), 0 14px 28px rgba(0,0,0,0.22)",
@@ -583,7 +613,7 @@ const styles: Record<string, CSSProperties> = {
   },
   actionRow: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
     gap: "12px",
     marginTop: "18px",
   },
@@ -632,6 +662,7 @@ interface RequestLocationOptions {
 
 interface StationMapLocationState {
   vehicleId?: string;
+  stationId?: string;
 }
 
 function formatCoordinates(coords: UserCoordinates | null) {
@@ -683,6 +714,11 @@ function StationMapScreen() {
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
   const { isLoaded, isLoading: mapsLoading, errorMessage: mapsError } =
     useGoogleMapsLoader();
+  const {
+    favoriteStationIds,
+    loading: favoritesLoading,
+    error: favoritesError,
+  } = useFavoriteStations(userId);
   const [permissionState, setPermissionState] =
     useState<LocationPermissionState>("idle");
   const [coords, setCoords] = useState<UserCoordinates | null>(null);
@@ -699,6 +735,11 @@ function StationMapScreen() {
   const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
   const [stations, setStations] = useState<Station[]>([]);
   const [stationsError, setStationsError] = useState("");
+  const [directionsResult, setDirectionsResult] =
+    useState<google.maps.DirectionsResult | null>(null);
+  const [directionsLoading, setDirectionsLoading] = useState(false);
+  const [directionsError, setDirectionsError] = useState("");
+  const [favoriteActionLoadingId, setFavoriteActionLoadingId] = useState("");
   const vehicleIdRef = useRef("");
 
   const stationCounts = useMemo(() => {
@@ -797,6 +838,20 @@ function StationMapScreen() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const routeState = location.state as StationMapLocationState | null;
+    const requestedStationId = routeState?.stationId;
+
+    if (!requestedStationId || stations.length === 0) {
+      return;
+    }
+
+    const station = stations.find((candidate) => candidate.id === requestedStationId);
+    if (station) {
+      setSelectedStation(station);
+    }
+  }, [location.state, stations]);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -933,10 +988,99 @@ function StationMapScreen() {
 
   const handleSelectStation = (station: Station) => {
     setSelectedStation(station);
+    setDirectionsError("");
+    setSuccessMessage("");
   };
 
   const handleCloseStationCard = () => {
     setSelectedStation(null);
+    setDirectionsError("");
+  };
+
+  const handleGetDirections = async () => {
+    if (!selectedStation) {
+      setDirectionsError("Rota cizmek icin once bir istasyon secin.");
+      return;
+    }
+
+    if (!isLoaded || mapsError) {
+      setDirectionsError(
+        mapsError || "Google Maps hazir olmadigi icin rota cizilemiyor.",
+      );
+      return;
+    }
+
+    setDirectionsLoading(true);
+    setDirectionsError("");
+    setDirectionsResult(null);
+    setMessage("Rota icin guncel konum aliniyor.");
+
+    const locationResult = await getCurrentLocation();
+    setPermissionState(locationResult.permissionState);
+    setCoords(locationResult.coords);
+    setMessage(locationResult.message);
+
+    if (!locationResult.coords) {
+      setDirectionsLoading(false);
+      setDirectionsError(
+        locationResult.permissionState === "denied"
+          ? "Konum izni verilmedi. Rota cizebilmek icin tarayicidan konum izni vermelisiniz."
+          : locationResult.message,
+      );
+      return;
+    }
+
+    try {
+      const directionsService = new google.maps.DirectionsService();
+      const destination = {
+        lat: selectedStation.latitude,
+        lng: selectedStation.longitude,
+      };
+
+      directionsService.route(
+        {
+          origin: locationResult.coords,
+          destination,
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          setDirectionsLoading(false);
+
+          if (status !== google.maps.DirectionsStatus.OK || !result) {
+            setDirectionsError(
+              "Google Maps rota bilgisini olusturamadi. Lutfen daha sonra tekrar deneyin.",
+            );
+            return;
+          }
+
+          setDirectionsResult(result);
+          setSuccessMessage("Rota harita uzerinde cizildi.");
+        },
+      );
+    } catch {
+      setDirectionsLoading(false);
+      setDirectionsError(
+        "DirectionsService baslatilirken bir hata olustu. Uygulama calismaya devam ediyor.",
+      );
+    }
+  };
+
+  const handleToggleFavorite = async (station: Station) => {
+    setFavoriteActionLoadingId(station.id);
+    setLocationUpdateError("");
+
+    try {
+      await toggleFavoriteStation(
+        userId,
+        station.id,
+        station.name,
+        favoriteStationIds.has(station.id),
+      );
+    } catch {
+      setLocationUpdateError("Favori islemi kaydedilemedi. Lutfen tekrar deneyin.");
+    } finally {
+      setFavoriteActionLoadingId("");
+    }
   };
 
   return (
@@ -1019,20 +1163,43 @@ function StationMapScreen() {
                         : `${distanceKm.toFixed(1)} km`;
 
                   return (
-                    <button
+                    <div
                       key={station.id}
-                      type="button"
                       style={{
                         ...styles.stationButton,
+                        ...styles.stationCardRow,
                         ...(isActive ? styles.stationButtonActive : {}),
                       }}
-                      onClick={() => setSelectedStation(station)}
                     >
+                      <button
+                        type="button"
+                        style={styles.stationMainButton}
+                        onClick={() => handleSelectStation(station)}
+                      >
                       <span style={styles.stationName}>{station.name}</span>
                       <span style={styles.stationMeta}>
                         {distanceLabel} · {station.status}
                       </span>
-                    </button>
+                      </button>
+                      <button
+                        type="button"
+                        style={styles.favoriteIconButton}
+                        onClick={() => void handleToggleFavorite(station)}
+                        disabled={favoriteActionLoadingId === station.id}
+                        aria-label={
+                          favoriteStationIds.has(station.id)
+                            ? "Favorilerden cikar"
+                            : "Favorilere ekle"
+                        }
+                        title={
+                          favoriteStationIds.has(station.id)
+                            ? "Favorilerden cikar"
+                            : "Favorilere ekle"
+                        }
+                      >
+                        {favoriteStationIds.has(station.id) ? "♥" : "♡"}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1169,12 +1336,20 @@ function StationMapScreen() {
               </div>
             )}
 
+            {favoritesError && (
+              <div style={{ ...styles.message, ...styles.errorMessage }}>
+                <span>!</span>
+                <span>{favoritesError}</span>
+              </div>
+            )}
+
             {shouldShowMap ? (
               <div style={styles.mapFrame}>
                 <MapView
                   userLocation={coords}
                   stations={filteredStations}
                   selectedStationId={selectedStation?.id ?? null}
+                  directionsResult={directionsResult}
                   onSelectStation={handleSelectStation}
                 />
               </div>
@@ -1205,6 +1380,14 @@ function StationMapScreen() {
                   station={selectedStation}
                   vehicle={vehicle}
                   currentLocation={coords}
+                  directionsLoading={directionsLoading}
+                  directionsError={directionsError}
+                  isFavorite={favoriteStationIds.has(selectedStation.id)}
+                  favoriteLoading={
+                    favoritesLoading || favoriteActionLoadingId === selectedStation.id
+                  }
+                  onGetDirections={handleGetDirections}
+                  onToggleFavorite={() => void handleToggleFavorite(selectedStation)}
                   onClose={handleCloseStationCard}
                 />
               </div>
@@ -1227,6 +1410,15 @@ function StationMapScreen() {
                 disabled={locationUpdateLoading}
               >
                 Arac Profiline Don
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/favorites")}
+                style={styles.secondaryButton}
+                disabled={locationUpdateLoading}
+              >
+                Favoriler
               </button>
             </div>
           </div>

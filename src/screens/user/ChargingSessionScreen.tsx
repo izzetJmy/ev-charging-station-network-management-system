@@ -12,6 +12,10 @@ import type { Vehicle } from "../../models/vehicle";
 import { getVehicleById, getVehicleByUserId } from "../../services/firebase/vehicleService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { createChargingSession } from "../../services/firebase/chargingSessionService";
+import {
+  getWallet,
+  InsufficientWalletBalanceError,
+} from "../../services/firebase/walletService";
 
 interface ChargingSessionLocationState {
   station?: Station;
@@ -259,6 +263,14 @@ const styles: Record<string, CSSProperties> = {
   costRowLast: {
     borderBottom: "none",
   },
+  walletCard: {
+    borderRadius: "16px",
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #D8E2DB",
+    padding: "14px",
+    marginTop: "14px",
+    color: "#17231F",
+  },
   actionRow: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
@@ -344,6 +356,7 @@ function ChargingSessionScreen() {
   const [warningMessage, setWarningMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   useEffect(() => {
     const loadVehicle = async () => {
@@ -361,6 +374,24 @@ function ChargingSessionScreen() {
 
     void loadVehicle();
   }, [requestedVehicleId, userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getWallet(userId)
+      .then((wallet) => {
+        if (cancelled) return;
+        setWalletBalance(wallet.balance);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setWalletBalance(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const batteryCapacity = vehicle?.batteryCapacity ?? 0;
   const startBatteryValue = clampPercent(Number(startBattery));
@@ -450,6 +481,7 @@ function ChargingSessionScreen() {
       setSaving(true);
 
       await createChargingSession({
+        userId,
         reservationId,
         vehicleId: vehicle.id,
         stationId: station.id,
@@ -469,7 +501,14 @@ function ChargingSessionScreen() {
           },
         },
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof InsufficientWalletBalanceError) {
+        setErrorMessage(
+          "Wallet bakiyesi yetersiz. Lutfen bakiye yukleyip tekrar deneyin.",
+        );
+        return;
+      }
+
       setErrorMessage("Şarj oturumu kaydedilemedi. Lütfen tekrar deneyin.");
     } finally {
       setSaving(false);
@@ -626,6 +665,24 @@ function ChargingSessionScreen() {
               <div style={{ ...styles.costRow, ...styles.costRowLast }}>
                 <span>Toplam</span>
                 <span>{totalCost == null ? "--" : `${totalCost.toFixed(2)} TL`}</span>
+              </div>
+            </div>
+
+            <div style={styles.walletCard}>
+              <div style={styles.costTitle}>Wallet</div>
+              <div style={styles.costRow}>
+                <span>Mevcut bakiye</span>
+                <span>
+                  {walletBalance == null ? "--" : `${walletBalance.toFixed(2)} TL`}
+                </span>
+              </div>
+              <div style={{ ...styles.costRow, ...styles.costRowLast }}>
+                <span>Islem sonrasi</span>
+                <span>
+                  {walletBalance == null || totalCost == null
+                    ? "--"
+                    : `${(walletBalance - totalCost).toFixed(2)} TL`}
+                </span>
               </div>
             </div>
 

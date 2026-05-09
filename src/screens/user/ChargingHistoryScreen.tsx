@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../services/firebase/firebaseConfig";
 import { getStationsWithChargers } from "../../services/firebase/stationService";
+import WalletPanel from "../../components/WalletPanel";
 
 interface ChargingHistoryLocationState {
   vehicleId?: string;
@@ -357,6 +358,8 @@ export default function ChargingHistoryScreen() {
         </header>
 
         <section style={styles.body}>
+          <WalletPanel userId={userId} />
+
           <div style={styles.card}>
             <div style={styles.vehicleInfo}>
               <div style={styles.vehicleLabel}>Araç</div>

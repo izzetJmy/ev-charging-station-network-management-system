@@ -1,12 +1,16 @@
 import {
   addDoc,
   collection,
+  doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
+import { refundWallet } from "./walletService";
 
 interface ReservationTimeRange {
   date: string;
@@ -133,4 +137,36 @@ export async function createReservation(reservation: ReservationInput) {
   });
 
   return reservationRef.id;
+}
+
+export async function cancelReservationWithRefund(
+  reservationId: string,
+  userId: string,
+  refundAmount = 0,
+) {
+  const reservationRef = doc(db, "reservations", reservationId);
+  const reservationSnapshot = await getDoc(reservationRef);
+
+  if (!reservationSnapshot.exists()) {
+    throw new Error("Reservation not found.");
+  }
+
+  const reservation = reservationSnapshot.data() as {
+    stationId?: string;
+    chargerId?: string;
+    status?: string;
+  };
+
+  await updateDoc(reservationRef, {
+    status: "cancelled",
+    cancelledAt: serverTimestamp(),
+  });
+
+  if (refundAmount > 0) {
+    await refundWallet(userId, refundAmount, {
+      stationId: reservation.stationId ?? null,
+      chargerId: reservation.chargerId ?? null,
+      relatedReservationId: reservationId,
+    });
+  }
 }
