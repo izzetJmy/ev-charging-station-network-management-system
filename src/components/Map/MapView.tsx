@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { GoogleMap, Marker } from "@react-google-maps/api";
+import { DirectionsRenderer, GoogleMap, Marker } from "@react-google-maps/api";
 import type { Station } from "../../models/Station";
 import {
   DEFAULT_MAP_CENTER,
@@ -17,6 +17,7 @@ interface MapViewProps {
   userLocation: UserCoordinates;
   stations: Station[];
   selectedStationId: string | null;
+  directionsResult: google.maps.DirectionsResult | null;
   onSelectStation: (station: Station) => void;
 }
 
@@ -35,6 +36,7 @@ function MapView({
   userLocation,
   stations,
   selectedStationId,
+  directionsResult,
   onSelectStation,
 }: MapViewProps) {
   const { isLoaded } = useGoogleMapsLoader();
@@ -101,6 +103,21 @@ function MapView({
         selectedStationId={selectedStationId}
         onSelectStation={handleSelectStation}
       />
+
+      {directionsResult && (
+        <DirectionsRenderer
+          directions={directionsResult}
+          options={{
+            preserveViewport: false,
+            suppressMarkers: true,
+            polylineOptions: {
+              strokeColor: "#24705B",
+              strokeOpacity: 0.9,
+              strokeWeight: 6,
+            },
+          }}
+        />
+      )}
     </GoogleMap>
   );
 }

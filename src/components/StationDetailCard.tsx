@@ -16,6 +16,12 @@ interface StationDetailCardProps {
   station: Station;
   vehicle: Vehicle | null;
   currentLocation: UserCoordinates | null;
+  directionsLoading?: boolean;
+  directionsError?: string;
+  isFavorite?: boolean;
+  favoriteLoading?: boolean;
+  onGetDirections?: () => void;
+  onToggleFavorite?: () => void;
   onClose: () => void;
 }
 
@@ -100,6 +106,34 @@ const styles: Record<string, CSSProperties> = {
     fontFamily: "inherit",
     transition: "transform 0.2s ease, box-shadow 0.2s ease",
   },
+  favoriteButton: {
+    minHeight: "40px",
+    minWidth: "44px",
+    padding: "0 12px",
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #AFCDBB",
+    borderRadius: "14px",
+    color: "#C94A3B",
+    fontSize: "20px",
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    lineHeight: 1,
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
+  navigateButton: {
+    minHeight: "40px",
+    padding: "0 14px",
+    background: "linear-gradient(135deg, #173C34 0%, #24705B 100%)",
+    border: "none",
+    borderRadius: "14px",
+    color: "#FFFFFF",
+    fontSize: "14px",
+    fontWeight: 850,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
   message: {
     padding: "12px 14px",
     borderRadius: "14px",
@@ -114,6 +148,11 @@ const styles: Record<string, CSSProperties> = {
     backgroundColor: "#EFF8E7",
     border: "1px solid #BFDE9B",
     color: "#2C6642",
+  },
+  errorMessage: {
+    backgroundColor: "#FFF3F1",
+    border: "1px solid #F4B8AE",
+    color: "#A63E30",
   },
   infoGrid: {
     display: "grid",
@@ -203,6 +242,12 @@ function StationDetailCard({
   station,
   vehicle,
   currentLocation,
+  directionsLoading = false,
+  directionsError = "",
+  isFavorite = false,
+  favoriteLoading = false,
+  onGetDirections,
+  onToggleFavorite,
   onClose,
 }: StationDetailCardProps) {
   const navigate = useNavigate();
@@ -283,6 +328,28 @@ function StationDetailCard({
           <div style={styles.topActions}>
             <button
               type="button"
+              onClick={onToggleFavorite}
+              style={styles.favoriteButton}
+              disabled={!onToggleFavorite || favoriteLoading}
+              aria-label={
+                isFavorite
+                  ? "Favorilerden cikar"
+                  : "Favorilere ekle"
+              }
+              title={isFavorite ? "Favorilerden cikar" : "Favorilere ekle"}
+            >
+              {isFavorite ? "♥" : "♡"}
+            </button>
+            <button
+              type="button"
+              onClick={onGetDirections}
+              style={styles.navigateButton}
+              disabled={!onGetDirections || directionsLoading}
+            >
+              {directionsLoading ? "Rota ciziliyor..." : "Get Directions"}
+            </button>
+            <button
+              type="button"
               onClick={handleOpenStationReport}
               style={styles.reportButton}
             >
@@ -298,6 +365,13 @@ function StationDetailCard({
           <div style={{ ...styles.message, ...styles.successMessage }}>
             <span>OK</span>
             <span>{reportSuccessMessage}</span>
+          </div>
+        )}
+
+        {directionsError && (
+          <div style={{ ...styles.message, ...styles.errorMessage }}>
+            <span>!</span>
+            <span>{directionsError}</span>
           </div>
         )}
 

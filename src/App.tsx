@@ -6,6 +6,7 @@ import VehicleRegistrationScreen from "./screens/user/VehicleRegistrationScreen"
 import ReservationScreen from "./screens/user/ReservationScreen";
 import ChargingSessionScreen from "./screens/user/ChargingSessionScreen";
 import ChargingHistoryScreen from "./screens/user/ChargingHistoryScreen";
+import FavoritesScreen from "./screens/user/FavoritesScreen";
 import LandingPageScreen from "./screens/LandingPageScreen";
 import AboutScreen from "./screens/AboutScreen";
 import ContactScreen from "./screens/ContactScreen";
@@ -34,6 +35,7 @@ function App() {
         <Route path="/reservation" element={<ReservationScreen />} />
         <Route path="/charging-session" element={<ChargingSessionScreen />} />
         <Route path="/charging-history" element={<ChargingHistoryScreen />} />
+        <Route path="/favorites" element={<FavoritesScreen />} />
         <Route path="/admin" element={<AdminLoginScreen />} />
         <Route element={<RequireAdmin />}>
           <Route element={<AdminLayout />}>

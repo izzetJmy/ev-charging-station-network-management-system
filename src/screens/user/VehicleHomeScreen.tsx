@@ -192,10 +192,47 @@ const styles: Record<string, CSSProperties> = {
     transition:
       "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
   },
+  vehicleCard: {
+    borderRadius: "16px",
+    border: "1px solid #DCE8DF",
+    backgroundColor: "#FFFFFF",
+    padding: "12px",
+    color: "#17231F",
+    boxShadow: "0 10px 24px rgba(31,94,77,0.06)",
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "12px",
+    alignItems: "center",
+    transition:
+      "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+  },
+  vehicleMainButton: {
+    width: "100%",
+    textAlign: "left",
+    border: "none",
+    backgroundColor: "transparent",
+    padding: "2px",
+    color: "#17231F",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
   vehicleButtonActive: {
     borderColor: "#1F5E4D",
     boxShadow: "0 0 0 3px rgba(31,94,77,0.14), 0 16px 30px rgba(31,94,77,0.10)",
     transform: "translateY(-1px)",
+  },
+  compactButton: {
+    minHeight: "42px",
+    padding: "10px 12px",
+    border: "1px solid #AFCDBB",
+    borderRadius: "14px",
+    backgroundColor: "#FFFFFF",
+    color: "#1F5E4D",
+    fontSize: "13px",
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    whiteSpace: "nowrap",
   },
   vehicleName: {
     display: "block",
@@ -432,6 +469,10 @@ function VehicleHomeScreen() {
     setIsDetailOpen(false);
   };
 
+  const handleOpenHistoryForVehicle = (vehicleId: string) => {
+    navigate("/charging-history", { state: { vehicleId } });
+  };
+
   const handleCreateVehicle = () => {
     navigate("/vehicles/new");
   };
@@ -508,18 +549,21 @@ function VehicleHomeScreen() {
             {vehicles.map((vehicle) => {
               const isActive = vehicle.id === selectedVehicleId;
               return (
-                <button
+                <article
                   key={vehicle.id}
-                  type="button"
                   style={{
-                    ...styles.vehicleButton,
+                    ...styles.vehicleCard,
                     ...(isActive ? styles.vehicleButtonActive : {}),
                   }}
-                  onClick={() => {
-                    setSelectedVehicleId(vehicle.id);
-                    setIsDetailOpen(true);
-                  }}
                 >
+                  <button
+                    type="button"
+                    style={styles.vehicleMainButton}
+                    onClick={() => {
+                      setSelectedVehicleId(vehicle.id);
+                      setIsDetailOpen(true);
+                    }}
+                  >
                   <span style={styles.vehicleName}>
                     {getVehicleDisplayName(vehicle)}
                   </span>
@@ -527,7 +571,16 @@ function VehicleHomeScreen() {
                     Plaka: {vehicle.plateNumber?.trim().toUpperCase() || "--"} ·
                     Soket: {vehicle.connectorType || "--"}
                   </span>
-                </button>
+                  </button>
+
+                  <button
+                    type="button"
+                    style={styles.compactButton}
+                    onClick={() => handleOpenHistoryForVehicle(vehicle.id)}
+                  >
+                    Şarj Geçmişi
+                  </button>
+                </article>
               );
             })}
           </div>
