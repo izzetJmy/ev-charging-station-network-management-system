@@ -12,6 +12,7 @@ import AboutScreen from "./screens/AboutScreen";
 import ContactScreen from "./screens/ContactScreen";
 import AdminLoginScreen from "./screens/admin/AdminLoginScreen";
 import SnackbarHost from "./components/SnackbarHost";
+import ActiveSessionCard from "./components/ActiveSessionCard";
 import RequireAdmin from "./components/RequireAdmin";
 import AdminLayout from "./screens/admin/AdminLayout";
 import AdminDashboardScreen from "./screens/admin/AdminDashboardScreen";
@@ -48,6 +49,7 @@ function App() {
         </Route>
       </Routes>
       <SnackbarHost />
+      <ActiveSessionCard />
     </BrowserRouter>
   );
 }

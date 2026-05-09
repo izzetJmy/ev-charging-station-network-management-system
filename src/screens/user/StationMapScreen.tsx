@@ -74,6 +74,8 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: "column",
     justifyContent: "space-between",
     gap: "28px",
+    minWidth: 0,
+    boxSizing: "border-box",
   },
   routeLayer: {
     position: "absolute",
@@ -86,6 +88,7 @@ const styles: Record<string, CSSProperties> = {
   content: {
     position: "relative",
     zIndex: 1,
+    minWidth: 0,
   },
   eyebrow: {
     display: "inline-flex",
@@ -237,12 +240,17 @@ const styles: Record<string, CSSProperties> = {
     backgroundColor: "rgba(255,255,255,0.10)",
     border: "1px solid rgba(255,255,255,0.16)",
     padding: "16px",
+    minWidth: 0,
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    overflow: "hidden",
   },
   listHeader: {
     display: "flex",
     alignItems: "baseline",
     justifyContent: "space-between",
     gap: "12px",
+    minWidth: 0,
   },
   listTitle: {
     margin: 0,
@@ -261,6 +269,13 @@ const styles: Record<string, CSSProperties> = {
     marginTop: "12px",
     display: "grid",
     gap: "10px",
+    minWidth: 0,
+    maxWidth: "100%",
+    maxHeight: "300px",
+    overflowY: "auto",
+    overflowX: "hidden",
+    paddingRight: "4px",
+    boxSizing: "border-box",
   },
   listToggle: {
     marginTop: "12px",
@@ -292,6 +307,7 @@ const styles: Record<string, CSSProperties> = {
   },
   stationButton: {
     width: "100%",
+    maxWidth: "100%",
     textAlign: "left",
     borderRadius: "16px",
     border: "1px solid rgba(255,255,255,0.16)",
@@ -301,10 +317,12 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
     transition: "transform 0.18s ease, box-shadow 0.18s ease",
+    boxSizing: "border-box",
+    overflow: "hidden",
   },
   stationCardRow: {
     display: "grid",
-    gridTemplateColumns: "1fr auto",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
     gap: "8px",
     alignItems: "center",
   },
@@ -316,6 +334,9 @@ const styles: Record<string, CSSProperties> = {
     padding: 0,
     cursor: "pointer",
     fontFamily: "inherit",
+    minWidth: 0,
+    width: "100%",
+    overflow: "hidden",
   },
   favoriteIconButton: {
     minWidth: "38px",
@@ -339,6 +360,9 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "13px",
     fontWeight: 900,
     letterSpacing: "-0.01em",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+    lineHeight: 1.3,
   },
   stationMeta: {
     display: "block",
@@ -347,6 +371,8 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "12px",
     fontWeight: 750,
     lineHeight: 1.45,
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
   metricGrid: {
     position: "relative",
