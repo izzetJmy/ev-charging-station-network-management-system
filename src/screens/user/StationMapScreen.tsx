@@ -577,6 +577,85 @@ const styles: Record<string, CSSProperties> = {
       "0 16px 32px rgba(31,94,77,0.12), inset 0 1px 0 rgba(255,255,255,0.5)",
     transition: "box-shadow 0.2s ease, transform 0.2s ease",
   },
+  navigationOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 1500,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+    backgroundColor: "rgba(9, 22, 19, 0.54)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+  },
+  navigationSheet: {
+    width: "min(980px, 100%)",
+    maxHeight: "92vh",
+    borderRadius: "24px",
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    border: "1px solid rgba(255,255,255,0.66)",
+    boxShadow: "0 28px 80px rgba(6, 20, 16, 0.34)",
+    display: "grid",
+    gridTemplateRows: "auto minmax(360px, 1fr)",
+  },
+  navigationHeader: {
+    padding: "18px",
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "16px",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderBottom: "1px solid #E1EAE4",
+  },
+  routeTitle: {
+    margin: 0,
+    color: "#17231F",
+    fontSize: "22px",
+    lineHeight: 1.2,
+    fontWeight: 900,
+  },
+  routeSubtitle: {
+    margin: "7px 0 0",
+    color: "#66756E",
+    fontSize: "14px",
+    lineHeight: 1.45,
+    fontWeight: 750,
+  },
+  routeSummaryRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    marginTop: "12px",
+  },
+  routeSummaryPill: {
+    minHeight: "34px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "0 12px",
+    borderRadius: "999px",
+    backgroundColor: "#F0F7F1",
+    border: "1px solid #D7E6DA",
+    color: "#245243",
+    fontSize: "13px",
+    fontWeight: 850,
+  },
+  navigationActions: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+  },
+  navigationMapShell: {
+    minHeight: "520px",
+    backgroundColor: "#EAF2EC",
+  },
+  navigationMapFrame: {
+    width: "100%",
+    height: "100%",
+    minHeight: "520px",
+  },
   loadingShell: {
     minHeight: "420px",
     borderRadius: "24px",
@@ -739,6 +818,8 @@ function StationMapScreen() {
     useState<google.maps.DirectionsResult | null>(null);
   const [directionsLoading, setDirectionsLoading] = useState(false);
   const [directionsError, setDirectionsError] = useState("");
+  const [navigationStation, setNavigationStation] = useState<Station | null>(null);
+  const [isNavigationPreviewOpen, setIsNavigationPreviewOpen] = useState(false);
   const [favoriteActionLoadingId, setFavoriteActionLoadingId] = useState("");
   const vehicleIdRef = useRef("");
 
@@ -985,6 +1066,11 @@ function StationMapScreen() {
     permissionState === "granted" && !!coords && isLoaded && !mapsError;
   const shouldShowError =
     permissionState === "error" || (permissionState === "granted" && !!mapsError);
+  const directionsLeg = directionsResult?.routes[0]?.legs[0] ?? null;
+  const navigationOriginLabel =
+    coordsLabel && coordsLabel !== "Konum Ã§Ã¶zÃ¼mleniyor..."
+      ? coordsLabel
+      : "Konumunuz";
 
   const handleSelectStation = (station: Station) => {
     setSelectedStation(station);
@@ -1013,6 +1099,8 @@ function StationMapScreen() {
     setDirectionsLoading(true);
     setDirectionsError("");
     setDirectionsResult(null);
+    setNavigationStation(null);
+    setIsNavigationPreviewOpen(false);
     setMessage("Rota icin guncel konum aliniyor.");
 
     const locationResult = await getCurrentLocation();
@@ -1054,6 +1142,9 @@ function StationMapScreen() {
           }
 
           setDirectionsResult(result);
+          setNavigationStation(selectedStation);
+          setIsNavigationPreviewOpen(true);
+          setSelectedStation(null);
           setSuccessMessage("Rota harita uzerinde cizildi.");
         },
       );
@@ -1063,6 +1154,32 @@ function StationMapScreen() {
         "DirectionsService baslatilirken bir hata olustu. Uygulama calismaya devam ediyor.",
       );
     }
+  };
+
+  const handleCloseNavigationPreview = () => {
+    setIsNavigationPreviewOpen(false);
+  };
+
+  const handleOpenGoogleMaps = () => {
+    if (!navigationStation) {
+      return;
+    }
+
+    const destination = `${navigationStation.latitude},${navigationStation.longitude}`;
+    const origin = coords ? `${coords.lat},${coords.lng}` : "";
+    const url = new URL("https://www.google.com/maps/dir/");
+
+    if (origin) {
+      url.searchParams.set("api", "1");
+      url.searchParams.set("origin", origin);
+      url.searchParams.set("destination", destination);
+      url.searchParams.set("travelmode", "driving");
+    } else {
+      url.searchParams.set("api", "1");
+      url.searchParams.set("destination", destination);
+    }
+
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
   };
 
   const handleToggleFavorite = async (station: Station) => {
@@ -1425,6 +1542,70 @@ function StationMapScreen() {
         </section>
       </main>
 
+      {isNavigationPreviewOpen && navigationStation && coords && directionsResult && (
+        <div
+          className="navigation-preview-overlay"
+          style={styles.navigationOverlay}
+          onClick={handleCloseNavigationPreview}
+        >
+          <section
+            className="navigation-preview-sheet"
+            style={styles.navigationSheet}
+            aria-label="Navigation preview"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={styles.navigationHeader}>
+              <div>
+                <h3 style={styles.routeTitle}>
+                  Konumunuz to {navigationStation.name}
+                </h3>
+                <p style={styles.routeSubtitle}>
+                  {navigationOriginLabel} konumundan secili sarj istasyonuna surus rotasi.
+                </p>
+                <div style={styles.routeSummaryRow}>
+                  <span style={styles.routeSummaryPill}>
+                    {directionsLeg?.duration?.text ?? "Sure hesaplanamadi"}
+                  </span>
+                  <span style={styles.routeSummaryPill}>
+                    {directionsLeg?.distance?.text ?? "Mesafe hesaplanamadi"}
+                  </span>
+                  <span style={styles.routeSummaryPill}>Driving</span>
+                </div>
+              </div>
+
+              <div style={styles.navigationActions}>
+                <button
+                  type="button"
+                  onClick={handleOpenGoogleMaps}
+                  style={styles.primaryButton}
+                >
+                  Google Maps'te Ac
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseNavigationPreview}
+                  style={styles.secondaryButton}
+                >
+                  Kapat
+                </button>
+              </div>
+            </div>
+
+            <div style={styles.navigationMapShell}>
+              <div style={styles.navigationMapFrame}>
+                <MapView
+                  userLocation={coords}
+                  stations={[navigationStation]}
+                  selectedStationId={navigationStation.id}
+                  directionsResult={directionsResult}
+                  onSelectStation={handleSelectStation}
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
       <style>{`
         @keyframes mapSkeleton {
           0% { background-position: 220px 0; }
@@ -1471,6 +1652,19 @@ function StationMapScreen() {
 
           .station-map-shell .map-status-grid {
             grid-template-columns: 1fr !important;
+          }
+
+          .navigation-preview-sheet {
+            grid-template-rows: auto minmax(300px, 1fr) !important;
+          }
+
+          .navigation-preview-sheet > div:first-child {
+            grid-template-columns: 1fr !important;
+          }
+
+          .navigation-preview-sheet > div:last-child,
+          .navigation-preview-sheet > div:last-child > div {
+            min-height: 360px !important;
           }
         }
 
