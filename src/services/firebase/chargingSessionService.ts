@@ -10,6 +10,7 @@ import {
   updateDoc,
   where,
   type DocumentData,
+  type Transaction,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
@@ -53,6 +54,8 @@ export interface LiveChargingSessionInput {
   pricePerKwh: number;
   chargerPowerKw: number;
   estimatedTotalMinutes: number;
+  reservationDurationMinutes?: number | null;
+  sessionLimitMinutes?: number | null;
 }
 
 export interface LiveChargingSessionUpdate {
@@ -76,6 +79,8 @@ export interface ChargingSessionRecord extends Partial<LiveChargingSessionUpdate
   pricePerKwh: number;
   chargerPowerKw?: number;
   estimatedTotalMinutes?: number;
+  reservationDurationMinutes?: number | null;
+  sessionLimitMinutes?: number | null;
   status: ChargingSessionStatus;
   paymentStatus?: "pending" | "succeeded" | "refunded" | "cancelled" | "failed";
   endBatteryPercentage?: number;
@@ -110,7 +115,15 @@ function toChargingSessionRecord(
 function assertChargingStatusAllowed(params: {
   stationStatus: StationStatus;
   chargerStatus: ChargerStatus;
+  allowOccupied?: boolean;
 }) {
+  if (params.allowOccupied && params.stationStatus !== "offline") {
+    if (params.chargerStatus === "offline") {
+      throw new Error("Bu sarj cihazi su anda cevrim disi.");
+    }
+    return;
+  }
+
   const message = getChargerStatusBlockMessage(
     {
       id: "",
@@ -137,6 +150,45 @@ function assertChargingStatusAllowed(params: {
   }
 }
 
+async function assertReservationMatchesSession(
+  firestoreTransaction: Transaction,
+  session: {
+    reservationId?: string | null;
+    vehicleId: string;
+    stationId: string;
+    chargerId: string;
+  },
+) {
+  if (!session.reservationId) {
+    return false;
+  }
+
+  const reservationRef = doc(db, "reservations", session.reservationId);
+  const reservationSnapshot = await firestoreTransaction.get(reservationRef);
+
+  if (!reservationSnapshot.exists()) {
+    throw new Error("Rezervasyon bulunamadi.");
+  }
+
+  const reservation = reservationSnapshot.data() as {
+    vehicleId?: string;
+    stationId?: string;
+    chargerId?: string;
+    status?: string;
+  };
+
+  if (
+    reservation.status !== "active" ||
+    reservation.vehicleId !== session.vehicleId ||
+    reservation.stationId !== session.stationId ||
+    reservation.chargerId !== session.chargerId
+  ) {
+    throw new Error("Rezervasyon bilgisi sarj oturumu ile uyusmuyor.");
+  }
+
+  return true;
+}
+
 export async function createChargingSession(session: ChargingSessionInput) {
   const amount = roundMoney(session.totalCost);
 
@@ -145,10 +197,15 @@ export async function createChargingSession(session: ChargingSessionInput) {
     const chargerRef = doc(db, "chargers", session.chargerId);
     const stationSnapshot = await firestoreTransaction.get(stationRef);
     const chargerSnapshot = await firestoreTransaction.get(chargerRef);
+    const hasMatchingReservation = await assertReservationMatchesSession(
+      firestoreTransaction,
+      session,
+    );
 
     assertChargingStatusAllowed({
       stationStatus: (stationSnapshot.data()?.status ?? "offline") as StationStatus,
       chargerStatus: (chargerSnapshot.data()?.status ?? "offline") as ChargerStatus,
+      allowOccupied: hasMatchingReservation,
     });
 
     const walletRef = doc(db, "users", session.userId, "wallet", "default");
@@ -229,17 +286,25 @@ export async function createLiveChargingSession(session: LiveChargingSessionInpu
     const chargerRef = doc(db, "chargers", session.chargerId);
     const stationSnapshot = await firestoreTransaction.get(stationRef);
     const chargerSnapshot = await firestoreTransaction.get(chargerRef);
+    const hasMatchingReservation = await assertReservationMatchesSession(
+      firestoreTransaction,
+      session,
+    );
 
     assertChargingStatusAllowed({
       stationStatus: (stationSnapshot.data()?.status ?? "offline") as StationStatus,
       chargerStatus: (chargerSnapshot.data()?.status ?? "offline") as ChargerStatus,
+      allowOccupied: hasMatchingReservation,
     });
 
     firestoreTransaction.set(sessionRef, {
       ...session,
       currentKwh,
       liveCost: 0,
-      estimatedRemainingMinutes: Math.max(0, session.estimatedTotalMinutes),
+      estimatedRemainingMinutes: Math.max(
+        0,
+        session.sessionLimitMinutes ?? session.estimatedTotalMinutes,
+      ),
       progressPercentage: 0,
       status: "active",
       paymentStatus: "pending",
