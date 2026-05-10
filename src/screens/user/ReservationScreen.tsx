@@ -661,7 +661,7 @@ function ReservationScreen() {
       if (key === tomorrowKey) {
         return {
           value: key,
-          label: `Yarin (${formattedDate})`,
+          label: `Tomorrow (${formattedDate})`,
         };
       }
 
@@ -948,7 +948,7 @@ function ReservationScreen() {
     return (
       <div style={styles.page}>
         <div style={styles.fallbackCard}>
-          <h1 style={styles.fallbackTitle}>Reservation bilgisi eksik</h1>
+          <h1 style={styles.fallbackTitle}>Reservation details are missing</h1>
           <p style={styles.fallbackText}>
             Open the station detail card first and select a charger.
           </p>
@@ -976,7 +976,7 @@ function ReservationScreen() {
   return (
     <div style={styles.page}>
       <main className="reservation-shell" style={styles.shell}>
-        <section style={styles.summaryPanel} aria-label="Reservation ozeti">
+        <section style={styles.summaryPanel} aria-label="Reservation summary">
           <div style={styles.routeLayer} />
 
           <div style={styles.summaryContent}>
@@ -985,7 +985,7 @@ function ReservationScreen() {
               EV Network
             </div>
 
-            <h1 style={styles.title}>Charging slotunu rezerve et</h1>
+            <h1 style={styles.title}>Book a Charging Session</h1>
             <p style={styles.summaryText}>
               Review the station and charger details, then select a suitable date
               and time range.
@@ -1002,11 +1002,11 @@ function ReservationScreen() {
                   <div style={styles.specValue}>{getSelectedChargerName(charger)}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Konnektor tipi</div>
+                  <div style={styles.specLabel}>Connector type</div>
                   <div style={styles.specValue}>{summaryConnector}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Guc cikisi</div>
+                  <div style={styles.specLabel}>Power output</div>
                   <div style={styles.specValue}>{charger.powerOutput}</div>
                 </div>
                 <div style={styles.specItem}>
@@ -1025,8 +1025,8 @@ function ReservationScreen() {
 
           <div style={styles.metricGrid}>
             <div style={styles.metric}>
-              <div style={styles.metricValue}>{vehicleLoading ? "..." : "Hazir"}</div>
-              <div style={styles.metricLabel}>Vehicle kontrolu</div>
+              <div style={styles.metricValue}>{vehicleLoading ? "..." : "Ready"}</div>
+              <div style={styles.metricLabel}>Vehicle check</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{charger.status}</div>
@@ -1042,7 +1042,7 @@ function ReservationScreen() {
         <section style={styles.formPanel}>
           <div style={styles.topBar}>
             <div>
-              <h2 style={styles.panelTitle}>Reservation Formu</h2>
+              <h2 style={styles.panelTitle}>Reservation Form</h2>
               <p style={styles.subtitle}>
                 Date, start time, and end time are required.
                 Reservation duration is at most 2 hours, and selections can be made at most 24
@@ -1066,7 +1066,7 @@ function ReservationScreen() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div style={styles.sectionLabel}>Reservation Bilgileri</div>
+            <div style={styles.sectionLabel}>Reservation Details</div>
 
             <div style={styles.busySlotsCard}>
               <strong>Availability Check</strong>
@@ -1204,7 +1204,7 @@ function ReservationScreen() {
                 }}
                 disabled={saving || Boolean(statusBlockMessage)}
               >
-                {saving ? "Saving..." : "Reservationu Onayla"}
+                {saving ? "Saving..." : "Confirm Reservation"}
               </button>
 
               <button
