@@ -2,7 +2,11 @@ import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Vehicle } from "../../models/vehicle";
 import { getVehiclesByUserId } from "../../services/firebase/userService";
-import { getOrCreateLocalUserId } from "../../services/auth/localUser";
+import {
+  clearCurrentUserSession,
+  getCurrentUserSession,
+  getOrCreateLocalUserId,
+} from "../../services/auth/localUser";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
 import WalletPanel from "../../components/WalletPanel";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -176,6 +180,18 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "12px",
     fontWeight: 850,
     color: "#7A8982",
+  },
+  userPill: {
+    minHeight: "42px",
+    padding: "10px 12px",
+    border: "1px solid rgba(255,255,255,0.20)",
+    borderRadius: "14px",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    color: "#FFFFFF",
+    fontSize: "13px",
+    fontWeight: 900,
+    fontFamily: "inherit",
+    whiteSpace: "nowrap",
   },
   vehicleList: {
     display: "grid",
@@ -398,6 +414,7 @@ function VehicleHomeScreen() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
+  const session = useMemo(() => getCurrentUserSession(), []);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -491,7 +508,8 @@ function VehicleHomeScreen() {
     navigate("/vehicles/new");
   };
 
-  const handleGoToLanding = () => {
+  const handleLogout = () => {
+    clearCurrentUserSession();
     navigate("/");
   };
 
@@ -502,6 +520,7 @@ function VehicleHomeScreen() {
           <div style={styles.headerTop}>
             <h1 style={styles.title}>{t("vehicleHome.title")}</h1>
             <div style={styles.headerTopActions}>
+              {session && <div style={styles.userPill}>@{session.username}</div>}
               <WalletPanel userId={userId} variant="header" />
               <button
                 type="button"
@@ -513,9 +532,9 @@ function VehicleHomeScreen() {
               <button
                 type="button"
                 style={styles.secondaryButton}
-                onClick={handleGoToLanding}
+                onClick={handleLogout}
               >
-                {t("vehicleHome.goHome")}
+                {t("vehicleHome.logout")}
               </button>
             </div>
           </div>

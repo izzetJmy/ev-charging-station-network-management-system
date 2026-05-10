@@ -418,7 +418,6 @@ function VehicleRegistrationScreen() {
 
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
-  const [ownerName, setOwnerName] = useState("");
   const [batteryCapacity, setBatteryCapacity] = useState("");
   const [connectorType, setConnectorType] = useState("");
   const [connectorOptions, setConnectorOptions] = useState<string[]>([]);
@@ -436,14 +435,13 @@ function VehicleRegistrationScreen() {
   const completedFields = [
     brand.trim(),
     model.trim(),
-    ownerName.trim(),
     batteryCapacity.trim(),
     connectorType.trim(),
     plateNumber.trim(),
     currentLocation,
   ].filter(Boolean).length;
 
-  const completionPercent = Math.round((completedFields / 7) * 100);
+  const completionPercent = Math.round((completedFields / 6) * 100);
 
   const estimatedRange = useMemo(() => {
     const battery = Number(batteryCapacity);
@@ -524,7 +522,6 @@ function VehicleRegistrationScreen() {
   const validateForm = () => {
     if (!brand.trim()) return t("vehicleForm.brandRequired");
     if (!model.trim()) return t("vehicleForm.modelRequired");
-    if (!ownerName.trim()) return "Name surname cannot be empty.";
     if (!batteryCapacity.trim())
       return t("vehicleForm.batteryRequired");
     if (Number(batteryCapacity) <= 0)
@@ -549,7 +546,6 @@ function VehicleRegistrationScreen() {
 
       await createVehicle({
         userId,
-        ownerName: ownerName.trim(),
         brand,
         model,
         batteryCapacity: Number(batteryCapacity),
@@ -657,19 +653,6 @@ function VehicleRegistrationScreen() {
             <div style={styles.sectionLabel}>{t("vehicleRegistration.formTitle")}</div>
 
             <div className="form-grid" style={styles.formGrid}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Name Surname</label>
-                <input
-                  type="text"
-                  value={ownerName}
-                  onChange={(event) => setOwnerName(event.target.value)}
-                  placeholder="Ada Lovelace"
-                  style={getInputStyle("ownerName")}
-                  onFocus={() => setFocusedField("ownerName")}
-                  onBlur={() => setFocusedField(null)}
-                />
-              </div>
-
               <div style={styles.formGroup}>
                 <label style={styles.label}>{t("vehicleRegistration.brand")}</label>
                 <input

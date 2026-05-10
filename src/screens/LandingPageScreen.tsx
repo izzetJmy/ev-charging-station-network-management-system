@@ -1,7 +1,10 @@
-import { type CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SiteHeader from "../components/SiteHeader";
 import { useI18n } from "../i18n/I18nProvider";
+import { loginUser, registerUser } from "../services/firebase/authUserService";
+
+type AuthMode = "login" | "register";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -112,14 +115,18 @@ const styles: Record<string, CSSProperties> = {
   },
   main: {
     flex: "1 1 auto",
-    display: "flex",
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(340px, 430px)",
+    gap: "36px",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "center",
     padding: "56px 0 40px",
-  },
-  heroCard: {
     width: "min(1180px, 100%)",
     margin: "0 auto",
+  },
+  heroCard: {
+    width: "100%",
+    margin: 0,
     borderRadius: "0px",
     border: "none",
     background: "transparent",
@@ -170,6 +177,118 @@ const styles: Record<string, CSSProperties> = {
       "0 18px 40px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.12), 0 0 46px rgba(169,216,105,0.35)",
     transition: "transform 180ms ease, box-shadow 180ms ease, filter 180ms ease",
   },
+  authCard: {
+    borderRadius: "26px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.94)",
+    color: "#17231F",
+    padding: "22px",
+    boxShadow:
+      "0 24px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.8)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+  },
+  tabs: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px",
+    padding: "6px",
+    borderRadius: "18px",
+    backgroundColor: "#ECF4EF",
+    marginBottom: "18px",
+  },
+  tab: {
+    minHeight: "42px",
+    border: "none",
+    borderRadius: "14px",
+    backgroundColor: "transparent",
+    color: "#5F6E66",
+    fontSize: "14px",
+    fontWeight: 950,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  activeTab: {
+    backgroundColor: "#FFFFFF",
+    color: "#1F5E4D",
+    boxShadow: "0 10px 22px rgba(31,94,77,0.10)",
+  },
+  authTitle: {
+    margin: "0 0 6px",
+    fontSize: "25px",
+    fontWeight: 950,
+    letterSpacing: "-0.02em",
+  },
+  authHelper: {
+    margin: "0 0 18px",
+    color: "#66756E",
+    fontSize: "13px",
+    lineHeight: 1.55,
+    fontWeight: 700,
+  },
+  formGroup: {
+    marginBottom: "13px",
+  },
+  label: {
+    display: "block",
+    marginBottom: "7px",
+    color: "#263A33",
+    fontSize: "13px",
+    fontWeight: 850,
+  },
+  input: {
+    width: "100%",
+    minHeight: "48px",
+    padding: "12px 14px",
+    borderRadius: "15px",
+    border: "1px solid #D8E2DB",
+    backgroundColor: "#FBFDFB",
+    color: "#17231F",
+    outline: "none",
+    boxSizing: "border-box",
+    fontSize: "15px",
+    fontFamily: "inherit",
+  },
+  message: {
+    padding: "11px 12px",
+    borderRadius: "14px",
+    margin: "10px 0 0",
+    fontSize: "13px",
+    lineHeight: 1.45,
+    fontWeight: 750,
+  },
+  error: {
+    color: "#A63E30",
+    backgroundColor: "#FFF3F1",
+    border: "1px solid #F4B8AE",
+  },
+  submitButton: {
+    width: "100%",
+    minHeight: "52px",
+    marginTop: "14px",
+    border: "none",
+    borderRadius: "16px",
+    background: "linear-gradient(135deg, #173C34 0%, #24705B 100%)",
+    color: "#FFFFFF",
+    fontSize: "15px",
+    fontWeight: 950,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    boxShadow: "0 14px 28px rgba(31,94,77,0.24)",
+  },
+  disabledButton: {
+    background: "#AEB8B2",
+    cursor: "not-allowed",
+    boxShadow: "none",
+  },
+  authNote: {
+    margin: "14px 0 0",
+    color: "#7A8982",
+    fontSize: "12px",
+    lineHeight: 1.5,
+    fontWeight: 700,
+    textAlign: "center",
+  },
   footer: {
     marginTop: "auto",
     display: "flex",
@@ -197,6 +316,44 @@ const styles: Record<string, CSSProperties> = {
 export default function LandingPageScreen() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const [mode, setMode] = useState<AuthMode>("register");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailOrPhone, setEmailOrPhone] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const isRegister = mode === "register";
+
+  const handleModeChange = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setError("");
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      if (isRegister) {
+        await registerUser({ email, phone, password });
+      } else {
+        await loginUser({ emailOrPhone, password });
+      }
+
+      navigate("/app");
+    } catch (authError) {
+      setError(
+        authError instanceof Error
+          ? t(authError.message)
+          : t("auth.failed"),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={styles.page}>
@@ -205,21 +362,123 @@ export default function LandingPageScreen() {
       <div className="landing-shell" style={styles.shell}>
         <SiteHeader />
 
-        <main style={styles.main}>
+        <main className="landing-main" style={styles.main}>
           <section style={styles.heroCard}>
             <div style={styles.heroContent}>
               <h1 style={styles.title}>{t("landing.title")}</h1>
               <p style={styles.subtitle}>{t("landing.subtitle")}</p>
+            </div>
+          </section>
 
+          <section style={styles.authCard} aria-label={t("auth.aria")}>
+            <div style={styles.tabs}>
               <button
                 type="button"
-                className="cta-button"
-                style={styles.primaryButton}
-                onClick={() => navigate("/app")}
+                style={{
+                  ...styles.tab,
+                  ...(isRegister ? styles.activeTab : {}),
+                }}
+                onClick={() => handleModeChange("register")}
               >
-                {t("landing.cta")}
+                {t("auth.registerTab")}
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.tab,
+                  ...(!isRegister ? styles.activeTab : {}),
+                }}
+                onClick={() => handleModeChange("login")}
+              >
+                {t("auth.loginTab")}
               </button>
             </div>
+
+            <h2 style={styles.authTitle}>
+              {isRegister ? t("auth.registerTitle") : t("auth.loginTitle")}
+            </h2>
+            <p style={styles.authHelper}>
+              {isRegister
+                ? t("auth.registerHelper")
+                : t("auth.loginHelper")}
+            </p>
+
+            <form onSubmit={handleSubmit}>
+              {isRegister ? (
+                <>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>{t("auth.email")}</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="arda@gmail.com"
+                      style={styles.input}
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>{t("auth.phone")}</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      placeholder="05551234567"
+                      style={styles.input}
+                      autoComplete="tel"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>{t("auth.emailOrPhone")}</label>
+                  <input
+                    type="text"
+                    value={emailOrPhone}
+                    onChange={(event) => setEmailOrPhone(event.target.value)}
+                    placeholder="arda@gmail.com veya 05551234567"
+                    style={styles.input}
+                    autoComplete="username"
+                  />
+                </div>
+              )}
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>{t("auth.password")}</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={t("auth.passwordPlaceholder")}
+                  style={styles.input}
+                  autoComplete={isRegister ? "new-password" : "current-password"}
+                />
+              </div>
+
+              {error && (
+                <div style={{ ...styles.message, ...styles.error }}>{error}</div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  ...styles.submitButton,
+                  ...(loading ? styles.disabledButton : {}),
+                }}
+              >
+                {loading
+                  ? t("auth.checking")
+                  : isRegister
+                    ? t("auth.registerSubmit")
+                    : t("auth.loginSubmit")}
+              </button>
+            </form>
+
+            <p style={styles.authNote}>
+              {t("auth.usernameNote")}
+            </p>
           </section>
         </main>
 
@@ -242,18 +501,19 @@ export default function LandingPageScreen() {
           transform: translateY(1px);
         }
 
-        .cta-button {
-          filter: drop-shadow(0 10px 32px rgba(169,216,105,0.22));
-        }
-
-        .cta-button:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 22px 52px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.14), 0 0 70px rgba(169,216,105,0.5);
+        .landing-shell input:focus {
+          border-color: #1F5E4D !important;
+          box-shadow: 0 0 0 4px rgba(31,94,77,0.10);
+          background-color: #FFFFFF !important;
         }
 
         @media (max-width: 820px) {
           .landing-shell {
             padding: 16px !important;
+          }
+
+          .landing-main {
+            grid-template-columns: 1fr !important;
           }
         }
 

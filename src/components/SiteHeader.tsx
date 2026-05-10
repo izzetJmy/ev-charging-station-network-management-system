@@ -1,6 +1,7 @@
 import { type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
+import { getCurrentUserSession } from "../services/auth/localUser";
 import NotificationCenter from "./NotificationCenter";
 
 const styles: Record<string, CSSProperties> = {
@@ -74,6 +75,19 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 12px 24px rgba(31,94,77,0.22)",
     whiteSpace: "nowrap",
   },
+  authButton: {
+    border: "1px solid rgba(184,240,97,0.35)",
+    borderRadius: "999px",
+    minHeight: "42px",
+    padding: "0 14px",
+    backgroundColor: "rgba(184,240,97,0.12)",
+    color: "#FFFFFF",
+    fontSize: "13px",
+    fontWeight: 950,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    whiteSpace: "nowrap",
+  },
   landingNotificationSlot: {
     display: "inline-flex",
     alignItems: "center",
@@ -98,6 +112,7 @@ export default function SiteHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const { lang, toggleLang, t } = useI18n();
+  const session = getCurrentUserSession();
 
   const isActive = (path: string) => location.pathname === path;
   const isLandingPage = location.pathname === "/";
@@ -137,11 +152,17 @@ export default function SiteHeader() {
           {lang === "tr" ? "TR" : "EN"}
         </button>
 
+        {session && (
+          <button type="button" style={styles.authButton} onClick={() => navigate("/app")}>
+            {session.username}
+          </button>
+        )}
+
         <button type="button" style={styles.adminButton} onClick={() => navigate("/admin")}>
           {t("nav.adminLogin")}
         </button>
 
-        {isLandingPage && (
+        {isLandingPage && session && (
           <div style={styles.landingNotificationSlot}>
             <NotificationCenter variant="inline" />
           </div>

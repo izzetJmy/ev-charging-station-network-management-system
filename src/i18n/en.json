@@ -77,6 +77,34 @@
     "cta": "Start",
     "footerCopyright": "© 2026 EV Network"
   },
+  "auth": {
+    "aria": "User sign in",
+    "registerTab": "Sign up",
+    "loginTab": "Sign in",
+    "registerTitle": "Create a new account",
+    "loginTitle": "Sign in to your account",
+    "registerHelper": "Email and phone are unique; your vehicles are saved to this account.",
+    "loginHelper": "Continue with your email address or phone number.",
+    "email": "Email",
+    "phone": "Phone number",
+    "emailOrPhone": "Email or phone",
+    "password": "Password",
+    "passwordPlaceholder": "At least 6 characters",
+    "checking": "Checking...",
+    "registerSubmit": "Sign up and continue",
+    "loginSubmit": "Sign in",
+    "usernameNote": "Your username is generated from the part before @ in your email.",
+    "failed": "The operation could not be completed.",
+    "errors": {
+      "invalidEmail": "Enter a valid email address.",
+      "invalidPhone": "Enter a valid phone number.",
+      "shortPassword": "Password must be at least 6 characters.",
+      "emailExists": "A user with this email already exists.",
+      "phoneExists": "A user with this phone number already exists.",
+      "notFound": "User not found.",
+      "invalidCredentials": "Email/phone or password is incorrect."
+    }
+  },
   "about": {
     "title": "About Us",
     "description": "EV Network brings vehicle profiles, reservations, and charging session flows together in one interface to make the station experience faster. This project focuses on ease of use, transparent cost calculation, and station management.",
@@ -172,7 +200,8 @@
     "noLocation": "No location record",
     "resolvingLocation": "Resolving location…",
     "openMap": "Open Map with This Vehicle",
-    "updateVehicle": "Update Vehicle"
+    "updateVehicle": "Update Vehicle",
+    "logout": "Log out"
   },
   "favorites": {
     "eyebrow": "EV Network",

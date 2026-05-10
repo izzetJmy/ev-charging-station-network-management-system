@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getOrCreateLocalUserId } from "../services/auth/localUser";
+import { getCurrentUserSession } from "../services/auth/localUser";
 import {
   getActiveChargingSessionByUserId,
   subscribeToActiveChargingSessionByUserId,
@@ -7,7 +7,7 @@ import {
 } from "../services/firebase/chargingSessionService";
 
 export function useActiveChargingSession() {
-  const userId = getOrCreateLocalUserId();
+  const userId = getCurrentUserSession()?.id ?? "";
   const [activeSession, setActiveSession] = useState<ChargingSessionRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -17,6 +17,12 @@ export function useActiveChargingSession() {
     let unsubscribe: (() => void) | null = null;
 
     const initializeSession = async () => {
+      if (!userId) {
+        setActiveSession(null);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
