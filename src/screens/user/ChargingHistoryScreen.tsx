@@ -309,7 +309,7 @@ export default function ChargingHistoryScreen() {
 
   const headerTitle = useMemo(() => {
     const name = [vehicle?.brand?.trim(), vehicle?.model?.trim()].filter(Boolean).join(" ");
-    return name || "Charging Gecmisi";
+    return name || "Charging History";
   }, [vehicle?.brand, vehicle?.model]);
 
   return (
@@ -322,7 +322,7 @@ export default function ChargingHistoryScreen() {
               <span style={styles.signalDot} />
               EV Network
             </div>
-            <h1 style={styles.title}>Charging Gecmisi</h1>
+            <h1 style={styles.title}>Charging History</h1>
             <p style={styles.subtitle}>
               Completed charging session records in Firestore are listed with station,
               energy, cost, and date details.
@@ -341,7 +341,7 @@ export default function ChargingHistoryScreen() {
 
             {error && <div style={styles.empty}>{error}</div>}
 
-            {!error && loading && <div style={styles.empty}>Charging pasti yukleniyor...</div>}
+            {!error && loading && <div style={styles.empty}>Charging history is loading...</div>}
 
             {!error && !loading && sessions.length === 0 && (
               <div style={styles.empty}>There are no saved charging sessions for this vehicle.</div>
@@ -367,7 +367,7 @@ export default function ChargingHistoryScreen() {
                           <div style={styles.itemMeta}>
                             Session: {session.id}
                             <br />
-                            Charging cihazi: {chargerInfo}
+                            Charger: {chargerInfo}
                             <br />
                             Date: {dateLabel}
                             <br />

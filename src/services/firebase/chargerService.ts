@@ -190,7 +190,7 @@ export async function updateChargerStatus(
   if (charger?.status !== "offline" && status === "offline") {
     await cancelActiveReservationsForOfflineCharger(
       chargerId,
-      charger ? `${charger.connectorType} ${charger.powerOutput}` : "Charging cihazi",
+      charger ? `${charger.connectorType} ${charger.powerOutput}` : "Charger",
     );
   }
 

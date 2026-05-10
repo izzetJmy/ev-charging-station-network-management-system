@@ -1346,7 +1346,7 @@ function StationMapScreen() {
   const navigationOriginLabel =
     coordsLabel && coordsLabel !== "Resolving location..."
       ? coordsLabel
-      : "Locationunuz";
+      : "Your location";
 
   const handleSelectStation = (station: Station) => {
     setSelectedStation(station);
@@ -1707,7 +1707,7 @@ function StationMapScreen() {
                             : "Favorilere ekle"
                         }
                       >
-                        {favoriteStationIds.has(station.id) ? "â™¥" : "â™¡"}
+                        {favoriteStationIds.has(station.id) ? "♥" : "♡"}
                       </button>
                     </div>
                   );
@@ -1950,7 +1950,7 @@ function StationMapScreen() {
             <div style={styles.navigationHeader}>
               <div>
                 <h3 style={styles.routeTitle}>
-                  Locationunuz to {navigationStation.name}
+                  Your location to {navigationStation.name}
                 </h3>
                 <p style={styles.routeSubtitle}>
                   {navigationOriginLabel} route from your location to the selected charging station.

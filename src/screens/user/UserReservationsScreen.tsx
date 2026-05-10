@@ -220,7 +220,7 @@ function UserReservationsScreen() {
               </div>
               <h1 style={styles.title}>My Reservations</h1>
               <p style={styles.subtitle}>
-                Saved vehiclelarinizla yaptiginiz active ve past rezervasyonlari
+                Track active and past reservations made with your saved vehicles
                 vehicle bazinda buradan takip edin.
               </p>
             </div>
@@ -282,7 +282,7 @@ function UserReservationsScreen() {
                     key={vehicle.id}
                     vehicleId={vehicle.id}
                     vehicleConnectorType={vehicle.connectorType}
-                    title={`${getVehicleDisplayName(vehicle)} rezervasyonlari`}
+                    title={`${getVehicleDisplayName(vehicle)} reservations`}
                     description={getVehiclePanelDescription(vehicle)}
                   />
                 ))}

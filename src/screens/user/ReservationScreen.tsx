@@ -975,7 +975,7 @@ function ReservationScreen() {
               style={styles.primaryButton}
               onClick={() => navigate("/app")}
             >
-              Vehicle Profiline Git
+              Go to Vehicle Profile
             </button>
           </div>
         </div>
@@ -1020,7 +1020,7 @@ function ReservationScreen() {
                   <div style={styles.specValue}>{charger.powerOutput}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>kWh basina ucret</div>
+                  <div style={styles.specLabel}>Price per kWh</div>
                   <div style={styles.specValue}>
                     {charger.pricePerKwh.toFixed(2)} TL
                   </div>
@@ -1040,7 +1040,7 @@ function ReservationScreen() {
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{charger.status}</div>
-              <div style={styles.metricLabel}>Charging cihazi</div>
+              <div style={styles.metricLabel}>Charger</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{station.status}</div>
@@ -1055,7 +1055,7 @@ function ReservationScreen() {
               <h2 style={styles.panelTitle}>Reservation Formu</h2>
               <p style={styles.subtitle}>
                 Date, start time, and end time are required.
-                Reservation suresi en fazla 2 saattir ve secimler en fazla 24
+                Reservation duration is at most 2 hours, and selections can be made at most 24
                 hours in advance.
               </p>
             </div>

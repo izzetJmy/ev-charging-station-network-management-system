@@ -581,7 +581,7 @@ function VehicleRegistrationScreen() {
             </div>
 
             <h1 style={styles.previewTitle}>
-              Vehicle profilini akilli sarja hazirla
+              Prepare the vehicle profile for smart charging
             </h1>
             <p style={styles.previewText}>
               As registration is completed, a live vehicle card appears here. Plate,
@@ -711,7 +711,7 @@ function VehicleRegistrationScreen() {
                   onBlur={() => setFocusedField(null)}
                 >
                   <option value="" disabled>
-                    Connector secin
+                    Select connector
                   </option>
                   {connectorOptions.map((option) => (
                     <option key={option} value={option}>
@@ -832,7 +832,7 @@ function VehicleRegistrationScreen() {
                   <span>Saving...</span>
                 </>
               ) : (
-                <span>Vehiclei Save</span>
+                <span>Save Vehicle</span>
               )}
             </button>
           </form>
@@ -842,7 +842,7 @@ function VehicleRegistrationScreen() {
             onClick={() => navigate("/app")}
             style={styles.navigationButton}
           >
-            Vehicle Profiline Git
+            Go to Vehicle Profile
           </button>
 
           <div style={styles.footer}>

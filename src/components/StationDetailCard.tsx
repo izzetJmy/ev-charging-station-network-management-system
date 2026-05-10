@@ -341,7 +341,7 @@ function StationDetailCard({
               }
               title={isFavorite ? "Favorilerden cikar" : "Favorilere ekle"}
             >
-              {isFavorite ? "â™¥" : "â™¡"}
+              {isFavorite ? "♥" : "♡"}
             </button>
             <button
               type="button"

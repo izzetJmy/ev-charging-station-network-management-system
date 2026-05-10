@@ -669,7 +669,7 @@ export default function StationChargerManagementScreen() {
 
     const price = Number(chargerDraft.pricePerKwh);
     if (!Number.isFinite(price) || price < 0) {
-      setChargerError("Gecerli bir kWh ucreti girin.");
+      setChargerError("Enter a valid kWh price.");
       return;
     }
 
@@ -699,7 +699,7 @@ export default function StationChargerManagementScreen() {
         state: { snackbar: { message: "Charger saved.", variant: "success" } },
       });
     } catch {
-      setChargerError("Charging cihazi kaydedilemedi.");
+      setChargerError("Charger could not be saved.");
     } finally {
       setChargerSaving(false);
     }
@@ -1164,7 +1164,7 @@ export default function StationChargerManagementScreen() {
                     </GoogleMap>
                   ) : (
                     <div style={{ padding: "14px", fontWeight: 850, color: "#37594D" }}>
-                      Map yukleniyor...
+                      Map is loading...
                     </div>
                   )}
                 </div>

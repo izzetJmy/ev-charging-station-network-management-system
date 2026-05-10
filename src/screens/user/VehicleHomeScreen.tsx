@@ -512,7 +512,7 @@ function VehicleHomeScreen() {
                 Ana sayfaya don
               </button>
             </div>
-            <h1 style={styles.title}>Kayitli Vehiclelar</h1>
+            <h1 style={styles.title}>Saved Vehicles</h1>
           </div>
 
           <div style={styles.headerMedia} aria-hidden="true">
@@ -605,14 +605,14 @@ function VehicleHomeScreen() {
                       style={styles.compactButton}
                       onClick={() => handleOpenReservationsForVehicle(vehicle.id)}
                     >
-                      Reservationlar
+                      Reservations
                     </button>
                     <button
                       type="button"
                       style={styles.compactButton}
                       onClick={() => handleOpenHistoryForVehicle(vehicle.id)}
                     >
-                      Charging Gecmisi
+                      Charging History
                     </button>
                   </div>
                 </article>
@@ -713,7 +713,7 @@ function VehicleHomeScreen() {
                   style={styles.primaryButton}
                   onClick={handleGoToMap}
                 >
-                  Bu Vehiclela Mapya Gec
+                  Open Map with This Vehicle
                 </button>
                 <button
                   type="button"
@@ -740,7 +740,7 @@ function VehicleHomeScreen() {
                   style={styles.secondaryButton}
                   onClick={handleOpenHistory}
                 >
-                  Charging Gecmisi
+                  Charging History
                 </button>
               </div>
             </section>

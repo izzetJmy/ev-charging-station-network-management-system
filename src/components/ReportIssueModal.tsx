@@ -200,7 +200,7 @@ function ReportIssueModal({
   const [saving, setSaving] = useState(false);
 
   const issueTarget = useMemo(
-    () => (charger ? `Charging cihazi ${charger.id}` : "Station-level issue"),
+    () => (charger ? `Charger ${charger.id}` : "Station-level issue"),
     [charger],
   );
 

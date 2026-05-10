@@ -253,7 +253,7 @@ function FavoritesScreen() {
                 <article key={favorite.stationId} style={styles.card}>
                   <div>
                     <div style={styles.titleRow}>
-                      <span style={styles.heart}>â™¥</span>
+                      <span style={styles.heart}>♥</span>
                       <h2 style={styles.stationName}>{stationName}</h2>
                     </div>
                     <div style={styles.meta}>
@@ -299,7 +299,7 @@ function FavoritesScreen() {
               style={styles.secondaryButton}
               onClick={() => navigate("/app")}
             >
-              Kayitli Vehiclelar
+              Saved Vehicles
             </button>
           </div>
         </section>

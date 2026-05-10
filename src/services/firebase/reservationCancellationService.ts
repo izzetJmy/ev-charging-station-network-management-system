@@ -148,7 +148,7 @@ export function cancelActiveReservationsForOfflineStation(
 
 export function cancelActiveReservationsForOfflineCharger(
   chargerId: string,
-  chargerLabel = "Charging cihazi",
+  chargerLabel = "Charger",
 ) {
   return cancelReservationsByField({
     fieldName: "chargerId",
