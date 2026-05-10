@@ -45,6 +45,19 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 700,
     color: "#17231F",
   },
+  livePill: {
+    marginLeft: "auto",
+    minHeight: "24px",
+    padding: "0 9px",
+    borderRadius: "999px",
+    backgroundColor: "#E9F6E6",
+    border: "1px solid #BFE09B",
+    color: "#2E6841",
+    fontSize: "11px",
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+  },
   stationName: {
     margin: "8px 0 4px",
     fontSize: "16px",
@@ -53,9 +66,16 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.3,
   },
   chargerLabel: {
-    margin: "4px 0 12px",
+    margin: "4px 0 10px",
     fontSize: "13px",
     color: "#66756E",
+  },
+  subtleText: {
+    margin: "0 0 12px",
+    color: "#7B8A84",
+    fontSize: "12px",
+    lineHeight: 1.45,
+    fontWeight: 700,
   },
   metricsGrid: {
     display: "grid",
@@ -103,6 +123,23 @@ const styles: Record<string, CSSProperties> = {
   },
 };
 
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate();
+  }
+  return null;
+}
+
 function formatMinutes(minutes: number | null | undefined): string {
   if (!Number.isFinite(minutes)) return "--";
   const rounded = Math.max(0, Math.ceil(minutes ?? 0));
@@ -112,30 +149,107 @@ function formatMinutes(minutes: number | null | undefined): string {
   return `${hours} sa ${mins} dk`;
 }
 
+function formatMoney(value: number) {
+  if (!Number.isFinite(value)) return "--";
+  return `${value.toFixed(2)} TL`;
+}
+
+function formatEnergy(value: number) {
+  if (!Number.isFinite(value)) return "--";
+  return `${value.toFixed(2)} kWh`;
+}
+
 function ActiveSessionCard() {
   const navigate = useNavigate();
   const { activeSession, loading } = useActiveChargingSession();
-  const [station, setStation] = useState<(Omit<Station, "chargers"> & { chargerIds: string[] }) | null>(null);
+  const [station, setStation] = useState<
+    (Omit<Station, "chargers"> & { chargerIds: string[] }) | null
+  >(null);
   const [charger, setCharger] = useState<Charger | null>(null);
   const [hovered, setHovered] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
-  const remainingTime = useMemo(() => {
-    if (!activeSession) return null;
-    return formatMinutes(activeSession.estimatedRemainingMinutes);
-  }, [activeSession]);
+  const liveMetrics = useMemo(() => {
+    if (!activeSession) {
+      return {
+        remainingMinutes: null,
+        elapsedMinutes: null,
+        progressPercentage: 0,
+        currentKwh: 0,
+        liveCost: 0,
+      };
+    }
+
+    const startedAt =
+      toDate(activeSession.startTime) ??
+      toDate(activeSession.startedAt) ??
+      toDate(activeSession.createdAt);
+    const totalMinutes =
+      activeSession.sessionLimitMinutes ??
+      activeSession.estimatedTotalMinutes ??
+      null;
+
+    if (!startedAt || !totalMinutes || totalMinutes <= 0) {
+      return {
+        remainingMinutes: activeSession.estimatedRemainingMinutes ?? null,
+        elapsedMinutes: null,
+        progressPercentage: activeSession.progressPercentage ?? 0,
+        currentKwh: activeSession.currentKwh ?? 0,
+        liveCost: activeSession.liveCost ?? 0,
+      };
+    }
+
+    const elapsedMinutes = Math.max(0, (now - startedAt.getTime()) / 60_000);
+    const progressPercentage = Math.min(100, (elapsedMinutes / totalMinutes) * 100);
+    const currentKwh =
+      activeSession.targetKwh != null
+        ? (activeSession.targetKwh * progressPercentage) / 100
+        : activeSession.currentKwh ?? 0;
+    const liveCost =
+      activeSession.pricePerKwh != null
+        ? currentKwh * activeSession.pricePerKwh
+        : activeSession.liveCost ?? 0;
+
+    return {
+      remainingMinutes: Math.max(0, totalMinutes - elapsedMinutes),
+      elapsedMinutes,
+      progressPercentage,
+      currentKwh,
+      liveCost,
+    };
+  }, [activeSession, now]);
 
   const handleNavigateToSession = () => {
-    if (!activeSession || !station || !charger) return;
+    if (!activeSession) return;
 
     navigate("/charging-session", {
       state: {
         station: {
-          ...station,
+          ...(station ?? {
+            id: activeSession.stationId,
+            name: "Aktif istasyon",
+            address: "",
+            latitude: 0,
+            longitude: 0,
+            status: "occupied",
+            chargerIds: [],
+          }),
           chargers: [],
         } as Station,
-        charger,
+        charger:
+          charger ??
+          ({
+            id: activeSession.chargerId,
+            stationId: activeSession.stationId,
+            type: "DC",
+            powerOutput: "50kW",
+            connectorType: "CCS",
+            pricePerKwh: activeSession.pricePerKwh,
+            status: "occupied",
+          } as Charger),
         vehicleId: activeSession.vehicleId,
         reservationId: activeSession.reservationId,
+        chargingSessionId: activeSession.id,
       },
     });
   };
@@ -175,33 +289,68 @@ function ActiveSessionCard() {
     };
   }, [activeSession]);
 
-  if (loading || !activeSession || !station || !charger) {
+  useEffect(() => {
+    if (!activeSession) return undefined;
+
+    const timerId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 10_000);
+
+    return () => window.clearInterval(timerId);
+  }, [activeSession]);
+
+  if (loading || !activeSession) {
     return null;
   }
 
+  const stationName = station?.name ?? "Aktif sarj istasyonu";
+  const chargerLabel = charger
+    ? `${charger.connectorType} - ${charger.powerOutput}`
+    : "Sarj cihazi bilgisi yukleniyor";
+
   return (
-    <div style={styles.container}>
+    <div className="active-session-card" style={styles.container}>
       <div style={styles.card}>
         <div style={styles.header}>
           <div style={styles.statusDot} />
           <h3 style={styles.title}>Canli Sarj Oturumu</h3>
+          <span style={styles.livePill}>Aktif</span>
         </div>
 
-        <div style={styles.stationName}>{station.name}</div>
-        <div style={styles.chargerLabel}>
-          {charger.connectorType} • {charger.powerOutput}
-        </div>
+        <div style={styles.stationName}>{stationName}</div>
+        <div style={styles.chargerLabel}>{chargerLabel}</div>
+        <p style={styles.subtleText}>
+          Sayfa degistirseniz bile aktif oturum bilgileri burada gorunur.
+        </p>
 
         <div style={styles.metricsGrid}>
           <div style={styles.metricItem}>
             <div style={styles.metricLabel}>Kalan Sure</div>
-            <div style={styles.metricValue}>{remainingTime}</div>
+            <div style={styles.metricValue}>
+              {formatMinutes(liveMetrics.remainingMinutes)}
+            </div>
           </div>
           <div style={styles.metricItem}>
             <div style={styles.metricLabel}>Ilerleme</div>
             <div style={styles.metricValue}>
-              {Math.round(activeSession.progressPercentage ?? 0)}%
+              {Math.round(liveMetrics.progressPercentage)}%
             </div>
+          </div>
+          <div style={styles.metricItem}>
+            <div style={styles.metricLabel}>Gecen Sure</div>
+            <div style={styles.metricValue}>
+              {formatMinutes(liveMetrics.elapsedMinutes)}
+            </div>
+          </div>
+          <div style={styles.metricItem}>
+            <div style={styles.metricLabel}>Tuketim</div>
+            <div style={styles.metricValue}>
+              {formatEnergy(liveMetrics.currentKwh)}
+            </div>
+          </div>
+          <div style={{ ...styles.metricItem, gridColumn: "1 / -1" }}>
+            <div style={styles.metricLabel}>Anlik Tutar</div>
+            <div style={styles.metricValue}>{formatMoney(liveMetrics.liveCost)}</div>
           </div>
         </div>
 
@@ -221,12 +370,12 @@ function ActiveSessionCard() {
 
       <style>{`
         @media (max-width: 480px) {
-          [style*="position: fixed"] {
+          .active-session-card {
             bottom: 16px !important;
             right: 12px !important;
           }
 
-          [style*="minWidth: 280px"] {
+          .active-session-card > div {
             min-width: 260px !important;
             max-width: calc(100vw - 32px) !important;
           }

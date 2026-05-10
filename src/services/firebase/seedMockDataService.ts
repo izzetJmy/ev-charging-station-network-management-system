@@ -10,6 +10,7 @@ const SEED_STATIONS: Station[] = [
     latitude: 38.438431,
     longitude: 27.147938,
     status: "available",
+    operatingHours: { open: "08:00", close: "23:00", is24Hours: false },
     chargers: [
       {
         id: "charger-izmir-001-a",
@@ -38,6 +39,7 @@ const SEED_STATIONS: Station[] = [
     latitude: 38.4660651,
     longitude: 27.2190721,
     status: "occupied",
+    operatingHours: { open: "07:30", close: "22:30", is24Hours: false },
     chargers: [
       {
         id: "charger-izmir-002-a",
@@ -66,6 +68,7 @@ const SEED_STATIONS: Station[] = [
     latitude: 38.46775,
     longitude: 27.11502,
     status: "available",
+    operatingHours: { open: "00:00", close: "00:00", is24Hours: true },
     chargers: [
       {
         id: "charger-izmir-003-a",
@@ -94,6 +97,7 @@ const SEED_STATIONS: Station[] = [
     latitude: 38.34813,
     longitude: 27.25053,
     status: "offline",
+    operatingHours: { open: "09:00", close: "18:00", is24Hours: false },
     chargers: [
       {
         id: "charger-izmir-004-a",
@@ -122,6 +126,7 @@ const SEED_STATIONS: Station[] = [
     latitude: 38.485462,
     longitude: 27.080587,
     status: "available",
+    operatingHours: { open: "08:00", close: "20:00", is24Hours: false },
     chargers: [
       {
         id: "charger-izmir-005-a",
@@ -150,6 +155,7 @@ const SEED_STATIONS: Station[] = [
     latitude: 38.383,
     longitude: 27.1,
     status: "occupied",
+    operatingHours: { open: "00:00", close: "00:00", is24Hours: true },
     chargers: [
       {
         id: "charger-izmir-006-a",

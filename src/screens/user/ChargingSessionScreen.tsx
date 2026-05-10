@@ -34,6 +34,7 @@ interface ChargingSessionLocationState {
   charger?: Charger;
   vehicleId?: string;
   reservationId?: string;
+  chargingSessionId?: string;
   reservationDate?: string;
   reservationStartTime?: string;
   reservationEndTime?: string;
@@ -445,6 +446,23 @@ function getStatusLabel(session: ChargingSessionRecord | null, started: boolean)
   return "Hazir";
 }
 
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate();
+  }
+  return null;
+}
+
 function ChargingSessionScreen() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -459,12 +477,15 @@ function ChargingSessionScreen() {
   const reservationStartTime = locationState?.reservationStartTime ?? "";
   const reservationEndTime = locationState?.reservationEndTime ?? "";
   const requestedVehicleId = locationState?.vehicleId ?? "";
+  const requestedChargingSessionId = locationState?.chargingSessionId ?? null;
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [vehicleLoading, setVehicleLoading] = useState(true);
   const [startBattery, setStartBattery] = useState("");
   const [endBattery, setEndBattery] = useState("");
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(
+    requestedChargingSessionId,
+  );
   const [remoteSession, setRemoteSession] = useState<ChargingSessionRecord | null>(null);
   const [currentKwh, setCurrentKwh] = useState(0);
   const [estimatedRemainingMinutes, setEstimatedRemainingMinutes] = useState(0);
@@ -528,6 +549,16 @@ function ChargingSessionScreen() {
         setCurrentKwh(Number(session.currentKwh ?? 0));
         setLiveCost(Number(session.liveCost ?? 0));
         setEstimatedRemainingMinutes(Number(session.estimatedRemainingMinutes ?? 0));
+        setStartBattery(String(session.startBatteryPercentage ?? ""));
+        setEndBattery(String(session.targetBatteryPercentage ?? ""));
+
+        const startedAt =
+          toDate(session.startTime) ??
+          toDate(session.startedAt) ??
+          toDate(session.createdAt);
+        if (startedAt) {
+          startedAtRef.current = startedAt.getTime();
+        }
       },
       () => {
         setSnackbar({
@@ -604,6 +635,10 @@ function ChargingSessionScreen() {
   }, [chargerPowerKw, targetKwh]);
 
   const sessionLimitMinutes = useMemo(() => {
+    if (activeSessionId && remoteSession?.sessionLimitMinutes != null) {
+      return remoteSession.sessionLimitMinutes;
+    }
+
     if (targetChargeMinutes == null) {
       return reservationDurationMinutes;
     }
@@ -613,7 +648,12 @@ function ChargingSessionScreen() {
     }
 
     return Math.min(targetChargeMinutes, reservationDurationMinutes);
-  }, [reservationDurationMinutes, targetChargeMinutes]);
+  }, [
+    activeSessionId,
+    remoteSession?.sessionLimitMinutes,
+    reservationDurationMinutes,
+    targetChargeMinutes,
+  ]);
 
   const effectiveSessionTargetKwh = useMemo(() => {
     if (targetKwh == null || targetKwh <= 0) return null;
@@ -669,6 +709,7 @@ function ChargingSessionScreen() {
           endBatteryPercentage: round2(finalEndBattery),
           consumedKwh: finalKwh,
           totalCost: finalCost,
+          autoCompleted: autoComplete,
         });
 
         setSnackbar({ message: successMessage, variant: "success" });

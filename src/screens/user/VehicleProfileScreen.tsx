@@ -13,7 +13,6 @@ import { getCurrentLocation } from "../../services/maps/locationService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
 import { getConnectorTypeOptions } from "../../services/firebase/chargerService";
-import ReservationManagementPanel from "../../components/ReservationManagementPanel";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -841,10 +840,6 @@ function VehicleProfileScreen() {
             Tahmini menzil: {estimatedRange}
           </div>
 
-          <ReservationManagementPanel
-            vehicleId={vehicleId}
-            vehicleConnectorType={connectorType}
-          />
         </section>
       </main>
 

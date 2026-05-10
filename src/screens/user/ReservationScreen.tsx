@@ -21,6 +21,10 @@ import {
 } from "../../services/firebase/vehicleService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { getReservationStatusBlockMessage } from "../../utils/chargerCompatibility";
+import {
+  formatOperatingHours,
+  isReservationWithinOperatingHours,
+} from "../../utils/stationOperatingHours";
 
 const SLOT_INTERVAL_MINUTES = 15;
 const SLOT_INTERVAL_MS = SLOT_INTERVAL_MINUTES * 60 * 1000;
@@ -850,6 +854,15 @@ function ReservationScreen() {
       MAX_RESERVATION_DURATION_MS
     ) {
       return "Rezervasyon suresi en fazla 2 saat olabilir.";
+    }
+
+    if (
+      station &&
+      !isReservationWithinOperatingHours(station, startDateTime, endDateTime)
+    ) {
+      return `Istasyon bu saatlerde kapali. Calisma saatleri: ${formatOperatingHours(
+        station.operatingHours,
+      )}.`;
     }
 
     return "";

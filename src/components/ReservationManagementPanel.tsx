@@ -20,6 +20,10 @@ import {
   type ReservationRecord,
 } from "../services/firebase/reservationService";
 import { getReservationStatusBlockMessage } from "../utils/chargerCompatibility";
+import {
+  formatOperatingHours,
+  isReservationWithinOperatingHours,
+} from "../utils/stationOperatingHours";
 
 const SLOT_INTERVAL_MINUTES = 15;
 const SLOT_INTERVAL_MS = SLOT_INTERVAL_MINUTES * 60 * 1000;
@@ -35,6 +39,8 @@ interface PickerOption {
 interface ReservationManagementPanelProps {
   vehicleId: string;
   vehicleConnectorType: string;
+  title?: string;
+  description?: string;
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -464,6 +470,7 @@ function hasReservationOverlap(
   dateValue: string,
   startTimeValue: string,
   endTimeValue: string,
+  nowDateTime?: Date,
 ) {
   const requestedRange = getReservationDateRange(
     dateValue,
@@ -486,6 +493,21 @@ function hasReservationOverlap(
       return false;
     }
 
+    if (
+      nowDateTime &&
+      reservedRange.startDateTime.getTime() <= nowDateTime.getTime()
+    ) {
+      return false;
+    }
+
+    if (
+      nowDateTime &&
+      reservation.date === formatDateKey(nowDateTime) &&
+      reservation.startTime <= formatTimeValue(nowDateTime)
+    ) {
+      return false;
+    }
+
     return (
       requestedRange.startDateTime.getTime() <
         reservedRange.endDateTime.getTime() &&
@@ -493,6 +515,34 @@ function hasReservationOverlap(
         reservedRange.startDateTime.getTime()
     );
   });
+}
+
+function isReservationStartingInFuture(
+  reservation: ReservationRecord,
+  nowDateTime: Date,
+) {
+  const todayKey = formatDateKey(nowDateTime);
+  const nowTimeValue = formatTimeValue(nowDateTime);
+
+  if (reservation.date < todayKey) {
+    return false;
+  }
+
+  if (reservation.date === todayKey && reservation.startTime <= nowTimeValue) {
+    return false;
+  }
+
+  const range = getReservationDateRange(
+    reservation.date,
+    reservation.startTime,
+    reservation.endTime,
+  );
+
+  if (!range) {
+    return false;
+  }
+
+  return range.startDateTime.getTime() > nowDateTime.getTime();
 }
 
 function getReservationStatusAppearance(reservation: ReservationDetailRecord, now: Date) {
@@ -553,6 +603,8 @@ function getReservationDateTimeRangeLabel(reservation: ReservationDetailRecord) 
 function ReservationManagementPanel({
   vehicleId,
   vehicleConnectorType,
+  title = "Rezervasyonlarim",
+  description = "Aktif ve gecmis rezervasyonlarinizi buradan yonetin.",
 }: ReservationManagementPanelProps) {
   const navigate = useNavigate();
   const [reservations, setReservations] = useState<ReservationDetailRecord[]>([]);
@@ -653,9 +705,13 @@ function ReservationManagementPanel({
           }
 
           setBusyReservations(
-            result.filter(
-              (reservation) => reservation.id !== rescheduleReservationTarget?.id,
-            ),
+            result.filter((reservation) => {
+              if (reservation.id === rescheduleReservationTarget?.id) {
+                return false;
+              }
+
+              return isReservationStartingInFuture(reservation, new Date());
+            }),
           );
         })
         .catch(() => {
@@ -826,6 +882,7 @@ function ReservationManagementPanel({
           effectiveDate,
           timeValue,
           slotEndTimeValue,
+          nowDateTime,
         );
 
         return {
@@ -834,7 +891,13 @@ function ReservationManagementPanel({
           disabled: isBusy,
         };
       });
-  }, [busyReservations, effectiveDate, rescheduleReservationTarget, selectableStartDateTimes]);
+  }, [
+    busyReservations,
+    effectiveDate,
+    nowDateTime,
+    rescheduleReservationTarget,
+    selectableStartDateTimes,
+  ]);
 
   const effectiveStartTime = useMemo(() => {
     const isStartTimeValid = startTimeOptions.some(
@@ -877,6 +940,7 @@ function ReservationManagementPanel({
         effectiveDate,
         effectiveStartTime,
         timeValue,
+        nowDateTime,
       );
 
       options.push({
@@ -893,6 +957,7 @@ function ReservationManagementPanel({
     busyReservations,
     effectiveDate,
     effectiveStartTime,
+    nowDateTime,
     rescheduleReservationTarget,
   ]);
 
@@ -906,8 +971,14 @@ function ReservationManagementPanel({
 
   const busyReservationsForDate = useMemo(
     () =>
-      busyReservations.filter((reservation) => reservation.date === effectiveDate),
-    [busyReservations, effectiveDate],
+      busyReservations.filter((reservation) => {
+        if (reservation.date !== effectiveDate) {
+          return false;
+        }
+
+        return isReservationStartingInFuture(reservation, nowDateTime);
+      }),
+    [busyReservations, effectiveDate, nowDateTime],
   );
 
   const validateReschedule = useCallback(() => {
@@ -955,6 +1026,18 @@ function ReservationManagementPanel({
 
     if (!rescheduleReservationTarget.station || !rescheduleReservationTarget.charger) {
       return "Istasyon veya sarj cihazi bilgisi eksik.";
+    }
+
+    if (
+      !isReservationWithinOperatingHours(
+        rescheduleReservationTarget.station,
+        startDateTime,
+        endDateTime,
+      )
+    ) {
+      return `Istasyon bu saatlerde kapali. Calisma saatleri: ${formatOperatingHours(
+        rescheduleReservationTarget.station.operatingHours,
+      )}.`;
     }
 
     const statusBlockMessage = getReservationStatusBlockMessage(
@@ -1184,7 +1267,7 @@ function ReservationManagementPanel({
       <section style={styles.section} aria-label="Rezervasyonlarim">
         <div style={styles.sectionHeader}>
           <div>
-            <h3 style={styles.sectionTitle}>Rezervasyonlarim</h3>
+            <h3 style={styles.sectionTitle}>{title}</h3>
             <p style={styles.sectionText}>
               Rezervasyonlari gormek icin once bir arac secin.
             </p>
@@ -1199,10 +1282,8 @@ function ReservationManagementPanel({
       <section style={styles.section} aria-label="Rezervasyonlarim">
         <div style={styles.sectionHeader}>
           <div>
-            <h3 style={styles.sectionTitle}>Rezervasyonlarim</h3>
-            <p style={styles.sectionText}>
-              Aktif ve gecmis rezervasyonlarinizi buradan yonetin.
-            </p>
+            <h3 style={styles.sectionTitle}>{title}</h3>
+            <p style={styles.sectionText}>{description}</p>
           </div>
           <div style={styles.counterPill}>
             {loading

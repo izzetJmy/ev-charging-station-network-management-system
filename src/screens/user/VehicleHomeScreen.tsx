@@ -4,6 +4,7 @@ import type { Vehicle } from "../../models/vehicle";
 import { getVehiclesByUserId } from "../../services/firebase/userService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
+import WalletPanel from "../../components/WalletPanel";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -233,6 +234,13 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
     whiteSpace: "nowrap",
+  },
+  vehicleActions: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: "8px",
+    flexWrap: "wrap",
   },
   vehicleName: {
     display: "block",
@@ -473,6 +481,15 @@ function VehicleHomeScreen() {
     navigate("/charging-history", { state: { vehicleId } });
   };
 
+  const handleOpenReservations = () => {
+    navigate("/my-reservations");
+    setIsDetailOpen(false);
+  };
+
+  const handleOpenReservationsForVehicle = (vehicleId: string) => {
+    navigate("/my-reservations", { state: { vehicleId } });
+  };
+
   const handleCreateVehicle = () => {
     navigate("/vehicles/new");
   };
@@ -523,12 +540,21 @@ function VehicleHomeScreen() {
         </header>
 
         <section style={styles.body} aria-label="Arac listesi">
+          <WalletPanel userId={userId} compact />
+
           <div style={styles.listTitleRow}>
             <h2 style={styles.listTitle}>Arac listesi</h2>
             <div style={styles.listTitleRight}>
               <div style={styles.counter}>
                 {loading ? "Yukleniyor..." : `${vehicles.length} arac`}
               </div>
+              <button
+                type="button"
+                style={styles.compactButton}
+                onClick={handleOpenReservations}
+              >
+                Rezervasyonlarim
+              </button>
             </div>
           </div>
 
@@ -573,13 +599,22 @@ function VehicleHomeScreen() {
                   </span>
                   </button>
 
-                  <button
-                    type="button"
-                    style={styles.compactButton}
-                    onClick={() => handleOpenHistoryForVehicle(vehicle.id)}
-                  >
-                    Sarj Gecmisi
-                  </button>
+                  <div style={styles.vehicleActions}>
+                    <button
+                      type="button"
+                      style={styles.compactButton}
+                      onClick={() => handleOpenReservationsForVehicle(vehicle.id)}
+                    >
+                      Rezervasyonlar
+                    </button>
+                    <button
+                      type="button"
+                      style={styles.compactButton}
+                      onClick={() => handleOpenHistoryForVehicle(vehicle.id)}
+                    >
+                      Sarj Gecmisi
+                    </button>
+                  </div>
                 </article>
               );
             })}
@@ -686,6 +721,16 @@ function VehicleHomeScreen() {
                   onClick={handleEditVehicle}
                 >
                   Araci Guncelle
+                </button>
+              </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <button
+                  type="button"
+                  style={styles.secondaryButton}
+                  onClick={() => handleOpenReservationsForVehicle(selectedVehicle.id)}
+                >
+                  Rezervasyonlarim
                 </button>
               </div>
 
