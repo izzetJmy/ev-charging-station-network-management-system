@@ -227,7 +227,7 @@ function ActiveSessionCard() {
         station: {
           ...(station ?? {
             id: activeSession.stationId,
-            name: "Aktif istasyon",
+            name: "Active station",
             address: "",
             latitude: 0,
             longitude: 0,
@@ -303,24 +303,24 @@ function ActiveSessionCard() {
     return null;
   }
 
-  const stationName = station?.name ?? "Aktif sarj istasyonu";
+  const stationName = station?.name ?? "Active charging station";
   const chargerLabel = charger
     ? `${charger.connectorType} - ${charger.powerOutput}`
-    : "Sarj cihazi bilgisi yukleniyor";
+    : "Charger information is loading";
 
   return (
     <div className="active-session-card" style={styles.container}>
       <div style={styles.card}>
         <div style={styles.header}>
           <div style={styles.statusDot} />
-          <h3 style={styles.title}>Canli Sarj Oturumu</h3>
+          <h3 style={styles.title}>Live Charging Session</h3>
           <span style={styles.livePill}>Aktif</span>
         </div>
 
         <div style={styles.stationName}>{stationName}</div>
         <div style={styles.chargerLabel}>{chargerLabel}</div>
         <p style={styles.subtleText}>
-          Sayfa degistirseniz bile aktif oturum bilgileri burada gorunur.
+          Your active session details appear here even if you change pages.
         </p>
 
         <div style={styles.metricsGrid}>
@@ -364,7 +364,7 @@ function ActiveSessionCard() {
           onMouseLeave={() => setHovered(false)}
           onClick={handleNavigateToSession}
         >
-          Oturuma Don
+          Return to Session
         </button>
       </div>
 

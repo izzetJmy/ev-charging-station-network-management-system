@@ -157,10 +157,10 @@ export default function ContactScreen() {
         <SiteHeader />
 
         <main style={styles.main}>
-          <section style={styles.card} aria-label="Iletisim">
-            <h1 style={styles.title}>Iletisim</h1>
+          <section style={styles.card} aria-label="Contact">
+            <h1 style={styles.title}>Contact</h1>
             <p style={styles.desc}>
-              Sorulariniz ve geri bildirimleriniz icin bize ulasin. Mesajiniz kayit altina alinir ve
+              Contact us with your questions and feedback. Your message is recorded and
               en kisa surede donus yapilir.
             </p>
 
@@ -171,7 +171,7 @@ export default function ContactScreen() {
 
                 <div style={{ height: "12px" }} />
 
-                <div style={styles.label}>Adres</div>
+                <div style={styles.label}>Address</div>
                 <div style={styles.value}>FSE Project - Izmir, Turkiye</div>
               </div>
 
@@ -182,7 +182,7 @@ export default function ContactScreen() {
                   setSent(true);
                 }}
               >
-                <input style={styles.input} placeholder="Ad Soyad" required />
+                <input style={styles.input} placeholder="Full Name" required />
                 <input style={styles.input} placeholder="E-posta" type="email" required />
                 <textarea style={styles.textarea} placeholder="Mesajiniz" required />
                 <button type="submit" style={styles.button}>

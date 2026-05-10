@@ -139,9 +139,9 @@ export async function createLowWalletNotificationIfNeeded(
     userId,
     type: "low_wallet_balance",
     title: "Cuzdan bakiyesi dusuk",
-    message: `Bakiyeniz ${balance.toFixed(
+    message: `Your balance is ${balance.toFixed(
       2,
-    )} TL. Sarj islemlerinin aksamamasi icin bakiye yukleyin.`,
+    )} TL. Add balance to avoid interruptions in charging transactions.`,
   });
 }
 

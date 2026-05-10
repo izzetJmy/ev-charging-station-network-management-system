@@ -442,7 +442,7 @@ function formatMinutes(minutes: number) {
 
 function getStatusLabel(session: ChargingSessionRecord | null, started: boolean) {
   if (session?.status === "completed") return "Tamamlandi";
-  if (started) return "Canli takip aktif";
+  if (started) return "Canli takip active";
   return "Hazir";
 }
 
@@ -562,7 +562,7 @@ function ChargingSessionScreen() {
       },
       () => {
         setSnackbar({
-          message: "Canli oturum bilgisi okunamadi.",
+          message: "Live session details could not be read.",
           variant: "error",
         });
       },
@@ -586,7 +586,7 @@ function ChargingSessionScreen() {
     }
 
     if (!reservationDate || !reservationStartTime || !reservationEndTime) {
-      return "Rezervasyon saat bilgisi eksik.";
+      return "Reservation time information is missing.";
     }
 
     const canStartNow = isWithinReservationWindow({
@@ -596,7 +596,7 @@ function ChargingSessionScreen() {
     });
 
     if (!canStartNow) {
-      return "Sarj oturumu sadece rezervasyon saat araliginda baslatilabilir.";
+      return "The charging session can only be started during the reservation time range.";
     }
 
     return "";
@@ -683,7 +683,7 @@ function ChargingSessionScreen() {
 
       if (finalKwh <= 0) {
         if (!autoComplete) {
-          setWarningMessage("Oturumu tamamlamak icin once enerji tuketimi olusmali.");
+          setWarningMessage("Energy consumption must be generated before completing the session.");
         }
         return;
       }
@@ -694,8 +694,8 @@ function ChargingSessionScreen() {
         : endBatteryValue;
       const finalCost = round2(finalKwh * charger.pricePerKwh);
       const successMessage = autoComplete
-        ? "Rezervasyon suresi doldu. Sarj oturumu kaydedildi."
-        : "Sarj oturumu kaydedildi.";
+        ? "Reservation time expired. Charging session saved."
+        : "Charging oturumu kaydedildi.";
 
       try {
         setSaving(true);
@@ -725,13 +725,13 @@ function ChargingSessionScreen() {
         completingRef.current = false;
 
         if (error instanceof InsufficientWalletBalanceError) {
-          setErrorMessage("Wallet bakiyesi yetersiz. Lutfen bakiye yukleyip tekrar deneyin.");
+          setErrorMessage("Wallet balance is insufficient. Please add balance and try again.");
           setSnackbar({ message: "Wallet bakiyesi yetersiz.", variant: "error" });
           return;
         }
 
-        setErrorMessage("Sarj oturumu tamamlanamadi. Lutfen tekrar deneyin.");
-        setSnackbar({ message: "Sarj oturumu tamamlanamadi.", variant: "error" });
+        setErrorMessage("Charging session could not be completed. Please try again.");
+        setSnackbar({ message: "Charging oturumu tamamlanamadi.", variant: "error" });
       } finally {
         setSaving(false);
       }
@@ -812,7 +812,7 @@ function ChargingSessionScreen() {
           progressPercentage: nextProgress,
         }).catch(() => {
           setSnackbar({
-            message: "Canli oturum Firestore'a guncellenemedi.",
+            message: "Live session could not be updated in Firestore.",
             variant: "error",
           });
         });
@@ -870,24 +870,24 @@ function ChargingSessionScreen() {
   const validate = () => {
     if (statusBlockMessage) return statusBlockMessage;
     if (reservationWindowBlockedMessage) return reservationWindowBlockedMessage;
-    if (!station || !charger) return "Istasyon veya sarj cihazi bilgisi eksik.";
-    if (vehicleLoading) return "Arac bilgileri yukleniyor. Lutfen tekrar deneyin.";
-    if (!vehicle?.id) return "Sarj oturumu icin uygun bir arac bulunamadi.";
-    if (!batteryCapacity || batteryCapacity <= 0) return "Arac batarya kapasitesi bulunamadi.";
+    if (!station || !charger) return "Station or charger information is missing.";
+    if (vehicleLoading) return "Vehicle details are loading. Please try again.";
+    if (!vehicle?.id) return "No suitable vehicle was found for the charging session.";
+    if (!batteryCapacity || batteryCapacity <= 0) return "Vehicle battery capacity could not be found.";
     if (!startBattery.trim() || !endBattery.trim()) {
-      return "Lutfen baslangic ve hedef batarya yuzdesini girin.";
+      return "Please enter the starting and target battery percentages.";
     }
     if (!Number.isFinite(startBatteryValue) || !Number.isFinite(endBatteryValue)) {
-      return "Batarya yuzdesi sayisal olmalidir.";
+      return "Battery percentage must be numeric.";
     }
     if (startBatteryValue < 0 || startBatteryValue > 100) {
-      return "Baslangic batarya yuzdesi 0-100 arasinda olmalidir.";
+      return "Starting battery percentage must be between 0 and 100.";
     }
     if (endBatteryValue < 0 || endBatteryValue > 100) {
-      return "Hedef batarya yuzdesi 0-100 arasinda olmalidir.";
+      return "Target battery percentage must be between 0 and 100.";
     }
     if (endBatteryValue <= startBatteryValue) {
-      return "Hedef batarya yuzdesi baslangictan buyuk olmalidir.";
+      return "Target battery percentage must be greater than the starting value.";
     }
     if (targetKwh == null || targetKwh <= 0) return "Hedef enerji hesaplanamadi.";
     return "";
@@ -907,7 +907,7 @@ function ChargingSessionScreen() {
     }
 
     if (!station || !charger || !vehicle || targetKwh == null) {
-      setErrorMessage("Canli oturum baslatilamadi. Lutfen alanlari kontrol edin.");
+      setErrorMessage("Live session could not be started. Please check the fields.");
       return;
     }
 
@@ -948,12 +948,12 @@ function ChargingSessionScreen() {
           cost: 0,
         },
       ]);
-      setSnackbar({ message: "Canli sarj oturumu baslatildi.", variant: "success" });
+      setSnackbar({ message: "Live charging session started.", variant: "success" });
     } catch (error) {
       const message =
         error instanceof Error && error.message
           ? error.message
-          : "Canli sarj oturumu baslatilamadi. Lutfen tekrar deneyin.";
+          : "Live charging session could not be started. Please try again.";
       setErrorMessage(message);
       setSnackbar({ message, variant: "error" });
     } finally {
@@ -969,9 +969,9 @@ function ChargingSessionScreen() {
     return (
       <div style={styles.page}>
         <div style={styles.fallbackCard}>
-          <h1 style={styles.fallbackTitle}>Sarj oturumu bilgisi eksik</h1>
+          <h1 style={styles.fallbackTitle}>Charging oturumu bilgisi eksik</h1>
           <p style={styles.fallbackText}>
-            Lutfen once rezervasyon olusturun ve bu ekrana rezervasyon uzerinden gelin.
+            Create a reservation first and open this screen from that reservation.
           </p>
           <div style={{ ...styles.actionRow, marginTop: "18px" }}>
             <button
@@ -979,10 +979,10 @@ function ChargingSessionScreen() {
               style={styles.secondaryButton}
               onClick={() => navigate("/station-map")}
             >
-              Istasyon Haritasina Don
+              Back to Station Map
             </button>
             <button type="button" style={styles.primaryButton} onClick={() => navigate("/app")}>
-              Kayitli Araclara Git
+              Kayitli Vehiclelara Git
             </button>
           </div>
         </div>
@@ -993,7 +993,7 @@ function ChargingSessionScreen() {
   return (
     <div style={styles.page}>
       <main className="charging-session-shell" style={styles.shell}>
-        <section style={styles.summaryPanel} aria-label="Sarj oturumu ozeti">
+        <section style={styles.summaryPanel} aria-label="Charging oturumu ozeti">
           <div style={styles.routeLayer} />
           <div style={styles.summaryContent}>
             <div style={styles.eyebrow}>
@@ -1001,20 +1001,20 @@ function ChargingSessionScreen() {
               EV Network
             </div>
 
-            <h1 style={styles.title}>Canli Sarj Oturumu</h1>
+            <h1 style={styles.title}>Live Charging Session</h1>
             <p style={styles.summaryText}>
-              Oturum basladiginda anlik kWh, kalan sure ve maliyet duzenli olarak
+              When the session starts, live kWh, remaining time, and cost are updated regularly.
               hesaplanir ve Firestore'a yazilir.
             </p>
 
             <div style={styles.specCard}>
               <div style={styles.specGrid}>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Istasyon adi</div>
+                  <div style={styles.specLabel}>Station name</div>
                   <div style={styles.specValue}>{station.name}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Sarj cihazi</div>
+                  <div style={styles.specLabel}>Charging cihazi</div>
                   <div style={styles.specValue}>{charger.id}</div>
                 </div>
                 <div style={styles.specItem}>
@@ -1030,7 +1030,7 @@ function ChargingSessionScreen() {
                   <div style={styles.specValue}>{charger.pricePerKwh.toFixed(2)} TL</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Rezervasyon</div>
+                  <div style={styles.specLabel}>Reservation</div>
                   <div style={styles.specValue}>
                     {reservationDate && reservationStartTime && reservationEndTime
                       ? `${reservationDate} ${reservationStartTime}-${reservationEndTime}`
@@ -1057,22 +1057,22 @@ function ChargingSessionScreen() {
           </div>
         </section>
 
-        <section style={styles.formPanel} aria-label="Sarj oturumu formu">
+        <section style={styles.formPanel} aria-label="Charging oturumu formu">
           <div style={styles.topBar}>
             <div>
               <h2 style={styles.panelTitle}>Canli Takip</h2>
               <p style={styles.subtitle}>
-                Baslangic ve hedef batarya yuzdesini girin. Oturum aktifken final
-                maliyet, canli tuketilen kWh uzerinden hesaplanir.
+                Enter the starting and target battery percentages. Final values are calculated while the session is active.
+                cost is calculated from live consumed kWh.
               </p>
             </div>
           </div>
 
           <form onSubmit={handleStart}>
-            <div style={styles.sectionLabel}>Batarya Yuzdesi</div>
+            <div style={styles.sectionLabel}>Battery Percentage</div>
             <div style={styles.formGrid}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Baslangic (%)</label>
+                <label style={styles.label}>Start (%)</label>
                 <input
                   type="number"
                   min={0}
@@ -1100,7 +1100,7 @@ function ChargingSessionScreen() {
             </div>
 
             <p style={styles.helperText}>
-              Arac kapasitesi:{" "}
+              Vehicle kapasitesi:{" "}
               {vehicleLoading ? "..." : batteryCapacity ? `${batteryCapacity} kWh` : "--"}
             </p>
 
@@ -1144,11 +1144,11 @@ function ChargingSessionScreen() {
                 <span>{targetKwh == null ? "--" : targetKwh.toFixed(2)}</span>
               </div>
               <div style={styles.costRow}>
-                <span>Birim fiyat</span>
+                <span>Unit price</span>
                 <span>{charger.pricePerKwh.toFixed(2)} TL/kWh</span>
               </div>
               <div style={styles.costRow}>
-                <span>Planlanan toplam</span>
+                <span>Planned total</span>
                 <span>{plannedTotalCost == null ? "--" : `${plannedTotalCost.toFixed(2)} TL`}</span>
               </div>
               <div style={styles.costRow}>
@@ -1166,7 +1166,7 @@ function ChargingSessionScreen() {
             {trend.length > 0 && (
               <TimeSeriesChart
                 title="Canli kWh / Cost trend"
-                description="Oturum boyunca son olcumler"
+                description="Latest measurements during the session"
                 labels={trend.map((point) => point.label)}
                 series={[
                   {
@@ -1207,7 +1207,7 @@ function ChargingSessionScreen() {
                     Boolean(reservationWindowBlockedMessage)
                   }
                 >
-                  {saving ? "Baslatiliyor..." : "Canli Sarji Baslat"}
+                  {saving ? "Starting..." : "Start Live Charging"}
                 </button>
               ) : (
                 <button
@@ -1219,7 +1219,7 @@ function ChargingSessionScreen() {
                   disabled={saving}
                   onClick={handleComplete}
                 >
-                  {saving ? "Kaydediliyor..." : "Oturumu Tamamla ve Kaydet"}
+                  {saving ? "Saving..." : "Complete and Save Session"}
                 </button>
               )}
 
@@ -1229,7 +1229,7 @@ function ChargingSessionScreen() {
                 onClick={() => navigate("/station-map")}
                 disabled={saving}
               >
-                Haritaya Don
+                Back to Map
               </button>
             </div>
           </form>

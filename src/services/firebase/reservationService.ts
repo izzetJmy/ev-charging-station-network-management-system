@@ -304,7 +304,7 @@ export async function getReservationDetailsByVehicleId(
       ...reservation,
       station,
       charger,
-      stationName: station?.name ?? "Istasyon bilgisi bulunamadi",
+      stationName: station?.name ?? "Station information could not be found",
       chargerLabel: charger ? `${charger.type} - ${charger.id}` : reservation.chargerId,
       connectorType: charger?.connectorType ?? "--",
       powerOutput: charger?.powerOutput ?? "--",
@@ -384,7 +384,7 @@ export async function createReservation(reservation: ReservationInput) {
     )
   ) {
     throw new Error(
-      `Istasyon bu saatlerde kapali. Calisma saatleri: ${formatOperatingHours(
+      `The station is closed at these hours. Operating hours: ${formatOperatingHours(
         operatingHours,
       )}.`,
     );
@@ -396,7 +396,7 @@ export async function createReservation(reservation: ReservationInput) {
   );
 
   if (hasConflict) {
-    throw new Error("Secilen saat araligi dolu.");
+    throw new Error("The selected time range is occupied.");
   }
 
   const reservationRef = await addDoc(collection(db, "reservations"), {
@@ -419,8 +419,8 @@ export async function createReservation(reservation: ReservationInput) {
     await createNotification({
       userId,
       type: "reservation_confirmed",
-      title: "Rezervasyon onaylandi",
-      message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} saatleri icin rezervasyonunuz olusturuldu.`,
+      title: "Reservation onaylandi",
+      message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} reservation was created for the selected time range.`,
     });
   }
 
@@ -486,7 +486,7 @@ async function cancelReservationsByField(params: {
         userId,
         type: "reservation_cancelled",
         title: params.title,
-        message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} rezervasyonunuz iptal edildi. Sebep: ${params.reason}`,
+        message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} reservation was cancelled. Reason: ${params.reason}`,
       });
     }),
   );
@@ -496,24 +496,24 @@ async function cancelReservationsByField(params: {
 
 export function cancelActiveReservationsForOfflineStation(
   stationId: string,
-  stationName = "Istasyon",
+  stationName = "Station",
 ) {
   return cancelReservationsByField({
     fieldName: "stationId",
     fieldValue: stationId,
-    title: "Rezervasyon iptal edildi",
+    title: "Reservation cancelled",
     reason: `${stationName} offline duruma gecti.`,
   });
 }
 
 export function cancelActiveReservationsForOfflineCharger(
   chargerId: string,
-  chargerLabel = "Sarj cihazi",
+  chargerLabel = "Charging cihazi",
 ) {
   return cancelReservationsByField({
     fieldName: "chargerId",
     fieldValue: chargerId,
-    title: "Rezervasyon iptal edildi",
+    title: "Reservation cancelled",
     reason: `${chargerLabel} offline duruma gecti.`,
   });
 }
@@ -526,7 +526,7 @@ export async function updateReservationSchedule(
   const reservationSnapshot = await getDoc(reservationRef);
 
   if (!reservationSnapshot.exists()) {
-    throw new Error("Rezervasyon bulunamadi.");
+    throw new Error("Reservation could not be found.");
   }
 
   const reservation = reservationSnapshot.data() as {
@@ -536,15 +536,15 @@ export async function updateReservationSchedule(
   };
 
   if (!reservation.chargerId) {
-    throw new Error("Rezervasyon sarj cihazi bilgisi eksik.");
+    throw new Error("Reservation charger information is missing.");
   }
 
   if (!reservation.stationId) {
-    throw new Error("Rezervasyon istasyon bilgisi eksik.");
+    throw new Error("Reservation station information is missing.");
   }
 
   if (reservation.status && reservation.status !== "active") {
-    throw new Error("Sadece aktif rezervasyonlar yeniden planlanabilir.");
+    throw new Error("Only active reservations can be rescheduled.");
   }
 
   const stationSnapshot = await getDoc(doc(db, "stations", reservation.stationId));
@@ -566,7 +566,7 @@ export async function updateReservationSchedule(
     )
   ) {
     throw new Error(
-      `Istasyon bu saatlerde kapali. Calisma saatleri: ${formatOperatingHours(
+      `The station is closed at these hours. Operating hours: ${formatOperatingHours(
         operatingHours,
       )}.`,
     );
@@ -579,7 +579,7 @@ export async function updateReservationSchedule(
   );
 
   if (hasConflict) {
-    throw new Error("Secilen saat araligi dolu.");
+    throw new Error("The selected time range is occupied.");
   }
 
   await updateDoc(reservationRef, {
@@ -596,7 +596,7 @@ export async function cancelReservation(reservationId: string) {
   const reservationSnapshot = await getDoc(reservationRef);
 
   if (!reservationSnapshot.exists()) {
-    throw new Error("Rezervasyon bulunamadi.");
+    throw new Error("Reservation could not be found.");
   }
 
   const reservation = reservationSnapshot.data() as {

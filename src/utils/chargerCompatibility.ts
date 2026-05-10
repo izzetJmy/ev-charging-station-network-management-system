@@ -19,15 +19,15 @@ export function getChargerStatusBlockMessage(
   charger: Charger,
 ) {
   if (station.status === "offline") {
-    return "Bu istasyon su anda kullanilamiyor.";
+    return "This station is currently unavailable.";
   }
 
   if (charger.status === "occupied") {
-    return "Bu sarj cihazi su anda kullanimda.";
+    return "This charger is currently in use.";
   }
 
   if (charger.status === "offline") {
-    return "Bu sarj cihazi su anda cevrim disi.";
+    return "This charger is currently offline.";
   }
 
   return "";
@@ -38,7 +38,7 @@ export function getReservationStatusBlockMessage(
   charger: Charger,
 ) {
   if (station.status === "offline" || charger.status === "offline") {
-    return "Bu istasyon su anda kullanilamiyor.";
+    return "This station is currently unavailable.";
   }
 
   return "";

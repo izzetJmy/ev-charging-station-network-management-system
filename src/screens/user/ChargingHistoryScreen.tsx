@@ -298,7 +298,7 @@ export default function ChargingHistoryScreen() {
         });
         setSessions(result);
       } catch {
-        setError("Sarj gecmisi alinamadi. Lutfen tekrar deneyin.");
+        setError("Charging history could not be loaded. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -309,7 +309,7 @@ export default function ChargingHistoryScreen() {
 
   const headerTitle = useMemo(() => {
     const name = [vehicle?.brand?.trim(), vehicle?.model?.trim()].filter(Boolean).join(" ");
-    return name || "Sarj Gecmisi";
+    return name || "Charging Gecmisi";
   }, [vehicle?.brand, vehicle?.model]);
 
   return (
@@ -322,10 +322,10 @@ export default function ChargingHistoryScreen() {
               <span style={styles.signalDot} />
               EV Network
             </div>
-            <h1 style={styles.title}>Sarj Gecmisi</h1>
+            <h1 style={styles.title}>Charging Gecmisi</h1>
             <p style={styles.subtitle}>
-              Firestore'da tamamlanmis charging session kayitlari; istasyon,
-              enerji, maliyet ve tarih bilgileriyle listelenir.
+              Completed charging session records in Firestore are listed with station,
+              energy, cost, and date details.
             </p>
           </div>
         </header>
@@ -333,18 +333,18 @@ export default function ChargingHistoryScreen() {
         <section style={styles.body}>
           <div style={styles.card}>
             <div style={styles.vehicleInfo}>
-              <div style={styles.vehicleLabel}>Arac</div>
+              <div style={styles.vehicleLabel}>Vehicle</div>
               <div style={styles.vehicleValue}>
-                {vehicleLoading ? "Yukleniyor..." : headerTitle}
+                {vehicleLoading ? "Loading..." : headerTitle}
               </div>
             </div>
 
             {error && <div style={styles.empty}>{error}</div>}
 
-            {!error && loading && <div style={styles.empty}>Sarj gecmisi yukleniyor...</div>}
+            {!error && loading && <div style={styles.empty}>Charging pasti yukleniyor...</div>}
 
             {!error && !loading && sessions.length === 0 && (
-              <div style={styles.empty}>Bu arac icin kayitli sarj oturumu yok.</div>
+              <div style={styles.empty}>There are no saved charging sessions for this vehicle.</div>
             )}
 
             {!error && sessions.length > 0 && (
@@ -353,7 +353,7 @@ export default function ChargingHistoryScreen() {
                   const station = stationsById[session.stationId] ?? null;
                   const charger = chargersById[session.chargerId] ?? null;
                   const stationName = station?.name ?? session.stationId;
-                  const stationAddress = station?.address ?? "Istasyon adresi bulunamadi";
+                  const stationAddress = station?.address ?? "Station address could not be found";
                   const chargerInfo = charger
                     ? `${charger.connectorType} - ${charger.powerOutput} - ${charger.type}`
                     : session.chargerId;
@@ -367,11 +367,11 @@ export default function ChargingHistoryScreen() {
                           <div style={styles.itemMeta}>
                             Session: {session.id}
                             <br />
-                            Sarj cihazi: {chargerInfo}
+                            Charging cihazi: {chargerInfo}
                             <br />
-                            Tarih: {dateLabel}
+                            Date: {dateLabel}
                             <br />
-                            Adres: {stationAddress}
+                            Address: {stationAddress}
                           </div>
                         </div>
                         <div style={styles.badge}>
@@ -420,7 +420,7 @@ export default function ChargingHistoryScreen() {
 
             <div style={styles.actionRow}>
               <button type="button" style={styles.secondaryButton} onClick={() => navigate(-1)}>
-                Geri
+                Back
               </button>
             </div>
           </div>

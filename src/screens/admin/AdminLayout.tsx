@@ -244,11 +244,11 @@ export default function AdminLayout() {
 
   const defaultMenu = useMemo<AdminMenuItem[]>(
     () => [
-      { id: "dashboard", to: "/admin/dashboard", label: "Genel Ozet" },
+      { id: "dashboard", to: "/admin/dashboard", label: "Overview" },
       { id: "reports", to: "/admin/reports", label: "Raporlar" },
       { id: "revenue", to: "/admin/revenue", label: "Gelir Raporu" },
-      { id: "stations", to: "/admin/stations", label: "Istasyon Istatistikleri" },
-      { id: "manage", to: "/admin/manage", label: "Istasyon/Charger Ekle" },
+      { id: "stations", to: "/admin/stations", label: "Station Statistics" },
+      { id: "manage", to: "/admin/manage", label: "Add Station/Charger" },
     ],
     [],
   );
@@ -286,7 +286,7 @@ export default function AdminLayout() {
             <span style={styles.dot} />
             <div style={styles.brandText}>
               <div style={styles.brandTitle}>EV Network - Admin Panel</div>
-              <div style={styles.brandSub}>Rezervasyon ve sarj oturumu raporlari</div>
+              <div style={styles.brandSub}>Reservation and charging session reports</div>
             </div>
           </div>
           <div style={styles.headerRight}>
@@ -341,7 +341,7 @@ export default function AdminLayout() {
                       {item.label}
                     </NavLink>
                     <div
-                      title="Surukleyip birakin"
+                      title="Drag and drop"
                       style={{
                         ...styles.dragHandle,
                         ...(draggingId === item.id ? styles.dragHandleActive : {}),

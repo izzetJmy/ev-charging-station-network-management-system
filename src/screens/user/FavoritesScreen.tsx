@@ -187,7 +187,7 @@ function FavoritesScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setStationsError("Istasyon verileri alinamadi.");
+        setStationsError("Station data could not be loaded.");
       });
 
     return () => {
@@ -227,8 +227,8 @@ function FavoritesScreen() {
           </div>
           <h1 style={styles.title}>Favorite Stations</h1>
           <p style={styles.subtitle}>
-            Favori istasyonlariniz burada listelenir. Bir istasyonu actiginizda
-            haritada secili olarak gorunur.
+            Favori stationslariniz burada listelenir. Bir stationsu actiginizda
+            it appears selected on the map.
           </p>
         </header>
 
@@ -239,7 +239,7 @@ function FavoritesScreen() {
 
           {!loading && favorites.length === 0 && (
             <div style={styles.empty}>
-              Henuz favori istasyon yok. Haritadan kalp ikonuna basarak favori
+              No favorite stations yet. Use the heart icon on the map to add a favorite
               ekleyebilirsiniz.
             </div>
           )}
@@ -253,13 +253,13 @@ function FavoritesScreen() {
                 <article key={favorite.stationId} style={styles.card}>
                   <div>
                     <div style={styles.titleRow}>
-                      <span style={styles.heart}>♥</span>
+                      <span style={styles.heart}>â™¥</span>
                       <h2 style={styles.stationName}>{stationName}</h2>
                     </div>
                     <div style={styles.meta}>
                       {station?.address ?? "Station detail bekleniyor"}
                       <br />
-                      Durum: {station?.status ?? "--"} - Charger:{" "}
+                      Status: {station?.status ?? "--"} - Charger:{" "}
                       {station?.chargers.length ?? "--"}
                     </div>
                   </div>
@@ -270,7 +270,7 @@ function FavoritesScreen() {
                       style={styles.primaryButton}
                       onClick={() => handleOpenStation(favorite.stationId)}
                     >
-                      Haritada Ac
+                      Mapda Ac
                     </button>
                     <button
                       type="button"
@@ -292,14 +292,14 @@ function FavoritesScreen() {
               style={styles.secondaryButton}
               onClick={() => navigate("/station-map")}
             >
-              Haritaya Don
+              Back to Map
             </button>
             <button
               type="button"
               style={styles.secondaryButton}
               onClick={() => navigate("/app")}
             >
-              Kayitli Araclar
+              Kayitli Vehiclelar
             </button>
           </div>
         </section>

@@ -16,11 +16,11 @@ export function useGoogleMapsLoader() {
 
   const errorMessage = useMemo(() => {
     if (isApiKeyMissing) {
-      return "Google Maps gosterimi icin .env dosyasinda VITE_GOOGLE_MAPS_API_KEY tanimlanmali.";
+      return "VITE_GOOGLE_MAPS_API_KEY must be defined in the .env file to display Google Maps.";
     }
 
     if (loadError) {
-      return "Google Maps yuklenirken bir hata olustu.";
+      return "An error occurred while loading Google Maps.";
     }
 
     return "";

@@ -106,7 +106,7 @@ export function getCurrentLocation(): Promise<LocationResult> {
         coords: null,
         currentLocation: null,
         permissionState: "error",
-        message: "Tarayiciniz konum ozelligini desteklemiyor.",
+        message: "Your browser does not support location services.",
       });
       return;
     }
@@ -125,7 +125,7 @@ export function getCurrentLocation(): Promise<LocationResult> {
           },
           currentLocation,
           permissionState: "granted",
-          message: "Konum izni verildi. Harita guncel konumunuza odaklandi.",
+          message: "Location permission granted. The map focused on your current location.",
         });
       },
       () => {
@@ -133,7 +133,7 @@ export function getCurrentLocation(): Promise<LocationResult> {
           coords: null,
           currentLocation: null,
           permissionState: "denied",
-          message: "Konum izni verilmeden harita gosterilemez.",
+          message: "The map cannot be displayed without location permission.",
         });
       },
       {
@@ -151,7 +151,7 @@ export function watchCurrentLocation(handlers: LocationWatchHandlers) {
       coords: null,
       currentLocation: null,
       permissionState: "error",
-      message: "Tarayiciniz konum ozelligini desteklemiyor.",
+      message: "Your browser does not support location services.",
     });
     return () => undefined;
   }
@@ -170,7 +170,7 @@ export function watchCurrentLocation(handlers: LocationWatchHandlers) {
         },
         currentLocation,
         permissionState: "granted",
-        message: "Konum guncellendi.",
+        message: "Location updated.",
       });
     },
     () => {
@@ -178,7 +178,7 @@ export function watchCurrentLocation(handlers: LocationWatchHandlers) {
         coords: null,
         currentLocation: null,
         permissionState: "denied",
-        message: "Konum izni verilmeden harita gosterilemez.",
+        message: "The map cannot be displayed without location permission.",
       });
     },
     {

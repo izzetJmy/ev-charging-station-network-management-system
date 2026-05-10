@@ -126,7 +126,7 @@ async function cancelReservationsByField(params: {
         userId,
         type: "reservation_cancelled",
         title: params.title,
-        message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} rezervasyonunuz iptal edildi. Sebep: ${params.reason}`,
+        message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} reservation was cancelled. Reason: ${params.reason}`,
       });
     }),
   );
@@ -136,24 +136,24 @@ async function cancelReservationsByField(params: {
 
 export function cancelActiveReservationsForOfflineStation(
   stationId: string,
-  stationName = "Istasyon",
+  stationName = "Station",
 ) {
   return cancelReservationsByField({
     fieldName: "stationId",
     fieldValue: stationId,
-    title: "Rezervasyon iptal edildi",
+    title: "Reservation cancelled",
     reason: `${stationName} offline duruma gecti.`,
   });
 }
 
 export function cancelActiveReservationsForOfflineCharger(
   chargerId: string,
-  chargerLabel = "Sarj cihazi",
+  chargerLabel = "Charging cihazi",
 ) {
   return cancelReservationsByField({
     fieldName: "chargerId",
     fieldValue: chargerId,
-    title: "Rezervasyon iptal edildi",
+    title: "Reservation cancelled",
     reason: `${chargerLabel} offline duruma gecti.`,
   });
 }

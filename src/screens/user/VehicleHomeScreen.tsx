@@ -385,7 +385,7 @@ function getVehicleDisplayName(vehicle: Vehicle) {
   const name = [vehicle.brand?.trim(), vehicle.model?.trim()]
     .filter(Boolean)
     .join(" ");
-  return name || "Kayitli arac";
+  return name || "Saved vehicle";
 }
 
 function formatCoordinates(latitude: number, longitude: number) {
@@ -420,7 +420,7 @@ function VehicleHomeScreen() {
         setVehicles(result);
         setSelectedVehicleId(result[0]?.id ?? "");
       } catch {
-        setError("Arac listesi alinamadi. Lutfen tekrar deneyin.");
+        setError("Vehicle list could not be loaded. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -443,7 +443,7 @@ function VehicleHomeScreen() {
         return;
       }
 
-      setSelectedVehicleLocationLabel("Konum cozumleniyor...");
+      setSelectedVehicleLocationLabel("Resolving location...");
       const result = await reverseGeocodeCoordinates({
         lat: location.latitude,
         lng: location.longitude,
@@ -512,7 +512,7 @@ function VehicleHomeScreen() {
                 Ana sayfaya don
               </button>
             </div>
-            <h1 style={styles.title}>Kayitli Araclar</h1>
+            <h1 style={styles.title}>Kayitli Vehiclelar</h1>
           </div>
 
           <div style={styles.headerMedia} aria-hidden="true">
@@ -539,34 +539,34 @@ function VehicleHomeScreen() {
           </div>
         </header>
 
-        <section style={styles.body} aria-label="Arac listesi">
+        <section style={styles.body} aria-label="Vehicle listesi">
           <WalletPanel userId={userId} compact />
 
           <div style={styles.listTitleRow}>
-            <h2 style={styles.listTitle}>Arac listesi</h2>
+            <h2 style={styles.listTitle}>Vehicle listesi</h2>
             <div style={styles.listTitleRight}>
               <div style={styles.counter}>
-                {loading ? "Yukleniyor..." : `${vehicles.length} arac`}
+                {loading ? "Loading..." : `${vehicles.length} vehicle`}
               </div>
               <button
                 type="button"
                 style={styles.compactButton}
                 onClick={handleOpenReservations}
               >
-                Rezervasyonlarim
+                My Reservations
               </button>
             </div>
           </div>
 
           <p style={styles.listSubtitle}>
-            Arac secmek icin listeden tiklayin. Detaylar tikladiginizda acilir.
+            Click a vehicle in the list to select it. Details open after you click.
           </p>
 
           {error && <div style={styles.emptyMessage}>{error}</div>}
 
           {!error && !loading && vehicles.length === 0 && (
             <div style={styles.emptyMessage}>
-              Kayitli arac yok. Yeni bir arac eklemek icin asagidaki "Yeni Arac
+              No saved vehicles. To add a new vehicle, use the "New Vehicle
               Olustur" butonunu kullanin.
             </div>
           )}
@@ -594,8 +594,8 @@ function VehicleHomeScreen() {
                     {getVehicleDisplayName(vehicle)}
                   </span>
                   <span style={styles.vehicleMeta}>
-                    Plaka: {vehicle.plateNumber?.trim().toUpperCase() || "--"} -
-                    Soket: {vehicle.connectorType || "--"}
+                    Plate: {vehicle.plateNumber?.trim().toUpperCase() || "--"} -
+                    Connector: {vehicle.connectorType || "--"}
                   </span>
                   </button>
 
@@ -605,14 +605,14 @@ function VehicleHomeScreen() {
                       style={styles.compactButton}
                       onClick={() => handleOpenReservationsForVehicle(vehicle.id)}
                     >
-                      Rezervasyonlar
+                      Reservationlar
                     </button>
                     <button
                       type="button"
                       style={styles.compactButton}
                       onClick={() => handleOpenHistoryForVehicle(vehicle.id)}
                     >
-                      Sarj Gecmisi
+                      Charging Gecmisi
                     </button>
                   </div>
                 </article>
@@ -626,7 +626,7 @@ function VehicleHomeScreen() {
               style={styles.primaryButton}
               onClick={handleCreateVehicle}
             >
-              Yeni Arac Olustur
+              Yeni Vehicle Olustur
             </button>
           </div>
         </section>
@@ -645,7 +645,7 @@ function VehicleHomeScreen() {
               <div style={styles.modalTop}>
                 <div>
                   <div style={{ color: "#7A8982", fontSize: "11px", fontWeight: 850, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                    Secili Arac
+                    Selected Vehicle
                   </div>
                   <h3 style={styles.modalTitle}>
                     {getVehicleDisplayName(selectedVehicle)}
@@ -656,25 +656,25 @@ function VehicleHomeScreen() {
                   style={styles.closeButton}
                   onClick={() => setIsDetailOpen(false)}
                 >
-                  Kapat
+                  Close
                 </button>
               </div>
 
               <div style={styles.infoGrid}>
                 <div style={styles.infoItem}>
-                  <div style={styles.infoLabel}>Plaka</div>
+                  <div style={styles.infoLabel}>Plate</div>
                   <div style={styles.infoValue}>
                     {selectedVehicle.plateNumber?.trim().toUpperCase() || "--"}
                   </div>
                 </div>
                 <div style={styles.infoItem}>
-                  <div style={styles.infoLabel}>Soket</div>
+                  <div style={styles.infoLabel}>Connector</div>
                   <div style={styles.infoValue}>
                     {selectedVehicle.connectorType || "--"}
                   </div>
                 </div>
                 <div style={styles.infoItem}>
-                  <div style={styles.infoLabel}>Batarya</div>
+                  <div style={styles.infoLabel}>Battery</div>
                   <div style={styles.infoValue}>
                     {selectedVehicle.batteryCapacity
                       ? `${selectedVehicle.batteryCapacity} kWh`
@@ -682,7 +682,7 @@ function VehicleHomeScreen() {
                   </div>
                 </div>
                 <div style={styles.infoItem}>
-                  <div style={styles.infoLabel}>Konum</div>
+                  <div style={styles.infoLabel}>Location</div>
                   <div style={styles.infoValue}>
                     {(() => {
                       const location = selectedVehicle.currentLocation;
@@ -691,12 +691,12 @@ function VehicleHomeScreen() {
                         typeof location.latitude !== "number" ||
                         typeof location.longitude !== "number"
                       ) {
-                        return "Konum kaydi yok";
+                        return "No location record";
                       }
 
                       if (
                         selectedVehicleLocationLabel &&
-                        selectedVehicleLocationLabel !== "Konum cozumleniyor..."
+                        selectedVehicleLocationLabel !== "Resolving location..."
                       ) {
                         return selectedVehicleLocationLabel;
                       }
@@ -713,14 +713,14 @@ function VehicleHomeScreen() {
                   style={styles.primaryButton}
                   onClick={handleGoToMap}
                 >
-                  Bu Aracla Haritaya Gec
+                  Bu Vehiclela Mapya Gec
                 </button>
                 <button
                   type="button"
                   style={styles.secondaryButton}
                   onClick={handleEditVehicle}
                 >
-                  Araci Guncelle
+                  Update Vehicle
                 </button>
               </div>
 
@@ -730,7 +730,7 @@ function VehicleHomeScreen() {
                   style={styles.secondaryButton}
                   onClick={() => handleOpenReservationsForVehicle(selectedVehicle.id)}
                 >
-                  Rezervasyonlarim
+                  My Reservations
                 </button>
               </div>
 
@@ -740,7 +740,7 @@ function VehicleHomeScreen() {
                   style={styles.secondaryButton}
                   onClick={handleOpenHistory}
                 >
-                  Sarj Gecmisi
+                  Charging Gecmisi
                 </button>
               </div>
             </section>

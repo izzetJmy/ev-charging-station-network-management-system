@@ -292,8 +292,8 @@ function StationDetailCard({
   const handleReportSubmitSuccess = () => {
     setReportSuccessMessage(
       reportTargetCharger
-        ? `Sarj cihazi ${reportTargetCharger.id} icin sorun bildirimi kaydedildi.`
-        : "Istasyon icin sorun bildirimi kaydedildi.",
+        ? `Issue report saved for charger ${reportTargetCharger.id}.`
+        : "Issue report saved for the station.",
     );
   };
 
@@ -324,7 +324,7 @@ function StationDetailCard({
       >
         <div style={styles.topBar}>
           <div style={styles.titleWrap}>
-            <div style={styles.eyebrow}>Secili Istasyon</div>
+            <div style={styles.eyebrow}>Selected Station</div>
             <h3 style={styles.title}>{station.name}</h3>
           </div>
 
@@ -341,7 +341,7 @@ function StationDetailCard({
               }
               title={isFavorite ? "Favorilerden cikar" : "Favorilere ekle"}
             >
-              {isFavorite ? "♥" : "♡"}
+              {isFavorite ? "â™¥" : "â™¡"}
             </button>
             <button
               type="button"
@@ -349,7 +349,7 @@ function StationDetailCard({
               style={styles.navigateButton}
               disabled={!onGetDirections || directionsLoading}
             >
-              {directionsLoading ? "Rota ciziliyor..." : "Get Directions"}
+              {directionsLoading ? "Drawing route..." : "Get Directions"}
             </button>
             <button
               type="button"
@@ -359,7 +359,7 @@ function StationDetailCard({
               Sorun Bildir
             </button>
             <button type="button" onClick={onClose} style={styles.closeButton}>
-              Kapat
+              Close
             </button>
           </div>
         </div>
@@ -405,7 +405,7 @@ function StationDetailCard({
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Konum</div>
+            <div style={styles.label}>Location</div>
             <div style={styles.value}>
               {stationLocationLabel || station.address}
             </div>
@@ -419,12 +419,12 @@ function StationDetailCard({
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Calisma Durumu</div>
+            <div style={styles.label}>Operating Status</div>
             <div style={styles.value}>{isOpenNow ? "Acik" : "Kapali"}</div>
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Calisma Saatleri</div>
+            <div style={styles.label}>Operating Hours</div>
             <div style={styles.value}>{formatOperatingHours(station.operatingHours)}</div>
           </div>
         </div>
@@ -448,7 +448,7 @@ function StationDetailCard({
             </div>
           ) : (
             <div style={styles.emptyState}>
-              Bu istasyon icin gosterilecek charger bilgisi bulunamadi.
+              No charger information is available for this station.
             </div>
           )}
         </div>

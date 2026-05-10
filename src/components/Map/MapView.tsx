@@ -94,7 +94,7 @@ function MapView({
     >
       <Marker
         position={userLocation}
-        title="Guncel konumunuz"
+        title="Your current location"
         icon={getUserMarkerIcon()}
       />
 

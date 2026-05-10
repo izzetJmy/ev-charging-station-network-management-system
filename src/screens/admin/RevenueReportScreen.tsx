@@ -144,7 +144,7 @@ export default function RevenueReportScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Gelir raporu alinamadi. Firestore baglantisini kontrol edin.");
+        setError("Revenue report could not be loaded. Check the Firestore connection.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -162,11 +162,11 @@ export default function RevenueReportScreen() {
     <div>
       <h2 style={styles.title}>Gelir Raporu</h2>
       <p style={styles.subtitle}>
-        Tamamlanan sarj oturumlarindan elde edilen gelirleri toplam, ortalama ve istasyon bazinda
+        Review revenue from completed charging sessions by total, average, and station.
         inceleyin.
       </p>
 
-      {loading && <div style={styles.loading}>Yukleniyor...</div>}
+      {loading && <div style={styles.loading}>Loading...</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && data && (
@@ -192,10 +192,10 @@ export default function RevenueReportScreen() {
             <div style={{ marginTop: "14px" }}>
               <TimeSeriesChart
                 title="Gelir Trendi"
-                description="Son 30 gun gunluk toplam gelir."
+                description="Daily total revenue for the last 30 days."
                 yAxisLabel="TL"
-                xAxisLabel="Tarih"
-                xAxisNote="X ekseni: Tarih (gg.aa)"
+                xAxisLabel="Date"
+                xAxisNote="X ekseni: Date (gg.aa)"
                 labels={timeSeries.map((row) => row.dateLabel)}
                 series={[
                   {
@@ -223,7 +223,7 @@ export default function RevenueReportScreen() {
                   {rows.length === 0 && (
                     <tr>
                       <td style={styles.td} colSpan={2}>
-                        Henuz sarj oturumu yok.
+                        No charging sessions yet.
                       </td>
                     </tr>
                   )}
