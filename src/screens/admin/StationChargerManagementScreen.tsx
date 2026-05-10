@@ -356,7 +356,7 @@ const styles: Record<string, CSSProperties> = {
   suggestionSub: { marginTop: "4px", fontWeight: 800, color: "#5B736A", fontSize: "12px", lineHeight: 1.4 },
 };
 
-const STATION_STATUS_OPTIONS: StationStatus[] = ["available", "occupied", "offline"];
+const STATION_STATUS_OPTIONS: StationStatus[] = ["available", "offline"];
 const CHARGER_TYPE_OPTIONS: ChargerType[] = ["AC", "DC"];
 const CHARGER_POWER_OPTIONS: ChargerPowerOutput[] = ["22kW", "50kW", "150kW"];
 const CHARGER_CONNECTOR_OPTIONS: ChargerConnectorType[] = ["Type 2", "CCS", "CHAdeMO"];
@@ -381,6 +381,9 @@ type StationDraft = {
   latitude: string;
   longitude: string;
   status: StationStatus;
+  operatingOpen: string;
+  operatingClose: string;
+  is24Hours: boolean;
 };
 
 type ChargerDraft = {
@@ -399,7 +402,10 @@ function makeStationDraft(station: Station | null): StationDraft {
     address: station?.address ?? "",
     latitude: station ? String(station.latitude) : "",
     longitude: station ? String(station.longitude) : "",
-    status: station?.status ?? "offline",
+    status: station?.manualOffline ? "offline" : "available",
+    operatingOpen: station?.operatingHours?.open ?? "08:00",
+    operatingClose: station?.operatingHours?.close ?? "23:00",
+    is24Hours: station?.operatingHours?.is24Hours ?? false,
   };
 }
 
@@ -607,6 +613,14 @@ export default function StationChargerManagementScreen() {
       setStationError("Konum secilmelidir (harita veya arama ile).");
       return;
     }
+    if (
+      !stationDraft.is24Hours &&
+      (!/^([01]\d|2[0-3]):[0-5]\d$/.test(stationDraft.operatingOpen) ||
+        !/^([01]\d|2[0-3]):[0-5]\d$/.test(stationDraft.operatingClose))
+    ) {
+      setStationError("Calisma saatleri HH:mm formatinda olmalidir.");
+      return;
+    }
 
     setStationSaving(true);
     try {
@@ -620,6 +634,11 @@ export default function StationChargerManagementScreen() {
         latitude: parsed.lat,
         longitude: parsed.lng,
         status: stationDraft.status,
+        operatingHours: {
+          open: stationDraft.operatingOpen,
+          close: stationDraft.operatingClose,
+          is24Hours: stationDraft.is24Hours,
+        },
         chargers,
       });
 
@@ -906,6 +925,9 @@ export default function StationChargerManagementScreen() {
                       </option>
                     ))}
                   </select>
+                  <div style={{ marginTop: "8px", color: "#5B736A", fontSize: "12px", fontWeight: 800, lineHeight: 1.5 }}>
+                    Occupied elle secilemez; tum online charger&apos;lar doluysa otomatik atanir.
+                  </div>
                 </div>
               </div>
 
@@ -928,6 +950,53 @@ export default function StationChargerManagementScreen() {
                   placeholder="Bornova Meydani, Izmir"
                 />
               </div>
+
+              <div style={styles.row2}>
+                <div style={styles.field}>
+                  <div style={styles.label}>Acilis Saati</div>
+                  <input
+                    type="time"
+                    style={styles.input}
+                    value={stationDraft.operatingOpen}
+                    onChange={(e) =>
+                      setStationDraft((p) => ({
+                        ...p,
+                        operatingOpen: e.target.value,
+                      }))
+                    }
+                    disabled={stationDraft.is24Hours}
+                  />
+                </div>
+                <div style={styles.field}>
+                  <div style={styles.label}>Kapanis Saati</div>
+                  <input
+                    type="time"
+                    style={styles.input}
+                    value={stationDraft.operatingClose}
+                    onChange={(e) =>
+                      setStationDraft((p) => ({
+                        ...p,
+                        operatingClose: e.target.value,
+                      }))
+                    }
+                    disabled={stationDraft.is24Hours}
+                  />
+                </div>
+              </div>
+
+              <label style={{ display: "flex", gap: "10px", alignItems: "center", color: "#263A33", fontSize: "13px", fontWeight: 850 }}>
+                <input
+                  type="checkbox"
+                  checked={stationDraft.is24Hours}
+                  onChange={(e) =>
+                    setStationDraft((p) => ({
+                      ...p,
+                      is24Hours: e.target.checked,
+                    }))
+                  }
+                />
+                24 saat acik
+              </label>
 
               <div style={styles.field}>
                 <button

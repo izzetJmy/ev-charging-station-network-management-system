@@ -21,6 +21,10 @@ import {
 import type { ChargerStatus } from "../../models/Charger";
 import type { StationStatus } from "../../models/Station";
 import { getChargerStatusBlockMessage } from "../../utils/chargerCompatibility";
+import {
+  createLowWalletNotificationIfNeeded,
+  createNotification,
+} from "./notificationService";
 
 export interface ChargingSessionInput {
   userId: string;
@@ -444,6 +448,41 @@ export function subscribeToChargingSession(
   );
 }
 
+export async function getActiveChargingSessionByUserId(userId: string) {
+  const sessionsRef = collection(db, "chargingSessions");
+  const activeSessionQuery = query(
+    sessionsRef,
+    where("userId", "==", userId),
+    where("status", "==", "active"),
+  );
+  const snapshot = await getDocs(activeSessionQuery);
+  const activeDoc = snapshot.docs[0];
+
+  return activeDoc ? toChargingSessionRecord(activeDoc.id, activeDoc.data()) : null;
+}
+
+export function subscribeToActiveChargingSessionByUserId(
+  userId: string,
+  onChange: (session: ChargingSessionRecord | null) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  const sessionsRef = collection(db, "chargingSessions");
+  const activeSessionQuery = query(
+    sessionsRef,
+    where("userId", "==", userId),
+    where("status", "==", "active"),
+  );
+
+  return onSnapshot(
+    activeSessionQuery,
+    (querySnapshot) => {
+      const activeDoc = querySnapshot.docs[0];
+      onChange(activeDoc ? toChargingSessionRecord(activeDoc.id, activeDoc.data()) : null);
+    },
+    (error) => onError?.(error),
+  );
+}
+
 export async function getChargingSessionHistory(params: {
   userId?: string;
   vehicleId?: string;
@@ -492,12 +531,13 @@ export async function completeLiveChargingSession(
     endBatteryPercentage: number;
     consumedKwh: number;
     totalCost: number;
+    autoCompleted?: boolean;
   },
 ) {
   const amount = roundMoney(final.totalCost);
   const consumedKwh = roundEnergy(final.consumedKwh);
 
-  return runTransaction(db, async (firestoreTransaction) => {
+  const result = await runTransaction(db, async (firestoreTransaction) => {
     const sessionRef = doc(db, "chargingSessions", chargingSessionId);
     const sessionSnapshot = await firestoreTransaction.get(sessionRef);
 
@@ -520,7 +560,13 @@ export async function completeLiveChargingSession(
     }
 
     if (session.status === "completed") {
-      return chargingSessionId;
+      return {
+        chargingSessionId,
+        alreadyCompleted: true,
+        nextBalance: null,
+        amount,
+        consumedKwh,
+      };
     }
 
     const walletRef = doc(db, "users", userId, "wallet", "default");
@@ -598,8 +644,32 @@ export async function completeLiveChargingSession(
       createdAt: serverTimestamp(),
     });
 
-    return chargingSessionId;
+    return {
+      chargingSessionId,
+      alreadyCompleted: false,
+      nextBalance,
+      amount,
+      consumedKwh,
+    };
   });
+
+  if (!result.alreadyCompleted && final.autoCompleted) {
+    await createNotification({
+      userId,
+      type: "charging_completed",
+      title: "Sarj oturumu tamamlandi",
+      message: `${result.consumedKwh.toFixed(
+        2,
+      )} kWh tuketim icin ${result.amount.toFixed(2)} TL odeme alindi.`,
+    });
+
+  }
+
+  if (!result.alreadyCompleted && result.nextBalance != null) {
+    await createLowWalletNotificationIfNeeded(userId, result.nextBalance);
+  }
+
+  return result.chargingSessionId;
 }
 
 export async function cancelChargingSessionWithRefund(

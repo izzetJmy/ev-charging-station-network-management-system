@@ -1,12 +1,11 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import type { Location } from "../../models/vehicle";
-import { db } from "../../services/firebase/firebaseConfig";
 import { getCurrentLocation } from "../../services/maps/locationService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
 import { getConnectorTypeOptions } from "../../services/firebase/chargerService";
+import { createVehicle } from "../../services/firebase/vehicleService";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -544,7 +543,7 @@ function VehicleRegistrationScreen() {
       setLoading(true);
       setError("");
 
-      await addDoc(collection(db, "vehicles"), {
+      await createVehicle({
         userId,
         brand,
         model,
@@ -552,8 +551,6 @@ function VehicleRegistrationScreen() {
         connectorType,
         plateNumber,
         currentLocation,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       });
 
       navigate("/app", {

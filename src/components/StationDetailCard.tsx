@@ -12,6 +12,10 @@ import {
   type UserCoordinates,
 } from "../services/maps/locationService";
 import { reverseGeocodeCoordinates } from "../services/maps/geocodingService";
+import {
+  formatOperatingHours,
+  isStationOpenAt,
+} from "../utils/stationOperatingHours";
 
 interface StationDetailCardProps {
   station: Station;
@@ -251,6 +255,7 @@ function StationDetailCard({
   const [reportSuccessMessage, setReportSuccessMessage] = useState("");
   const [statusWarningMessage, setStatusWarningMessage] = useState("");
   const [stationLocationLabel, setStationLocationLabel] = useState<string>("");
+  const isOpenNow = station.status !== "offline" && isStationOpenAt(station);
 
   const handleReserve = (charger: Charger) => {
     setStatusWarningMessage("");
@@ -411,6 +416,16 @@ function StationDetailCard({
             <div style={styles.value}>
               {formatDistance(currentLocation, station)}
             </div>
+          </div>
+
+          <div style={styles.infoCard}>
+            <div style={styles.label}>Calisma Durumu</div>
+            <div style={styles.value}>{isOpenNow ? "Acik" : "Kapali"}</div>
+          </div>
+
+          <div style={styles.infoCard}>
+            <div style={styles.label}>Calisma Saatleri</div>
+            <div style={styles.value}>{formatOperatingHours(station.operatingHours)}</div>
           </div>
         </div>
 

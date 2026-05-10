@@ -4,6 +4,7 @@ import VehicleHomeScreen from "./screens/user/VehicleHomeScreen";
 import VehicleProfileScreen from "./screens/user/VehicleProfileScreen";
 import VehicleRegistrationScreen from "./screens/user/VehicleRegistrationScreen";
 import ReservationScreen from "./screens/user/ReservationScreen";
+import UserReservationsScreen from "./screens/user/UserReservationsScreen";
 import ChargingSessionScreen from "./screens/user/ChargingSessionScreen";
 import ChargingHistoryScreen from "./screens/user/ChargingHistoryScreen";
 import FavoritesScreen from "./screens/user/FavoritesScreen";
@@ -13,6 +14,7 @@ import ContactScreen from "./screens/ContactScreen";
 import AdminLoginScreen from "./screens/admin/AdminLoginScreen";
 import SnackbarHost from "./components/SnackbarHost";
 import ActiveSessionCard from "./components/ActiveSessionCard";
+import NotificationCenter from "./components/NotificationCenter";
 import RequireAdmin from "./components/RequireAdmin";
 import AdminLayout from "./screens/admin/AdminLayout";
 import AdminDashboardScreen from "./screens/admin/AdminDashboardScreen";
@@ -34,6 +36,7 @@ function App() {
         <Route path="/register-vehicle" element={<VehicleRegistrationScreen />} />
         <Route path="/station-map" element={<StationMapScreen />} />
         <Route path="/reservation" element={<ReservationScreen />} />
+        <Route path="/my-reservations" element={<UserReservationsScreen />} />
         <Route path="/charging-session" element={<ChargingSessionScreen />} />
         <Route path="/charging-history" element={<ChargingHistoryScreen />} />
         <Route path="/favorites" element={<FavoritesScreen />} />
@@ -48,6 +51,7 @@ function App() {
           </Route>
         </Route>
       </Routes>
+      <NotificationCenter />
       <SnackbarHost />
       <ActiveSessionCard />
     </BrowserRouter>

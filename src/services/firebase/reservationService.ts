@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { refundWallet } from "./walletService";
@@ -16,8 +17,14 @@ import type { ChargerStatus } from "../../models/Charger";
 import type { Station } from "../../models/Station";
 import type { StationStatus } from "../../models/Station";
 import { getReservationStatusBlockMessage } from "../../utils/chargerCompatibility";
+import { createNotification } from "./notificationService";
 import { getChargerById } from "./chargerService";
 import { getStationById } from "./stationService";
+import {
+  formatOperatingHours,
+  isReservationWithinOperatingHours,
+  normalizeOperatingHours,
+} from "../../utils/stationOperatingHours";
 
 export interface ReservationTimeRange {
   date: string;
@@ -359,6 +366,30 @@ export async function createReservation(reservation: ReservationInput) {
     throw new Error(statusBlockMessage);
   }
 
+  const reservationRange = getReservationDateRange(
+    reservation.date,
+    reservation.startTime,
+    reservation.endTime,
+  );
+  const operatingHours = normalizeOperatingHours(
+    stationSnapshot.data()?.operatingHours,
+  );
+
+  if (
+    reservationRange &&
+    !isReservationWithinOperatingHours(
+      { operatingHours },
+      reservationRange.startDateTime,
+      reservationRange.endDateTime,
+    )
+  ) {
+    throw new Error(
+      `Istasyon bu saatlerde kapali. Calisma saatleri: ${formatOperatingHours(
+        operatingHours,
+      )}.`,
+    );
+  }
+
   const hasConflict = await hasActiveReservationConflict(
     reservation.chargerId,
     reservation,
@@ -379,7 +410,112 @@ export async function createReservation(reservation: ReservationInput) {
     createdAt: serverTimestamp(),
   });
 
+  const vehicleSnapshot = await getDoc(doc(db, "vehicles", reservation.vehicleId));
+  const userId = vehicleSnapshot.exists()
+    ? vehicleSnapshot.data().userId
+    : "";
+
+  if (typeof userId === "string" && userId.trim()) {
+    await createNotification({
+      userId,
+      type: "reservation_confirmed",
+      title: "Rezervasyon onaylandi",
+      message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} saatleri icin rezervasyonunuz olusturuldu.`,
+    });
+  }
+
   return reservationRef.id;
+}
+
+function isUpcomingOrOngoingReservation(reservation: ReservationRecord) {
+  const range = getReservationDateRange(
+    reservation.date,
+    reservation.startTime,
+    reservation.endTime,
+  );
+  if (!range) return true;
+  return range.endDateTime.getTime() >= Date.now();
+}
+
+async function getReservationOwnerUserId(vehicleId: string) {
+  const vehicleSnapshot = await getDoc(doc(db, "vehicles", vehicleId));
+  const userId = vehicleSnapshot.exists() ? vehicleSnapshot.data().userId : "";
+  return typeof userId === "string" ? userId : "";
+}
+
+async function cancelReservationsByField(params: {
+  fieldName: "stationId" | "chargerId";
+  fieldValue: string;
+  title: string;
+  reason: string;
+}) {
+  const reservationsQuery = query(
+    collection(db, "reservations"),
+    where(params.fieldName, "==", params.fieldValue),
+    where("status", "==", "active"),
+  );
+  const snapshot = await getDocs(reservationsQuery);
+  const reservations = snapshot.docs
+    .map((reservationDoc) =>
+      toReservationRecord(reservationDoc.id, reservationDoc.data()),
+    )
+    .filter((reservation): reservation is ReservationRecord => Boolean(reservation))
+    .filter(isUpcomingOrOngoingReservation);
+
+  if (reservations.length === 0) {
+    return 0;
+  }
+
+  const batch = writeBatch(db);
+  reservations.forEach((reservation) => {
+    batch.update(doc(db, "reservations", reservation.id), {
+      status: "cancelled",
+      cancellationReason: params.reason,
+      cancelledAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  });
+  await batch.commit();
+
+  await Promise.all(
+    reservations.map(async (reservation) => {
+      const userId = await getReservationOwnerUserId(reservation.vehicleId);
+      if (!userId.trim()) return;
+
+      await createNotification({
+        userId,
+        type: "reservation_cancelled",
+        title: params.title,
+        message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} rezervasyonunuz iptal edildi. Sebep: ${params.reason}`,
+      });
+    }),
+  );
+
+  return reservations.length;
+}
+
+export function cancelActiveReservationsForOfflineStation(
+  stationId: string,
+  stationName = "Istasyon",
+) {
+  return cancelReservationsByField({
+    fieldName: "stationId",
+    fieldValue: stationId,
+    title: "Rezervasyon iptal edildi",
+    reason: `${stationName} offline duruma gecti.`,
+  });
+}
+
+export function cancelActiveReservationsForOfflineCharger(
+  chargerId: string,
+  chargerLabel = "Sarj cihazi",
+) {
+  return cancelReservationsByField({
+    fieldName: "chargerId",
+    fieldValue: chargerId,
+    title: "Rezervasyon iptal edildi",
+    reason: `${chargerLabel} offline duruma gecti.`,
+  });
 }
 
 export async function updateReservationSchedule(
@@ -395,6 +531,7 @@ export async function updateReservationSchedule(
 
   const reservation = reservationSnapshot.data() as {
     chargerId?: string;
+    stationId?: string;
     status?: string;
   };
 
@@ -402,8 +539,37 @@ export async function updateReservationSchedule(
     throw new Error("Rezervasyon sarj cihazi bilgisi eksik.");
   }
 
+  if (!reservation.stationId) {
+    throw new Error("Rezervasyon istasyon bilgisi eksik.");
+  }
+
   if (reservation.status && reservation.status !== "active") {
     throw new Error("Sadece aktif rezervasyonlar yeniden planlanabilir.");
+  }
+
+  const stationSnapshot = await getDoc(doc(db, "stations", reservation.stationId));
+  const requestedRange = getReservationDateRange(
+    reservationRange.date,
+    reservationRange.startTime,
+    reservationRange.endTime,
+  );
+  const operatingHours = normalizeOperatingHours(
+    stationSnapshot.data()?.operatingHours,
+  );
+
+  if (
+    requestedRange &&
+    !isReservationWithinOperatingHours(
+      { operatingHours },
+      requestedRange.startDateTime,
+      requestedRange.endDateTime,
+    )
+  ) {
+    throw new Error(
+      `Istasyon bu saatlerde kapali. Calisma saatleri: ${formatOperatingHours(
+        operatingHours,
+      )}.`,
+    );
   }
 
   const hasConflict = await hasActiveReservationConflict(

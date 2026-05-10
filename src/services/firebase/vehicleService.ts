@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  addDoc,
   getDoc,
   getDocs,
   query,
@@ -49,4 +50,16 @@ export async function updateVehicleCurrentLocation(
     currentLocation,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function createVehicle(
+  vehicle: Omit<Vehicle, "id" | "createdAt" | "updatedAt">,
+) {
+  const vehicleRef = await addDoc(vehiclesCollection, {
+    ...vehicle,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return vehicleRef.id;
 }

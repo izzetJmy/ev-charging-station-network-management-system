@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, onSnapshot, query, where, type Unsubscribe } from "firebase/firestore";
-import { db } from "../services/firebase/firebaseConfig";
 import { getOrCreateLocalUserId } from "../services/auth/localUser";
-import type { ChargingSessionRecord } from "../services/firebase/chargingSessionService";
+import {
+  getActiveChargingSessionByUserId,
+  subscribeToActiveChargingSessionByUserId,
+  type ChargingSessionRecord,
+} from "../services/firebase/chargingSessionService";
 
 export function useActiveChargingSession() {
   const userId = getOrCreateLocalUserId();
@@ -12,51 +14,32 @@ export function useActiveChargingSession() {
 
   useEffect(() => {
     let cancelled = false;
-    let unsubscribe: Unsubscribe | null = null;
+    let unsubscribe: (() => void) | null = null;
 
     const initializeSession = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const sessionsRef = collection(db, "chargingSessions");
-        const activeSessionQuery = query(
-          sessionsRef,
-          where("userId", "==", userId),
-          where("status", "==", "active"),
-        );
-
-        const snapshot = await getDocs(activeSessionQuery);
-        const activeDoc = snapshot.docs[0];
+        const currentSession = await getActiveChargingSessionByUserId(userId);
 
         if (cancelled) return;
 
-        if (activeDoc) {
-          const sessionData = activeDoc.data() as Omit<ChargingSessionRecord, "id">;
-          setActiveSession({
-            ...sessionData,
-            id: activeDoc.id,
-          } as ChargingSessionRecord);
-        } else {
-          setActiveSession(null);
-        }
+        setActiveSession(currentSession);
 
         if (unsubscribe) unsubscribe();
 
-        unsubscribe = onSnapshot(activeSessionQuery, (querySnapshot) => {
-          if (cancelled) return;
-
-          const activeDoc = querySnapshot.docs[0];
-          if (activeDoc) {
-            const sessionData = activeDoc.data() as Omit<ChargingSessionRecord, "id">;
-            setActiveSession({
-              ...sessionData,
-              id: activeDoc.id,
-            } as ChargingSessionRecord);
-          } else {
-            setActiveSession(null);
-          }
-        });
+        unsubscribe = subscribeToActiveChargingSessionByUserId(
+          userId,
+          (session) => {
+            if (cancelled) return;
+            setActiveSession(session);
+          },
+          (error) => {
+            if (cancelled) return;
+            setError(error);
+          },
+        );
 
         setLoading(false);
       } catch (err) {

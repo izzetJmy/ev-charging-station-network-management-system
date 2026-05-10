@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  serverTimestamp,
   setDoc,
   writeBatch,
 } from "firebase/firestore";
@@ -10,6 +11,20 @@ import type { Station } from "../../models/Station";
 import type { Charger } from "../../models/Charger";
 import { db } from "./firebaseConfig";
 import { getChargers } from "./chargerService";
+import { createNotificationForKnownUsers } from "./notificationService";
+import {
+  isStationOpenAt,
+  normalizeOperatingHours,
+} from "../../utils/stationOperatingHours";
+import { cancelActiveReservationsForOfflineStation } from "./reservationCancellationService";
+
+function getDerivedStationStatus(chargers: Charger[], station: Pick<Station, "operatingHours" | "manualOffline">) {
+  if (station.manualOffline || !isStationOpenAt({ operatingHours: station.operatingHours })) return "offline";
+  if (chargers.length === 0) return null;
+  if (chargers.every((charger) => charger.status === "offline")) return "offline";
+  if (chargers.some((charger) => charger.status === "available")) return "available";
+  return "occupied";
+}
 
 function normalizeStation(data: unknown, id: string): Omit<Station, "chargers"> & { chargerIds: string[] } | null {
   if (!data || typeof data !== "object") return null;
@@ -19,6 +34,8 @@ function normalizeStation(data: unknown, id: string): Omit<Station, "chargers"> 
   const latitude = typeof obj.latitude === "number" ? obj.latitude : Number(obj.latitude);
   const longitude = typeof obj.longitude === "number" ? obj.longitude : Number(obj.longitude);
   const status = typeof obj.status === "string" ? obj.status : "offline";
+  const operatingHours = normalizeOperatingHours(obj.operatingHours);
+  const manualOffline = obj.manualOffline === true;
   const chargerIds = Array.isArray(obj.chargerIds) ? obj.chargerIds.filter((x): x is string => typeof x === "string") : [];
 
   if (!id || !name || !address || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
@@ -29,7 +46,11 @@ function normalizeStation(data: unknown, id: string): Omit<Station, "chargers"> 
     address,
     latitude,
     longitude,
-    status: status as Station["status"],
+    status: manualOffline || !isStationOpenAt({ operatingHours })
+      ? "offline"
+      : (status as Station["status"]),
+    operatingHours,
+    manualOffline,
     chargerIds,
   };
 }
@@ -68,6 +89,8 @@ export async function getStationsWithChargers(): Promise<Station[]> {
         : [];
 
     const fallback = chargersByStation[station.id] ?? [];
+    const stationChargers = byIds.length ? byIds : fallback;
+    const derivedStatus = getDerivedStationStatus(stationChargers, station);
 
     return {
       id: station.id,
@@ -75,8 +98,10 @@ export async function getStationsWithChargers(): Promise<Station[]> {
       address: station.address,
       latitude: station.latitude,
       longitude: station.longitude,
-      status: station.status,
-      chargers: byIds.length ? byIds : fallback,
+      status: derivedStatus ?? station.status,
+      operatingHours: station.operatingHours ?? normalizeOperatingHours(null),
+      manualOffline: station.manualOffline,
+      chargers: stationChargers,
     };
   });
 }
@@ -90,6 +115,8 @@ export async function upsertStations(stations: Station[]) {
       latitude: station.latitude,
       longitude: station.longitude,
       status: station.status,
+      operatingHours: station.operatingHours ?? normalizeOperatingHours(null),
+      manualOffline: station.manualOffline ?? station.status === "offline",
       chargerIds: (station.chargers ?? []).map((c) => c.id),
     });
   }
@@ -97,14 +124,82 @@ export async function upsertStations(stations: Station[]) {
 }
 
 export async function upsertStation(station: Station) {
-  await setDoc(doc(db, "stations", station.id), {
+  const stationRef = doc(db, "stations", station.id);
+  const previousSnapshot = await getDoc(stationRef);
+  const previousStatus = previousSnapshot.exists()
+    ? previousSnapshot.data().status
+    : null;
+  const existingChargers = await getChargers();
+  const stationChargers = existingChargers.filter(
+    (charger) => charger.stationId === station.id,
+  );
+  const manualOffline = station.status === "offline";
+  let effectiveChargers = stationChargers;
+
+  if (!manualOffline && stationChargers.length > 0 && stationChargers.every((charger) => charger.status === "offline")) {
+    const batch = writeBatch(db);
+    stationChargers.forEach((charger) => {
+      batch.set(
+        doc(db, "chargers", charger.id),
+        {
+          status: "available",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    });
+    await batch.commit();
+    effectiveChargers = stationChargers.map((charger) => ({
+      ...charger,
+      status: "available",
+    }));
+  }
+
+  const operatingHours = station.operatingHours ?? normalizeOperatingHours(null);
+  const nextStatus = manualOffline
+    ? "offline"
+    : getDerivedStationStatus(effectiveChargers, {
+        operatingHours,
+        manualOffline,
+      }) ?? station.status;
+
+  await setDoc(stationRef, {
     name: station.name,
     address: station.address,
     latitude: station.latitude,
     longitude: station.longitude,
-    status: station.status,
+    status: nextStatus,
+    operatingHours,
+    manualOffline,
     chargerIds: (station.chargers ?? []).map((c) => c.id),
   });
+
+  if (manualOffline && stationChargers.length > 0) {
+    const batch = writeBatch(db);
+    stationChargers.forEach((charger) => {
+      batch.set(
+        doc(db, "chargers", charger.id),
+        {
+          status: "offline",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    });
+    await batch.commit();
+  }
+
+  if (previousStatus === "offline" && nextStatus === "available") {
+    await createNotificationForKnownUsers({
+      type: "station_availability_update",
+      title: "Istasyon yeniden uygun",
+      message: `${station.name} istasyonu tekrar kullanilabilir durumda.`,
+    });
+  }
+
+  if (previousStatus !== "offline" && nextStatus === "offline") {
+    await cancelActiveReservationsForOfflineStation(station.id, station.name);
+  }
 }
 
 export async function updateStationChargerIds(stationId: string, chargerIds: string[]) {

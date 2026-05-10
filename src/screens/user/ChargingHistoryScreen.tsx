@@ -1,6 +1,5 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import WalletPanel from "../../components/WalletPanel";
 import type { Charger } from "../../models/Charger";
 import type { Station } from "../../models/Station";
 import type { Vehicle } from "../../models/vehicle";
@@ -332,8 +331,6 @@ export default function ChargingHistoryScreen() {
         </header>
 
         <section style={styles.body}>
-          <WalletPanel userId={userId} />
-
           <div style={styles.card}>
             <div style={styles.vehicleInfo}>
               <div style={styles.vehicleLabel}>Arac</div>

@@ -11,6 +11,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
+import { createLowWalletNotificationIfNeeded } from "./notificationService";
 
 export type WalletTransactionType = "top-up" | "payment" | "refund";
 export type WalletPaymentStatus = "succeeded" | "failed";
@@ -119,7 +120,7 @@ async function createWalletOperation(
 ): Promise<WalletOperationResult> {
   assertValidAmount(amount);
 
-  return runTransaction(db, async (firestoreTransaction) => {
+  const result = await runTransaction(db, async (firestoreTransaction) => {
     const walletRef = getWalletRef(userId);
     const walletSnapshot = await firestoreTransaction.get(walletRef);
     const currentBalance = walletSnapshot.exists()
@@ -174,6 +175,12 @@ async function createWalletOperation(
       receiptId: receiptRef.id,
     };
   });
+
+  if (type === "payment") {
+    await createLowWalletNotificationIfNeeded(userId, result.balance);
+  }
+
+  return result;
 }
 
 export function topUpWallet(userId: string, amount: number) {

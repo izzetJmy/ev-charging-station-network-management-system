@@ -32,6 +32,7 @@ import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService"
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { useFavoriteStations } from "../../hooks/useFavoriteStations";
 import { toggleFavoriteStation } from "../../services/firebase/favoriteService";
+import { isStationOpenAt } from "../../utils/stationOperatingHours";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -216,6 +217,60 @@ const styles: Record<string, CSSProperties> = {
     gap: "10px",
     marginTop: "12px",
   },
+  filterGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "12px",
+    marginTop: "12px",
+  },
+  filterGroup: {
+    minWidth: 0,
+  },
+  filterGroupWide: {
+    gridColumn: "1 / -1",
+  },
+  filterLabel: {
+    display: "block",
+    color: "rgba(255,255,255,0.68)",
+    fontSize: "10px",
+    fontWeight: 850,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    marginBottom: "7px",
+  },
+  filterSelect: {
+    width: "100%",
+    minHeight: "40px",
+    borderRadius: "13px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    color: "#FFFFFF",
+    padding: "0 10px",
+    fontSize: "12px",
+    fontWeight: 850,
+    outline: "none",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
+  filterInput: {
+    width: "100%",
+    minHeight: "40px",
+    borderRadius: "13px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    color: "#FFFFFF",
+    padding: "0 10px",
+    fontSize: "12px",
+    fontWeight: 850,
+    outline: "none",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
+  priceRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px",
+  },
   filterToggle: {
     borderRadius: "999px",
     border: "1px solid rgba(255,255,255,0.18)",
@@ -233,6 +288,18 @@ const styles: Record<string, CSSProperties> = {
     borderColor: "rgba(184,240,97,0.42)",
     color: "#FFFFFF",
     boxShadow: "0 0 0 3px rgba(184,240,97,0.12)",
+  },
+  filterResetButton: {
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    color: "rgba(255,255,255,0.86)",
+    minHeight: "36px",
+    padding: "0 12px",
+    fontSize: "12px",
+    fontWeight: 850,
+    cursor: "pointer",
+    fontFamily: "inherit",
   },
   listCard: {
     marginTop: "16px",
@@ -815,6 +882,39 @@ function getProgressValue(
   return 6;
 }
 
+function toggleFilterValue(values: string[], value: string) {
+  return values.includes(value)
+    ? values.filter((entry) => entry !== value)
+    : [...values, value];
+}
+
+function getUniqueStationValues(
+  stations: Station[],
+  selector: (station: Station) => string | undefined,
+) {
+  return Array.from(
+    new Set(
+      stations
+        .map(selector)
+        .filter((value): value is string => Boolean(value?.trim())),
+    ),
+  ).sort((a, b) => a.localeCompare(b, "tr"));
+}
+
+function getUniqueChargerValues(
+  stations: Station[],
+  selector: (charger: Station["chargers"][number]) => string | undefined,
+) {
+  return Array.from(
+    new Set(
+      stations
+        .flatMap((station) => station.chargers ?? [])
+        .map(selector)
+        .filter((value): value is string => Boolean(value?.trim())),
+    ),
+  ).sort((a, b) => a.localeCompare(b, "tr", { numeric: true }));
+}
+
 function StationMapScreen() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -839,6 +939,13 @@ function StationMapScreen() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [stationSearch, setStationSearch] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [selectedConnectorTypes, setSelectedConnectorTypes] = useState<string[]>([]);
+  const [selectedPowerOutputs, setSelectedPowerOutputs] = useState<string[]>([]);
+  const [stationStatusFilter, setStationStatusFilter] = useState("all");
+  const [availabilityFilter, setAvailabilityFilter] = useState("all");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [openNowOnly, setOpenNowOnly] = useState(false);
   const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
   const [stations, setStations] = useState<Station[]>([]);
   const [stationsError, setStationsError] = useState("");
@@ -868,10 +975,33 @@ function StationMapScreen() {
     };
   }, [stations]);
 
+  const connectorTypeOptions = useMemo(
+    () => getUniqueChargerValues(stations, (charger) => charger.connectorType),
+    [stations],
+  );
+  const powerOutputOptions = useMemo(
+    () => getUniqueChargerValues(stations, (charger) => charger.powerOutput),
+    [stations],
+  );
+  const stationStatusOptions = useMemo(
+    () => getUniqueStationValues(stations, (station) => station.status),
+    [stations],
+  );
+
   const filteredStations = useMemo(() => {
     const query = stationSearch.trim().toLowerCase();
+    const minPrice = priceMin.trim() ? Number(priceMin) : null;
+    const maxPrice = priceMax.trim() ? Number(priceMax) : null;
 
     return stations.filter((station) => {
+      if (stationStatusFilter !== "all" && station.status !== stationStatusFilter) {
+        return false;
+      }
+
+      if (openNowOnly && !isStationOpenAt(station)) {
+        return false;
+      }
+
       if (onlyAvailable) {
         if (station.status !== "available") {
           return false;
@@ -885,6 +1015,57 @@ function StationMapScreen() {
         }
       }
 
+      const hasChargerFilters =
+        selectedConnectorTypes.length > 0 ||
+        selectedPowerOutputs.length > 0 ||
+        availabilityFilter !== "all" ||
+        minPrice != null ||
+        maxPrice != null;
+
+      if (hasChargerFilters) {
+        const hasMatchingCharger = station.chargers.some((charger) => {
+          if (
+            selectedConnectorTypes.length > 0 &&
+            !selectedConnectorTypes.includes(charger.connectorType)
+          ) {
+            return false;
+          }
+
+          if (
+            selectedPowerOutputs.length > 0 &&
+            !selectedPowerOutputs.includes(charger.powerOutput)
+          ) {
+            return false;
+          }
+
+          if (availabilityFilter === "available" && charger.status !== "available") {
+            return false;
+          }
+
+          if (availabilityFilter === "busy" && charger.status !== "occupied") {
+            return false;
+          }
+
+          if (availabilityFilter === "offline" && charger.status !== "offline") {
+            return false;
+          }
+
+          if (minPrice != null && Number.isFinite(minPrice) && charger.pricePerKwh < minPrice) {
+            return false;
+          }
+
+          if (maxPrice != null && Number.isFinite(maxPrice) && charger.pricePerKwh > maxPrice) {
+            return false;
+          }
+
+          return true;
+        });
+
+        if (!hasMatchingCharger) {
+          return false;
+        }
+      }
+
       if (!query) {
         return true;
       }
@@ -893,7 +1074,30 @@ function StationMapScreen() {
       const address = station.address?.toLowerCase() ?? "";
       return name.includes(query) || address.includes(query);
     });
-  }, [onlyAvailable, stationSearch, stations]);
+  }, [
+    availabilityFilter,
+    onlyAvailable,
+    openNowOnly,
+    priceMax,
+    priceMin,
+    selectedConnectorTypes,
+    selectedPowerOutputs,
+    stationSearch,
+    stationStatusFilter,
+    stations,
+  ]);
+
+  const resetFilters = () => {
+    setStationSearch("");
+    setOnlyAvailable(false);
+    setSelectedConnectorTypes([]);
+    setSelectedPowerOutputs([]);
+    setStationStatusFilter("all");
+    setAvailabilityFilter("all");
+    setPriceMin("");
+    setPriceMax("");
+    setOpenNowOnly(false);
+  };
 
   const nearbyStations = useMemo(() => {
     const withDistance = filteredStations.map((station) => {
@@ -926,6 +1130,12 @@ function StationMapScreen() {
 
     return nearbyStations.slice(0, 3);
   }, [isNearbyExpanded, nearbyStations]);
+
+  useEffect(() => {
+    if (!selectedStation) return;
+    if (filteredStations.some((station) => station.id === selectedStation.id)) return;
+    setSelectedStation(null);
+  }, [filteredStations, selectedStation]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1315,6 +1525,108 @@ function StationMapScreen() {
                 style={styles.searchInput}
               />
 
+              <div className="station-filter-grid" style={styles.filterGrid}>
+                <div style={styles.filterGroup}>
+                  <label style={styles.filterLabel}>Station status</label>
+                  <select
+                    value={stationStatusFilter}
+                    onChange={(event) => setStationStatusFilter(event.target.value)}
+                    style={styles.filterSelect}
+                  >
+                    <option value="all">Tum durumlar</option>
+                    {stationStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={styles.filterGroup}>
+                  <label style={styles.filterLabel}>Availability</label>
+                  <select
+                    value={availabilityFilter}
+                    onChange={(event) => setAvailabilityFilter(event.target.value)}
+                    style={styles.filterSelect}
+                  >
+                    <option value="all">Tum charger'lar</option>
+                    <option value="available">Uygun charger</option>
+                    <option value="busy">Dolu charger</option>
+                    <option value="offline">Offline charger</option>
+                  </select>
+                </div>
+
+                <div style={{ ...styles.filterGroup, ...styles.filterGroupWide }}>
+                  <label style={styles.filterLabel}>Connector type</label>
+                  <div style={styles.filterRow}>
+                    {connectorTypeOptions.map((connectorType) => (
+                      <button
+                        key={connectorType}
+                        type="button"
+                        style={{
+                          ...styles.filterToggle,
+                          ...(selectedConnectorTypes.includes(connectorType)
+                            ? styles.filterToggleActive
+                            : {}),
+                        }}
+                        onClick={() =>
+                          setSelectedConnectorTypes((current) =>
+                            toggleFilterValue(current, connectorType),
+                          )
+                        }
+                      >
+                        {connectorType}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ ...styles.filterGroup, ...styles.filterGroupWide }}>
+                  <label style={styles.filterLabel}>Power output</label>
+                  <div style={styles.filterRow}>
+                    {powerOutputOptions.map((powerOutput) => (
+                      <button
+                        key={powerOutput}
+                        type="button"
+                        style={{
+                          ...styles.filterToggle,
+                          ...(selectedPowerOutputs.includes(powerOutput)
+                            ? styles.filterToggleActive
+                            : {}),
+                        }}
+                        onClick={() =>
+                          setSelectedPowerOutputs((current) =>
+                            toggleFilterValue(current, powerOutput),
+                          )
+                        }
+                      >
+                        {powerOutput}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ ...styles.filterGroup, ...styles.filterGroupWide }}>
+                  <label style={styles.filterLabel}>Price range TL/kWh</label>
+                  <div className="price-filter-row" style={styles.priceRow}>
+                    <input
+                      value={priceMin}
+                      onChange={(event) => setPriceMin(event.target.value)}
+                      placeholder="Min"
+                      inputMode="decimal"
+                      style={styles.filterInput}
+                    />
+                    <input
+                      value={priceMax}
+                      onChange={(event) => setPriceMax(event.target.value)}
+                      placeholder="Max"
+                      inputMode="decimal"
+                      style={styles.filterInput}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div style={styles.filterRow}>
                 <button
                   type="button"
@@ -1325,6 +1637,23 @@ function StationMapScreen() {
                   onClick={() => setOnlyAvailable((current) => !current)}
                 >
                   Sadece uygun
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.filterToggle,
+                    ...(openNowOnly ? styles.filterToggleActive : {}),
+                  }}
+                  onClick={() => setOpenNowOnly((current) => !current)}
+                >
+                  Su an acik
+                </button>
+                <button
+                  type="button"
+                  style={styles.filterResetButton}
+                  onClick={resetFilters}
+                >
+                  Filtreleri temizle
                 </button>
               </div>
             </div>
@@ -1689,6 +2018,15 @@ function StationMapScreen() {
           transform: translateY(0);
         }
 
+        .station-map-shell select option {
+          color: #17231F;
+          background: #FFFFFF;
+        }
+
+        .station-map-shell input::placeholder {
+          color: rgba(255,255,255,0.56);
+        }
+
         @media (hover: hover) {
           .station-map-shell button:hover {
             box-shadow: 0 16px 30px rgba(31,94,77,0.18);
@@ -1715,6 +2053,11 @@ function StationMapScreen() {
           }
 
           .station-map-shell .map-status-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .station-filter-grid,
+          .station-map-shell .price-filter-row {
             grid-template-columns: 1fr !important;
           }
 
