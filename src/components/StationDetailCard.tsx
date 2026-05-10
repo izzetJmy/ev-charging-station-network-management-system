@@ -336,10 +336,10 @@ function StationDetailCard({
               disabled={!onToggleFavorite || favoriteLoading}
               aria-label={
                 isFavorite
-                  ? "Favorilerden cikar"
-                  : "Favorilere ekle"
+                  ? "Remove from favorites"
+                  : "Add to favorites"
               }
-              title={isFavorite ? "Favorilerden cikar" : "Favorilere ekle"}
+              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
             >
               {isFavorite ? "♥" : "♡"}
             </button>
@@ -356,7 +356,7 @@ function StationDetailCard({
               onClick={handleOpenStationReport}
               style={styles.reportButton}
             >
-              Sorun Bildir
+              Report Issue
             </button>
             <button type="button" onClick={onClose} style={styles.closeButton}>
               Close
@@ -420,7 +420,7 @@ function StationDetailCard({
 
           <div style={styles.infoCard}>
             <div style={styles.label}>Operating Status</div>
-            <div style={styles.value}>{isOpenNow ? "Acik" : "Kapali"}</div>
+            <div style={styles.value}>{isOpenNow ? "Open" : "Closed"}</div>
           </div>
 
           <div style={styles.infoCard}>

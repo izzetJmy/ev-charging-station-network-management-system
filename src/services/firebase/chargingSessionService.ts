@@ -22,6 +22,10 @@ import type { ChargerStatus } from "../../models/Charger";
 import type { StationStatus } from "../../models/Station";
 import { getChargerStatusBlockMessage } from "../../utils/chargerCompatibility";
 import {
+  isStationOpenAt,
+  normalizeOperatingHours,
+} from "../../utils/stationOperatingHours";
+import {
   createLowWalletNotificationIfNeeded,
   createNotification,
 } from "./notificationService";
@@ -152,10 +156,22 @@ function toChargingSessionRecord(
 
 function assertChargingStatusAllowed(params: {
   stationStatus: StationStatus;
+  stationManualOffline?: boolean;
+  stationOperatingHours?: unknown;
   chargerStatus: ChargerStatus;
   allowOccupied?: boolean;
 }) {
-  if (params.allowOccupied && params.stationStatus !== "offline") {
+  const isOpenNow = isStationOpenAt({
+    operatingHours: normalizeOperatingHours(params.stationOperatingHours),
+  });
+  const effectiveStationStatus =
+    params.stationManualOffline || !isOpenNow
+      ? "offline"
+      : params.stationStatus === "offline"
+        ? "available"
+        : params.stationStatus;
+
+  if (params.allowOccupied && effectiveStationStatus !== "offline") {
     if (params.chargerStatus === "offline") {
       throw new Error("This charger is currently offline.");
     }
@@ -169,7 +185,8 @@ function assertChargingStatusAllowed(params: {
       address: "",
       latitude: 0,
       longitude: 0,
-      status: params.stationStatus,
+      status: effectiveStationStatus,
+      manualOffline: params.stationManualOffline === true,
       chargers: [],
     },
     {
@@ -269,6 +286,8 @@ export async function createChargingSession(session: ChargingSessionInput) {
 
     assertChargingStatusAllowed({
       stationStatus: (stationSnapshot.data()?.status ?? "offline") as StationStatus,
+      stationManualOffline: stationSnapshot.data()?.manualOffline === true,
+      stationOperatingHours: stationSnapshot.data()?.operatingHours,
       chargerStatus: (chargerSnapshot.data()?.status ?? "offline") as ChargerStatus,
       allowOccupied: hasMatchingReservation,
     });
@@ -362,6 +381,8 @@ export async function createLiveChargingSession(session: LiveChargingSessionInpu
 
     assertChargingStatusAllowed({
       stationStatus: (stationSnapshot.data()?.status ?? "offline") as StationStatus,
+      stationManualOffline: stationSnapshot.data()?.manualOffline === true,
+      stationOperatingHours: stationSnapshot.data()?.operatingHours,
       chargerStatus: (chargerSnapshot.data()?.status ?? "offline") as ChargerStatus,
       allowOccupied: hasMatchingReservation,
     });

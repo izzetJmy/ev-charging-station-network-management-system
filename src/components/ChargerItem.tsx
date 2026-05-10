@@ -168,7 +168,7 @@ function ChargerItem({
   const statusBlockMessage = getReservationStatusBlockMessage(station, charger);
   const reserveBlockMessage =
     statusBlockMessage ||
-    (!compatibility.isCompatible ? compatibility.reason : "");
+    (compatibility.state === "not-compatible" ? compatibility.reason : "");
   const canReserve = !reserveBlockMessage;
 
   const compatibilityStyle =
@@ -237,7 +237,7 @@ function ChargerItem({
             }}
             disabled={!onReserve}
           >
-            Rezerve Et
+            Reserve
           </button>
           <button
             type="button"
@@ -245,7 +245,7 @@ function ChargerItem({
             onClick={() => onReportIssue?.(charger)}
             disabled={!onReportIssue}
           >
-            Sorun Bildir
+            Report Issue
           </button>
         </div>
       )}

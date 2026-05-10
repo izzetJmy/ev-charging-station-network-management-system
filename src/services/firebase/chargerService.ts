@@ -19,7 +19,6 @@ import {
 } from "../../utils/stationOperatingHours";
 import {
   cancelActiveReservationsForOfflineCharger,
-  cancelActiveReservationsForOfflineStation,
 } from "./reservationCancellationService";
 
 function getDerivedStationStatus(
@@ -73,10 +72,6 @@ async function syncStationStatusFromChargers(stationId: string) {
     status: nextStatus,
     updatedAt: serverTimestamp(),
   });
-
-  if (nextStatus === "offline") {
-    await cancelActiveReservationsForOfflineStation(stationId, stationName);
-  }
 
   if (previousStatus === "offline" && nextStatus === "available") {
     await createNotificationForKnownUsers({

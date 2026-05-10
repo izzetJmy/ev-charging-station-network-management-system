@@ -854,7 +854,7 @@ function getStatusText(permissionState: LocationPermissionState) {
     case "loading":
       return "Bekliyor";
     case "denied":
-      return "Kapali";
+      return "Closed";
     case "error":
       return "Error";
     default:
@@ -1550,7 +1550,7 @@ function StationMapScreen() {
                     style={styles.filterSelect}
                   >
                     <option value="all">Tum charger'lar</option>
-                    <option value="available">Uygun charger</option>
+                    <option value="available">Available charger</option>
                     <option value="busy">Dolu charger</option>
                     <option value="offline">Offline charger</option>
                   </select>
@@ -1698,13 +1698,13 @@ function StationMapScreen() {
                         disabled={favoriteActionLoadingId === station.id}
                         aria-label={
                           favoriteStationIds.has(station.id)
-                            ? "Favorilerden cikar"
-                            : "Favorilere ekle"
+                            ? "Remove from favorites"
+                            : "Add to favorites"
                         }
                         title={
                           favoriteStationIds.has(station.id)
-                            ? "Favorilerden cikar"
-                            : "Favorilere ekle"
+                            ? "Remove from favorites"
+                            : "Add to favorites"
                         }
                       >
                         {favoriteStationIds.has(station.id) ? "♥" : "♡"}
@@ -1744,7 +1744,7 @@ function StationMapScreen() {
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{stationCounts.availableStations}</div>
-              <div style={styles.metricLabel}>Uygun</div>
+              <div style={styles.metricLabel}>Available</div>
             </div>
           </div>
         </section>
@@ -1762,7 +1762,7 @@ function StationMapScreen() {
 
             <div style={styles.statusWrap}>
               <div style={styles.statusValue}>{progressValue}%</div>
-              <div style={styles.statusLabel}>Map durumu</div>
+              <div style={styles.statusLabel}>Map status</div>
             </div>
           </div>
 

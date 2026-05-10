@@ -597,7 +597,7 @@ function VehicleRegistrationScreen() {
 
               <div style={styles.platePreview}>
                 <div>
-                  <div style={styles.statusText}>Aktif profil</div>
+                  <div style={styles.statusText}>Active profile</div>
                   <div
                     style={{
                       marginTop: "6px",
@@ -643,7 +643,7 @@ function VehicleRegistrationScreen() {
 
             <div style={styles.progressWrap}>
               <div style={styles.progressValue}>{completionPercent}%</div>
-              <div style={styles.progressLabel}>Tamamlandi</div>
+              <div style={styles.progressLabel}>Completed</div>
             </div>
           </div>
 

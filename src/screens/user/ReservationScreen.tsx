@@ -907,16 +907,6 @@ function ReservationScreen() {
       return;
     }
 
-    if (charger.status === "offline") {
-      setWarningMessage("This station is currently unavailable.");
-      return;
-    }
-
-    if (station.status === "offline") {
-      setWarningMessage("This station is currently unavailable.");
-      return;
-    }
-
     try {
       setSaving(true);
 
@@ -1062,7 +1052,7 @@ function ReservationScreen() {
 
             <div style={styles.progressWrap}>
               <div style={styles.progressValue}>{completionPercent}%</div>
-              <div style={styles.progressLabel}>Tamamlandi</div>
+              <div style={styles.progressLabel}>Completed</div>
             </div>
           </div>
 
@@ -1232,7 +1222,7 @@ function ReservationScreen() {
 
           {confirmation && (
             <div style={styles.confirmationCard}>
-              <h3 style={styles.confirmationTitle}>Reservation onaylandi</h3>
+              <h3 style={styles.confirmationTitle}>Reservation confirmed</h3>
               <p style={styles.confirmationValue}>
                 Station name: {confirmation.stationName}
               </p>

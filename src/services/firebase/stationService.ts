@@ -35,7 +35,10 @@ function normalizeStation(data: unknown, id: string): Omit<Station, "chargers"> 
   const longitude = typeof obj.longitude === "number" ? obj.longitude : Number(obj.longitude);
   const status = typeof obj.status === "string" ? obj.status : "offline";
   const operatingHours = normalizeOperatingHours(obj.operatingHours);
-  const manualOffline = obj.manualOffline === true;
+  const hasManualOfflineFlag = typeof obj.manualOffline === "boolean";
+  const manualOffline = hasManualOfflineFlag
+    ? obj.manualOffline === true
+    : status === "offline" && isStationOpenAt({ operatingHours });
   const chargerIds = Array.isArray(obj.chargerIds) ? obj.chargerIds.filter((x): x is string => typeof x === "string") : [];
 
   if (!id || !name || !address || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
@@ -197,8 +200,10 @@ export async function upsertStation(station: Station) {
     });
   }
 
-  if (previousStatus !== "offline" && nextStatus === "offline") {
-    await cancelActiveReservationsForOfflineStation(station.id, station.name);
+  if (!previousSnapshot.exists() || previousSnapshot.data().manualOffline !== true) {
+    if (manualOffline) {
+      await cancelActiveReservationsForOfflineStation(station.id, station.name);
+    }
   }
 }
 
