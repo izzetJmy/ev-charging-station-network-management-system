@@ -106,10 +106,9 @@ export default function Snackbar({
         </div>
         <p style={styles.text}>{message}</p>
         <button type="button" onClick={onClose} style={styles.close}>
-          Kapat
+          Close
         </button>
       </div>
     </div>
   );
 }
-

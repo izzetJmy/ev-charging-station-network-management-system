@@ -121,12 +121,12 @@ export default function AboutScreen() {
         <SiteHeader />
 
         <main style={styles.main}>
-          <section style={styles.card} aria-label="Hakkimizda">
-            <h1 style={styles.title}>Hakkimizda</h1>
+          <section style={styles.card} aria-label="About Us">
+            <h1 style={styles.title}>About Us</h1>
             <p style={styles.desc}>
-              EV Network; arac profili, rezervasyon ve sarj oturumu akisini tek bir arayuzde
-              toplayarak istasyon deneyimini hizlandirmayi hedefler. Bu proje; kullanim kolayligi,
-              seffaf maliyet hesaplama ve istasyon yonetimi odakli gelistirilmistir.
+              EV Network brings vehicle profiles, reservations, and charging session flows together in one interface
+              to make the station experience faster. This project focuses on ease of use,
+              transparent cost calculation, and station management.
             </p>
 
             <div className="about-grid" style={styles.grid}>

@@ -44,8 +44,8 @@ async function syncStationStatusFromChargers(stationId: string) {
   const stationRef = doc(db, "stations", stationId);
   const stationSnapshot = await getDoc(stationRef);
   const stationName = stationSnapshot.exists()
-    ? String(stationSnapshot.data().name ?? "Istasyon")
-    : "Istasyon";
+    ? String(stationSnapshot.data().name ?? "Station")
+    : "Station";
   const previousStatus = stationSnapshot.exists()
     ? stationSnapshot.data().status
     : null;
@@ -81,8 +81,8 @@ async function syncStationStatusFromChargers(stationId: string) {
   if (previousStatus === "offline" && nextStatus === "available") {
     await createNotificationForKnownUsers({
       type: "station_availability_update",
-      title: "Istasyon yeniden uygun",
-      message: `${stationName} istasyonu tekrar kullanilabilir durumda.`,
+      title: "Station Available Again",
+      message: `${stationName} station is available again.`,
     });
   }
 }
@@ -190,7 +190,7 @@ export async function updateChargerStatus(
   if (charger?.status !== "offline" && status === "offline") {
     await cancelActiveReservationsForOfflineCharger(
       chargerId,
-      charger ? `${charger.connectorType} ${charger.powerOutput}` : "Sarj cihazi",
+      charger ? `${charger.connectorType} ${charger.powerOutput}` : "Charging cihazi",
     );
   }
 

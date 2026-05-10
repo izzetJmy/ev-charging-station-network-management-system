@@ -147,11 +147,11 @@ const styles: Record<string, CSSProperties> = {
 };
 
 function getTypeLabel(type: NotificationRecord["type"]) {
-  if (type === "reservation_confirmed") return "Rezervasyon";
-  if (type === "reservation_cancelled") return "Rezervasyon";
-  if (type === "charging_completed") return "Sarj";
+  if (type === "reservation_confirmed") return "Reservation";
+  if (type === "reservation_cancelled") return "Reservation";
+  if (type === "charging_completed") return "Charging";
   if (type === "low_wallet_balance") return "Cuzdan";
-  if (type === "station_availability_update") return "Istasyon";
+  if (type === "station_availability_update") return "Station";
   return "Bildirim";
 }
 
@@ -170,7 +170,7 @@ function NotificationCenter() {
         setNotifications(nextNotifications);
         setError("");
       },
-      () => setError("Bildirimler alinamadi."),
+      () => setError("Notifications could not be loaded."),
     );
 
     return unsubscribe;
@@ -180,7 +180,7 @@ function NotificationCenter() {
     try {
       await markNotificationRead(notification.id, !notification.read);
     } catch {
-      setError("Bildirim durumu guncellenemedi.");
+      setError("Notification status could not be updated.");
     }
   };
 
@@ -207,7 +207,7 @@ function NotificationCenter() {
       </button>
 
       {open && (
-        <section style={styles.panel} aria-label="Bildirim merkezi">
+        <section style={styles.panel} aria-label="Notification center">
           <div style={styles.panelHeader}>
             <h2 style={styles.title}>Bildirimler</h2>
             <button
@@ -224,7 +224,7 @@ function NotificationCenter() {
             {error && <div style={styles.empty}>{error}</div>}
 
             {!error && notifications.length === 0 && (
-              <div style={styles.empty}>Henuz bildirim yok.</div>
+              <div style={styles.empty}>No notifications yet.</div>
             )}
 
             {!error &&

@@ -38,7 +38,7 @@ export function normalizeOperatingHours(hours: unknown): OperatingHours {
 
 export function formatOperatingHours(hours?: OperatingHours) {
   const normalized = normalizeOperatingHours(hours);
-  if (normalized.is24Hours) return "24 saat acik";
+  if (normalized.is24Hours) return "Open 24 hours";
   return `${normalized.open} - ${normalized.close}`;
 }
 

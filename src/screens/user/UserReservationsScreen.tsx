@@ -157,13 +157,13 @@ function getVehicleDisplayName(vehicle: Vehicle) {
   const name = [vehicle.brand?.trim(), vehicle.model?.trim()]
     .filter(Boolean)
     .join(" ");
-  return name || "Kayitli arac";
+  return name || "Saved vehicle";
 }
 
 function getVehiclePanelDescription(vehicle: Vehicle) {
   const plate = vehicle.plateNumber?.trim().toUpperCase() || "--";
   const connector = vehicle.connectorType || "--";
-  return `Plaka ${plate} ve ${connector} soketli arac icin aktif rezervasyonlari yonetin, gecmis rezervasyonlari takip edin.`;
+  return `Manage active reservations and track past reservations for the vehicle with plate ${plate} and ${connector} connector.`;
 }
 
 function UserReservationsScreen() {
@@ -198,7 +198,7 @@ function UserReservationsScreen() {
           setSelectedVehicleId("all");
         }
       } catch {
-        setError("Arac listesi alinamadi. Lutfen tekrar deneyin.");
+        setError("Vehicle list could not be loaded. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -218,10 +218,10 @@ function UserReservationsScreen() {
                 <span style={styles.signalDot} />
                 EV Network
               </div>
-              <h1 style={styles.title}>Rezervasyonlarim</h1>
+              <h1 style={styles.title}>My Reservations</h1>
               <p style={styles.subtitle}>
-                Kayitli araclarinizla yaptiginiz aktif ve gecmis rezervasyonlari
-                arac bazinda buradan takip edin.
+                Saved vehiclelarinizla yaptiginiz active ve past rezervasyonlari
+                vehicle bazinda buradan takip edin.
               </p>
             </div>
             <button
@@ -229,24 +229,24 @@ function UserReservationsScreen() {
               style={styles.backButton}
               onClick={() => navigate("/app")}
             >
-              Kayitli araclara don
+              Saved vehiclelara don
             </button>
           </div>
         </header>
 
         <section style={styles.body}>
           {loading ? (
-            <div style={styles.message}>Rezervasyonlar icin araclar yukleniyor...</div>
+            <div style={styles.message}>Loading vehicles for reservations...</div>
           ) : error ? (
             <div style={styles.message}>{error}</div>
           ) : vehicles.length === 0 ? (
             <div style={styles.message}>
-              Rezervasyonlari gormek icin once kayitli bir arac olusturun.
+              Create a saved vehicle first to view reservations.
             </div>
           ) : (
             <>
               <div className="user-reservations-topbar" style={styles.topBar}>
-                <div style={styles.filterRow} aria-label="Arac filtresi">
+                <div style={styles.filterRow} aria-label="Vehicle filtresi">
                   <button
                     type="button"
                     style={{
@@ -255,7 +255,7 @@ function UserReservationsScreen() {
                     }}
                     onClick={() => setSelectedVehicleId("all")}
                   >
-                    Tum araclar
+                    Tum vehiclelar
                   </button>
 
                   {vehicles.map((vehicle) => (

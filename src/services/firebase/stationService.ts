@@ -192,8 +192,8 @@ export async function upsertStation(station: Station) {
   if (previousStatus === "offline" && nextStatus === "available") {
     await createNotificationForKnownUsers({
       type: "station_availability_update",
-      title: "Istasyon yeniden uygun",
-      message: `${station.name} istasyonu tekrar kullanilabilir durumda.`,
+      title: "Station Available Again",
+      message: `${station.name} station is available again.`,
     });
   }
 

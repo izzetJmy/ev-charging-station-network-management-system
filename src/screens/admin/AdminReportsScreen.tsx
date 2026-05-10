@@ -154,10 +154,10 @@ const styles: Record<string, CSSProperties> = {
 };
 
 const ISSUE_LABELS: Record<ReportIssueType, string> = {
-  charger_not_working: "Sarj cihazi calismiyor",
-  wrong_price: "Fiyat yanlis",
-  station_offline: "Istasyon offline",
-  location_problem: "Konum problemi",
+  charger_not_working: "Charger is not working",
+  wrong_price: "Incorrect price",
+  station_offline: "Station offline",
+  location_problem: "Location problem",
   payment_problem: "Odeme problemi",
   other: "Diger",
 };
@@ -205,7 +205,7 @@ export default function AdminReportsScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Raporlar alinamadi. Firestore baglantisini kontrol edin.");
+        setError("Reports could not be loaded. Check the Firestore connection.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -238,14 +238,14 @@ export default function AdminReportsScreen() {
   return (
     <div>
       <h2 style={styles.title}>Raporlar</h2>
-      <p style={styles.subtitle}>Kullanicilarin bildirdigi istasyon/sarj cihazi sorunlarini goruntuleyin.</p>
+      <p style={styles.subtitle}>View station and charger issues reported by users.</p>
 
       <div className="admin-reports-toolbar" style={styles.toolbar}>
         <div style={styles.field}>
-          <div style={styles.label}>Arama</div>
+          <div style={styles.label}>Searchma</div>
           <input
             style={styles.input}
-            placeholder="Istasyon adi, issue type, aciklama..."
+            placeholder="Station name, issue type, description..."
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
           />
@@ -271,21 +271,21 @@ export default function AdminReportsScreen() {
           <div style={styles.label}>Kapsam</div>
           <select style={styles.input} value={target} onChange={(e) => setTarget(e.target.value as TargetFilter)}>
             <option value="all">Tumu</option>
-            <option value="station">Sadece istasyon</option>
-            <option value="charger">Sadece sarj cihazi</option>
+            <option value="station">Station only</option>
+            <option value="charger">Charger only</option>
           </select>
         </div>
       </div>
 
       <div style={styles.metaRow}>
-        <div style={styles.count}>{filtered.length} rapor</div>
+        <div style={styles.count}>{filtered.length} reports</div>
       </div>
 
-      {loading && <div style={styles.loading}>Yukleniyor...</div>}
+      {loading && <div style={styles.loading}>Loading...</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && !error && filtered.length === 0 && (
-        <div style={styles.empty}>Filtrelere uygun rapor bulunamadi.</div>
+        <div style={styles.empty}>No reports match the filters.</div>
       )}
 
       {!loading && !error && filtered.length > 0 && (
@@ -295,7 +295,7 @@ export default function AdminReportsScreen() {
             const charger = report.chargerId ? chargersById[report.chargerId] ?? null : null;
             const stationName = station?.name ?? report.stationId;
             const issue = ISSUE_LABELS[report.issueType] ?? report.issueType;
-            const badgeText = charger ? `Sarj Cihazi - ${issue}` : `Istasyon - ${issue}`;
+            const badgeText = charger ? `Charger - ${issue}` : `Station - ${issue}`;
             const chargerLine = charger
               ? `${charger.connectorType} - ${charger.powerOutput} - ${charger.type}`
               : "--";
@@ -310,8 +310,8 @@ export default function AdminReportsScreen() {
                   </div>
 
                   <div style={styles.details}>
-                    Tarih: {formatCreatedAt(report.createdAt)} <br />
-                    Istasyon ID: {report.stationId} <br />
+                    Date: {formatCreatedAt(report.createdAt)} <br />
+                    Station ID: {report.stationId} <br />
                     Charger: {report.chargerId ? chargerLine : "--"}
                   </div>
 

@@ -157,7 +157,7 @@ function assertChargingStatusAllowed(params: {
 }) {
   if (params.allowOccupied && params.stationStatus !== "offline") {
     if (params.chargerStatus === "offline") {
-      throw new Error("Bu sarj cihazi su anda cevrim disi.");
+      throw new Error("This charger is currently offline.");
     }
     return;
   }
@@ -205,7 +205,7 @@ async function assertReservationMatchesSession(
   const reservationSnapshot = await firestoreTransaction.get(reservationRef);
 
   if (!reservationSnapshot.exists()) {
-    throw new Error("Rezervasyon bulunamadi.");
+    throw new Error("Reservation could not be found.");
   }
 
   const reservation = reservationSnapshot.data() as {
@@ -224,11 +224,11 @@ async function assertReservationMatchesSession(
     reservation.stationId !== session.stationId ||
     reservation.chargerId !== session.chargerId
   ) {
-    throw new Error("Rezervasyon bilgisi sarj oturumu ile uyusmuyor.");
+    throw new Error("Reservation information does not match the charging session.");
   }
 
   if (!reservation.date || !reservation.startTime || !reservation.endTime) {
-    throw new Error("Rezervasyon saat bilgisi bulunamadi.");
+    throw new Error("Reservation time information could not be found.");
   }
 
   const reservationDateRange = getReservationDateRange(
@@ -238,7 +238,7 @@ async function assertReservationMatchesSession(
   );
 
   if (!reservationDateRange) {
-    throw new Error("Rezervasyon saat araligi gecersiz.");
+    throw new Error("Reservation time range is invalid.");
   }
 
   const nowTime = Date.now();
@@ -247,7 +247,7 @@ async function assertReservationMatchesSession(
     nowTime > reservationDateRange.endDateTime.getTime()
   ) {
     throw new Error(
-      "Sarj oturumu sadece rezervasyon saat araliginda baslatilabilir.",
+      "The charging session can only be started during the reservation time range.",
     );
   }
 
@@ -657,10 +657,10 @@ export async function completeLiveChargingSession(
     await createNotification({
       userId,
       type: "charging_completed",
-      title: "Sarj oturumu tamamlandi",
+      title: "Charging oturumu tamamlandi",
       message: `${result.consumedKwh.toFixed(
         2,
-      )} kWh tuketim icin ${result.amount.toFixed(2)} TL odeme alindi.`,
+      )} kWh consumption for ${result.amount.toFixed(2)} TL payment received.`,
     });
 
   }

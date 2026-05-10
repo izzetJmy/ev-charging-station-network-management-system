@@ -468,7 +468,7 @@ function VehicleRegistrationScreen() {
       setCurrentLocation(result.currentLocation);
       setError("");
     } else if (result.permissionState === "denied") {
-      setError("Konum izni verilmedi. Arac konumsuz kaydedilebilir.");
+      setError("Location permission was denied. The vehicle can be saved without a location.");
     } else {
       setError(result.message);
     }
@@ -485,7 +485,7 @@ function VehicleRegistrationScreen() {
         return;
       }
 
-      setCurrentLocationLabel("Konum cozumleniyor...");
+      setCurrentLocationLabel("Resolving location...");
       const result = await reverseGeocodeCoordinates({
         lat: currentLocation.latitude,
         lng: currentLocation.longitude,
@@ -519,14 +519,14 @@ function VehicleRegistrationScreen() {
   }, []);
 
   const validateForm = () => {
-    if (!brand.trim()) return "Brand alani bos birakilamaz.";
-    if (!model.trim()) return "Model alani bos birakilamaz.";
+    if (!brand.trim()) return "Brand cannot be empty.";
+    if (!model.trim()) return "Model cannot be empty.";
     if (!batteryCapacity.trim())
-      return "Battery Capacity alani bos birakilamaz.";
+      return "Battery capacity cannot be empty.";
     if (Number(batteryCapacity) <= 0)
-      return "Battery Capacity pozitif bir sayi olmalidir.";
-    if (!connectorType.trim()) return "Connector Type alani bos birakilamaz.";
-    if (!plateNumber.trim()) return "Plate Number alani bos birakilamaz.";
+      return "Battery capacity must be a positive number.";
+    if (!connectorType.trim()) return "Connector type cannot be empty.";
+    if (!plateNumber.trim()) return "Plate number cannot be empty.";
     return "";
   };
 
@@ -556,13 +556,13 @@ function VehicleRegistrationScreen() {
       navigate("/app", {
         state: {
           snackbar: {
-            message: "Yeni arac kaydedildi.",
+            message: "New vehicle saved.",
             variant: "success",
           },
         },
       });
     } catch {
-      setError("Arac kaydedilirken bir hata olustu.");
+      setError("An error occurred while saving the vehicle.");
     } finally {
       setLoading(false);
     }
@@ -581,11 +581,11 @@ function VehicleRegistrationScreen() {
             </div>
 
             <h1 style={styles.previewTitle}>
-              Arac profilini akilli sarja hazirla
+              Vehicle profilini akilli sarja hazirla
             </h1>
             <p style={styles.previewText}>
-              Kayit tamamlandikca burada canli bir arac karti olusur. Plaka,
-              batarya ve soket bilgileri istasyon eslestirmesinde kullanilir.
+              As registration is completed, a live vehicle card appears here. Plate,
+              battery, and connector details are used for station matching.
             </p>
 
             <div style={styles.vehiclePlate}>
@@ -620,13 +620,13 @@ function VehicleRegistrationScreen() {
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{connectorType || "--"}</div>
-              <div style={styles.metricLabel}>Soket</div>
+              <div style={styles.metricLabel}>Connector</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>
                 {currentLocation ? "Hazir" : "Opsiyonel"}
               </div>
-              <div style={styles.metricLabel}>Konum</div>
+              <div style={styles.metricLabel}>Location</div>
             </div>
           </div>
         </section>
@@ -634,10 +634,10 @@ function VehicleRegistrationScreen() {
         <section style={styles.formPanel}>
           <div style={styles.topBar}>
             <div>
-              <h2 style={styles.title}>Arac Kaydi</h2>
+              <h2 style={styles.title}>Vehicle Kaydi</h2>
               <p style={styles.subtitle}>
-                Elektrikli aracinizi kaydedin, uygun sarj noktalarini daha hizli
-                bulun ve profilinizi tek ekrandan yonetin.
+                Save your electric vehicle, find suitable charging points faster,
+                and manage your profile from one screen.
               </p>
             </div>
 
@@ -657,7 +657,7 @@ function VehicleRegistrationScreen() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div style={styles.sectionLabel}>Arac Bilgileri</div>
+            <div style={styles.sectionLabel}>Vehicle Bilgileri</div>
 
             <div className="form-grid" style={styles.formGrid}>
               <div style={styles.formGroup}>
@@ -757,12 +757,12 @@ function VehicleRegistrationScreen() {
             </div>
 
             <div style={{ ...styles.sectionLabel, marginTop: "6px" }}>
-              Konum
+              Location
             </div>
 
             <div style={styles.locationBox}>
               <p style={styles.locationCopy}>
-                Konum eklerseniz size en yakin uygun istasyonlar daha net
+                If you add a location, nearby suitable stations are shown more accurately.
                 onerilir.
               </p>
               <button
@@ -784,7 +784,7 @@ function VehicleRegistrationScreen() {
                 onMouseEnter={() => setLocationButtonHover(true)}
                 onMouseLeave={() => setLocationButtonHover(false)}
               >
-                {locationLoading ? "Aliniyor..." : "Konumu Al"}
+                {locationLoading ? "Fetching..." : "Get Location"}
               </button>
             </div>
 
@@ -792,10 +792,10 @@ function VehicleRegistrationScreen() {
               <div style={{ ...styles.message, ...styles.successMessage }}>
                 <span>OK</span>
                 <span>
-                  Konum alindi:{" "}
+                  Location received:{" "}
                   <strong>
                     {currentLocationLabel &&
-                    currentLocationLabel !== "Konum cozumleniyor..."
+                    currentLocationLabel !== "Resolving location..."
                       ? currentLocationLabel
                       : `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`}
                   </strong>
@@ -829,10 +829,10 @@ function VehicleRegistrationScreen() {
               {loading ? (
                 <>
                   <span className="spinner" />
-                  <span>Kaydediliyor...</span>
+                  <span>Saving...</span>
                 </>
               ) : (
-                <span>Araci Kaydet</span>
+                <span>Vehiclei Save</span>
               )}
             </button>
           </form>
@@ -842,7 +842,7 @@ function VehicleRegistrationScreen() {
             onClick={() => navigate("/app")}
             style={styles.navigationButton}
           >
-            Arac Profiline Git
+            Vehicle Profiline Git
           </button>
 
           <div style={styles.footer}>

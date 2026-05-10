@@ -26,7 +26,7 @@ export function useFavoriteStations(userId: string) {
         setLoading(false);
       },
       () => {
-        setError("Favoriler alinamadi. Lutfen tekrar deneyin.");
+        setError("Favorites could not be loaded. Please try again.");
         setLoading(false);
       },
     );

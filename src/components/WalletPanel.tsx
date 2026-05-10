@@ -306,7 +306,7 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
       setBalance(wallet.balance);
       setTransactions(walletTransactions);
     } catch {
-      setError("Wallet bilgileri alinamadi. Lutfen tekrar deneyin.");
+      setError("Wallet details could not be loaded. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -324,7 +324,7 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
 
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setError("Yuklenecek bakiye sifirdan buyuk olmalidir.");
+      setError("The top-up amount must be greater than zero.");
       return;
     }
 
@@ -339,32 +339,32 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
 
     const digits = cardNumber.replace(/\D/g, "");
     if (digits.length !== 16) {
-      setPaymentError("Kart numarasi 16 rakam olmalidir.");
+      setPaymentError("Card number must be 16 digits.");
       return;
     }
 
     if (!/^\d{3}$/.test(cardCvv)) {
-      setPaymentError("CVV 3 rakam olmalidir.");
+      setPaymentError("CVV must be 3 digits.");
       return;
     }
 
     const expiryMatch = /^(\d{2})\/(\d{2})$/.exec(cardExpiry);
     if (!expiryMatch) {
-      setPaymentError("Son kullanma tarihi AA/YY formatinda olmalidir.");
+      setPaymentError("Expiration date must be in MM/YY format.");
       return;
     }
 
     const expiryMonth = Number(expiryMatch[1]);
     const expiryYear = 2000 + Number(expiryMatch[2]);
     if (expiryMonth < 1 || expiryMonth > 12) {
-      setPaymentError("Son kullanma ayi 01-12 arasinda olmalidir.");
+      setPaymentError("Expiration month must be between 01 and 12.");
       return;
     }
 
     const now = new Date();
     const expiryDate = new Date(expiryYear, expiryMonth, 0, 23, 59, 59);
     if (expiryDate.getTime() < now.getTime()) {
-      setPaymentError("Kartin son kullanma tarihi gecmis olamaz.");
+      setPaymentError("The card expiration date cannot be in the past.");
       return;
     }
 
@@ -380,10 +380,10 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
       setCardCvv("");
       setPaymentError("");
       setPaymentOpen(false);
-      setMessage("Bakiye yuklendi.");
+      setMessage("Balance added.");
       await loadWallet();
     } catch {
-      setError("Bakiye yuklenemedi. Lutfen tekrar deneyin.");
+      setError("Balance could not be added. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -396,13 +396,13 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
     try {
       const receipt = await getReceiptById(receiptId);
       if (!receipt) {
-        setReceiptError("Receipt bulunamadi.");
+        setReceiptError("Receipt could not be found.");
         return;
       }
 
       setSelectedReceipt(receipt);
     } catch {
-      setReceiptError("Receipt detayi alinamadi.");
+      setReceiptError("Receipt details could not be loaded.");
     }
   };
 
@@ -434,7 +434,7 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
             disabled={saving}
           />
           <button type="submit" style={styles.primaryButton} disabled={saving}>
-            {saving ? "Yukleniyor..." : "Add Balance"}
+            {saving ? "Loading..." : "Add Balance"}
           </button>
         </form>
       </div>
@@ -452,7 +452,7 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
       <div style={compact ? styles.compactHidden : styles.list}>
         {!loading && transactions.length === 0 && (
           <div style={{ ...styles.message, ...styles.success }}>
-            Henuz wallet islemi yok.
+            No wallet transactions yet.
           </div>
         )}
 
@@ -478,7 +478,7 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
             <div style={styles.amount}>
               {formatAmount(transaction.amount, transaction.type)}
               <div style={styles.rowMeta}>
-                Bakiye: {Number(transaction.balanceAfter).toFixed(2)} TL
+                Balance: {Number(transaction.balanceAfter).toFixed(2)} TL
               </div>
             </div>
           </article>
@@ -558,9 +558,9 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
           >
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Bakiye Yukleme</h3>
+                <h3 style={styles.modalTitle}>Add Balance</h3>
                 <p style={styles.modalText}>
-                  {Number(amount).toFixed(2)} TL icin kart bilgilerini girin.
+                  {Number(amount).toFixed(2)} TL, enter your card details.
                 </p>
               </div>
               <button
@@ -572,24 +572,24 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
                 }}
                 disabled={saving}
               >
-                Kapat
+                Close
               </button>
             </div>
 
             <form onSubmit={handleConfirmFakePayment}>
               <div style={styles.fieldGrid}>
                 <div style={{ ...styles.fieldWide }}>
-                  <div style={styles.label}>Kart Uzerindeki Isim</div>
+                  <div style={styles.label}>Name on Card</div>
                   <input
                     value={cardName}
                     onChange={(event) => setCardName(event.target.value)}
-                    placeholder="Ad Soyad"
+                    placeholder="Full Name"
                     style={{ ...styles.input, width: "100%" }}
                     disabled={saving}
                   />
                 </div>
                 <div style={{ ...styles.fieldWide }}>
-                  <div style={styles.label}>Kart Numarasi</div>
+                  <div style={styles.label}>Card Number</div>
                   <input
                     value={cardNumber}
                     onChange={(event) => {
@@ -620,7 +620,7 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
                   )}
                 </div>
                 <div>
-                  <div style={styles.label}>Son Kullanma</div>
+                  <div style={styles.label}>Expiration</div>
                   <input
                     value={cardExpiry}
                     onChange={(event) => {
@@ -669,7 +669,7 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
                 }}
                 disabled={saving}
               >
-                {saving ? "Isleniyor..." : "Odemeyi Tamamla"}
+                {saving ? "Processing..." : "Complete Payment"}
               </button>
             </form>
           </section>

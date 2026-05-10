@@ -548,7 +548,7 @@ function isReservationStartingInFuture(
 function getReservationStatusAppearance(reservation: ReservationDetailRecord, now: Date) {
   if (reservation.status === "cancelled") {
     return {
-      label: "iptal edildi",
+      label: "cancelled",
       style: styles.statusCancelled,
     };
   }
@@ -561,7 +561,7 @@ function getReservationStatusAppearance(reservation: ReservationDetailRecord, no
 
   if (!range) {
     return {
-      label: reservation.status ?? "bilinmiyor",
+      label: reservation.status ?? "unknown",
       style: styles.statusPast,
     };
   }
@@ -569,19 +569,19 @@ function getReservationStatusAppearance(reservation: ReservationDetailRecord, no
   if (reservation.status === "active" && range.endDateTime.getTime() >= now.getTime()) {
     if (range.startDateTime.getTime() <= now.getTime()) {
       return {
-        label: "devam ediyor",
+        label: "in progress",
         style: styles.statusActive,
       };
     }
 
     return {
-      label: "aktif",
+      label: "active",
       style: styles.statusActive,
     };
   }
 
   return {
-    label: reservation.status === "active" ? "gecmis" : reservation.status ?? "gecmis",
+    label: reservation.status === "active" ? "past" : reservation.status ?? "past",
     style: styles.statusPast,
   };
 }
@@ -603,8 +603,8 @@ function getReservationDateTimeRangeLabel(reservation: ReservationDetailRecord) 
 function ReservationManagementPanel({
   vehicleId,
   vehicleConnectorType,
-  title = "Rezervasyonlarim",
-  description = "Aktif ve gecmis rezervasyonlarinizi buradan yonetin.",
+  title = "My Reservations",
+  description = "Manage your active and past reservations here.",
 }: ReservationManagementPanelProps) {
   const navigate = useNavigate();
   const [reservations, setReservations] = useState<ReservationDetailRecord[]>([]);
@@ -655,7 +655,7 @@ function ReservationManagementPanel({
         return;
       }
 
-      setErrorMessage("Rezervasyonlar alinamadi. Lutfen tekrar deneyin.");
+      setErrorMessage("Reservations could not be loaded. Please try again.");
     } finally {
       if (loadSequenceRef.current === currentSequence) {
         setLoading(false);
@@ -835,7 +835,7 @@ function ReservationManagementPanel({
       if (key === todayKey) {
         return {
           value: key,
-          label: `Bugun (${formattedDate})`,
+          label: `Today (${formattedDate})`,
         };
       }
 
@@ -887,7 +887,7 @@ function ReservationManagementPanel({
 
         return {
           value: timeValue,
-          label: isBusy ? `${timeValue} (dolu)` : timeValue,
+          label: isBusy ? `${timeValue} (occupied)` : timeValue,
           disabled: isBusy,
         };
       });
@@ -946,8 +946,8 @@ function ReservationManagementPanel({
       options.push({
         value: timeValue,
         disabled: isBusy,
-        label: `${isNextDay ? `${timeValue} (ertesi gun)` : timeValue}${
-          isBusy ? " (dolu)" : ""
+        label: `${isNextDay ? `${timeValue} (next day)` : timeValue}${
+          isBusy ? " (occupied)" : ""
         }`,
       });
     }
@@ -983,11 +983,11 @@ function ReservationManagementPanel({
 
   const validateReschedule = useCallback(() => {
     if (!rescheduleReservationTarget) {
-      return "Yeniden planlanacak rezervasyon bulunamadi.";
+      return "No reservation was found to reschedule.";
     }
 
     if (!effectiveDate || !effectiveStartTime || !effectiveEndTime) {
-      return "Lutfen tarih, baslangic saati ve bitis saatini eksiksiz secin.";
+      return "Please select the date, start time, and end time completely.";
     }
 
     const resolvedDateRange = getReservationDateRange(
@@ -997,35 +997,35 @@ function ReservationManagementPanel({
     );
 
     if (!resolvedDateRange) {
-      return "Secilen tarih veya saat bilgisi gecersiz.";
+      return "The selected date or time is invalid.";
     }
 
     const { startDateTime, endDateTime } = resolvedDateRange;
 
     if (startDateTime.getTime() >= endDateTime.getTime()) {
-      return "Baslangic saati bitis saatinden once olmalidir.";
+      return "Start time must be before end time.";
     }
 
     if (
       startDateTime.getTime() < nowDateTime.getTime() ||
       endDateTime.getTime() <= nowDateTime.getTime()
     ) {
-      return "Gecmis zaman araligi icin rezervasyon guncellenemez.";
+      return "Reservations cannot be updated for a past time range.";
     }
 
     if (startDateTime.getTime() - nowDateTime.getTime() > MAX_ADVANCE_MS) {
-      return "Rezervasyon 24 saatten daha ileri bir zamana yapilamaz.";
+      return "Reservations cannot be made more than 24 hours in advance.";
     }
 
     if (
       endDateTime.getTime() - startDateTime.getTime() >
       MAX_RESERVATION_DURATION_MS
     ) {
-      return "Rezervasyon suresi en fazla 2 saat olabilir.";
+      return "Reservation duration can be at most 2 hours.";
     }
 
     if (!rescheduleReservationTarget.station || !rescheduleReservationTarget.charger) {
-      return "Istasyon veya sarj cihazi bilgisi eksik.";
+      return "Station or charger information is missing.";
     }
 
     if (
@@ -1035,7 +1035,7 @@ function ReservationManagementPanel({
         endDateTime,
       )
     ) {
-      return `Istasyon bu saatlerde kapali. Calisma saatleri: ${formatOperatingHours(
+      return `The station is closed at these hours. Operating hours: ${formatOperatingHours(
         rescheduleReservationTarget.station.operatingHours,
       )}.`;
     }
@@ -1050,14 +1050,14 @@ function ReservationManagementPanel({
     }
 
     if (!vehicleConnectorType.trim()) {
-      return "Arac konnektor tipi bulunamadi.";
+      return "Vehicle connector type could not be found.";
     }
 
     if (
       vehicleConnectorType.trim() !==
       rescheduleReservationTarget.charger.connectorType
     ) {
-      return "Arac konnektor tipi secilen sarj cihazi ile uyumlu degil.";
+      return "The vehicle connector type is not compatible with the selected charger.";
     }
 
     return "";
@@ -1098,12 +1098,12 @@ function ReservationManagementPanel({
     setSuccessMessage("");
 
     if (!rescheduleReservationTarget) {
-      setRescheduleWarning("Yeniden planlanacak rezervasyon bulunamadi.");
+      setRescheduleWarning("No reservation was found to reschedule.");
       return;
     }
 
     if (rescheduleReservationTarget.status !== "active") {
-      setRescheduleWarning("Sadece aktif rezervasyonlar yeniden planlanabilir.");
+      setRescheduleWarning("Only active reservations can be rescheduled.");
       return;
     }
 
@@ -1114,7 +1114,7 @@ function ReservationManagementPanel({
     }
 
     if (!rescheduleReservationTarget.chargerId) {
-      setRescheduleWarning("Rezervasyon sarj cihazi bilgisi eksik.");
+      setRescheduleWarning("Reservation charger information is missing.");
       return;
     }
 
@@ -1132,7 +1132,7 @@ function ReservationManagementPanel({
       );
 
       if (hasConflict) {
-        setRescheduleWarning("Secilen saat araligi dolu.");
+        setRescheduleWarning("The selected time range is occupied.");
         return;
       }
 
@@ -1155,13 +1155,13 @@ function ReservationManagementPanel({
           status: "active",
         };
       });
-      setSuccessMessage("Rezervasyon saati guncellendi.");
+      setSuccessMessage("Reservation time updated.");
       setRescheduleReservationTarget(null);
       await loadReservations();
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       setRescheduleError(
-        message || "Rezervasyon guncellenirken bir hata olustu.",
+        message || "An error occurred while updating the reservation.",
       );
     } finally {
       setRescheduleSaving(false);
@@ -1190,11 +1190,11 @@ function ReservationManagementPanel({
         };
       });
       setCancelReservationTarget(null);
-      setSuccessMessage("Rezervasyon iptal edildi.");
+      setSuccessMessage("Reservation cancelled.");
       await loadReservations();
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      setErrorMessage(message || "Rezervasyon iptal edilirken bir hata olustu.");
+      setErrorMessage(message || "An error occurred while cancelling the reservation.");
     } finally {
       setCancelLoading(false);
     }
@@ -1248,28 +1248,28 @@ function ReservationManagementPanel({
     }
 
     if (detailReservation.status !== "active") {
-      return "Aktif olmayan rezervasyonlar icin sarj oturumu baslatilamaz.";
+      return "Charging sessions cannot be started for inactive reservations.";
     }
 
     if (!detailReservation.station || !detailReservation.charger) {
-      return "Istasyon veya sarj cihazi bilgisi eksik oldugu icin oturum baslatilamiyor.";
+      return "The session cannot be started because station or charger information is missing.";
     }
 
     if (!canStartChargingFromDetail) {
-      return "Sarj oturumu sadece rezervasyon saat araliginda baslatilabilir.";
+      return "The charging session can only be started during the reservation time range.";
     }
 
-    return "Rezervasyon saati uygun. Sarj oturumu baslatilabilir.";
+    return "Reservation time is valid. The charging session can be started.";
   }, [canStartChargingFromDetail, detailReservation]);
 
   if (!vehicleId) {
     return (
-      <section style={styles.section} aria-label="Rezervasyonlarim">
+      <section style={styles.section} aria-label="My Reservations">
         <div style={styles.sectionHeader}>
           <div>
             <h3 style={styles.sectionTitle}>{title}</h3>
             <p style={styles.sectionText}>
-              Rezervasyonlari gormek icin once bir arac secin.
+              Select a vehicle first to view reservations.
             </p>
           </div>
         </div>
@@ -1279,7 +1279,7 @@ function ReservationManagementPanel({
 
   return (
     <>
-      <section style={styles.section} aria-label="Rezervasyonlarim">
+      <section style={styles.section} aria-label="My Reservations">
         <div style={styles.sectionHeader}>
           <div>
             <h3 style={styles.sectionTitle}>{title}</h3>
@@ -1287,8 +1287,8 @@ function ReservationManagementPanel({
           </div>
           <div style={styles.counterPill}>
             {loading
-              ? "Yukleniyor..."
-              : `${groupedReservations.active.length} aktif / ${groupedReservations.history.length} gecmis`}
+              ? "Loading..."
+              : `${groupedReservations.active.length} active / ${groupedReservations.history.length} past`}
           </div>
         </div>
 
@@ -1303,7 +1303,7 @@ function ReservationManagementPanel({
         <div className="reservation-columns" style={styles.reservationColumns}>
           <article style={styles.reservationListCard}>
             <div style={styles.reservationListHeader}>
-              <h4 style={styles.reservationListTitle}>Aktif rezervasyonlar</h4>
+              <h4 style={styles.reservationListTitle}>Active Reservations</h4>
               <span style={styles.reservationListCount}>
                 {groupedReservations.active.length}
               </span>
@@ -1311,7 +1311,7 @@ function ReservationManagementPanel({
 
             {groupedReservations.active.length === 0 ? (
               <div style={styles.empty}>
-                Aktif rezervasyon bulunmuyor.
+                No active reservations found.
               </div>
             ) : (
               <div style={styles.reservationList}>
@@ -1370,21 +1370,21 @@ function ReservationManagementPanel({
                           style={styles.actionButton}
                           onClick={() => handleOpenDetail(reservation)}
                         >
-                          Detay
+                          Details
                         </button>
                         <button
                           type="button"
                           style={styles.actionButton}
                           onClick={() => handleOpenRescheduleModal(reservation)}
                         >
-                          Yeniden planla
+                          Reschedule
                         </button>
                         <button
                           type="button"
                           style={{ ...styles.actionButton, ...styles.cancelButton }}
                           onClick={() => setCancelReservationTarget(reservation)}
                         >
-                          Iptal et
+                          Cancel
                         </button>
                       </div>
                     </article>
@@ -1396,14 +1396,14 @@ function ReservationManagementPanel({
 
           <article style={styles.reservationListCard}>
             <div style={styles.reservationListHeader}>
-              <h4 style={styles.reservationListTitle}>Gecmis rezervasyonlar</h4>
+              <h4 style={styles.reservationListTitle}>Past Reservations</h4>
               <span style={styles.reservationListCount}>
                 {groupedReservations.history.length}
               </span>
             </div>
 
             {groupedReservations.history.length === 0 ? (
-              <div style={styles.empty}>Gecmis rezervasyon bulunmuyor.</div>
+              <div style={styles.empty}>No past reservations found.</div>
             ) : (
               <div style={styles.reservationList}>
                 {groupedReservations.history.map((reservation) => {
@@ -1461,7 +1461,7 @@ function ReservationManagementPanel({
                           style={styles.actionButton}
                           onClick={() => handleOpenDetail(reservation)}
                         >
-                          Detay
+                          Details
                         </button>
                       </div>
                     </article>
@@ -1478,7 +1478,7 @@ function ReservationManagementPanel({
           <section style={styles.modal} onClick={(event) => event.stopPropagation()}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Rezervasyon Detayi</h3>
+                <h3 style={styles.modalTitle}>Reservation Detailsi</h3>
                 <p style={styles.modalText}>{detailReservation.stationName}</p>
               </div>
               <button
@@ -1486,7 +1486,7 @@ function ReservationManagementPanel({
                 style={styles.closeButton}
                 onClick={() => setDetailReservation(null)}
               >
-                Kapat
+                Close
               </button>
             </div>
 
@@ -1544,14 +1544,14 @@ function ReservationManagementPanel({
                 disabled={!canStartChargingFromDetail}
                 onClick={handleStartChargingFromDetail}
               >
-                Sarj Oturumunu Baslat
+                Start Charging Session
               </button>
               <button
                 type="button"
                 style={styles.secondaryButton}
                 onClick={() => setDetailReservation(null)}
               >
-                Kapat
+                Close
               </button>
             </div>
           </section>
@@ -1570,10 +1570,10 @@ function ReservationManagementPanel({
           <section style={styles.modal} onClick={(event) => event.stopPropagation()}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Rezervasyon Iptali</h3>
+                <h3 style={styles.modalTitle}>Cancel Reservation</h3>
                 <p style={styles.modalText}>
-                  {cancelReservationTarget.stationName} rezervasyonunu iptal etmek
-                  istediginize emin misiniz?
+                  {cancelReservationTarget.stationName} reservation
+                  Are you sure you want to cancel it?
                 </p>
               </div>
             </div>
@@ -1588,7 +1588,7 @@ function ReservationManagementPanel({
                 onClick={() => void handleConfirmCancel()}
                 disabled={cancelLoading}
               >
-                {cancelLoading ? "Iptal ediliyor..." : "Rezervasyonu Iptal Et"}
+                {cancelLoading ? "Cancelling..." : "Cancel Reservation"}
               </button>
               <button
                 type="button"
@@ -1596,7 +1596,7 @@ function ReservationManagementPanel({
                 onClick={() => setCancelReservationTarget(null)}
                 disabled={cancelLoading}
               >
-                Vazgec
+                Never mind
               </button>
             </div>
           </section>
@@ -1608,7 +1608,7 @@ function ReservationManagementPanel({
           <section style={styles.modal} onClick={(event) => event.stopPropagation()}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Rezervasyonu Yeniden Planla</h3>
+                <h3 style={styles.modalTitle}>Reservationu Yeniden Planla</h3>
                 <p style={styles.modalText}>{rescheduleReservationTarget.stationName}</p>
               </div>
               <button
@@ -1616,33 +1616,33 @@ function ReservationManagementPanel({
                 style={styles.closeButton}
                 onClick={handleCloseRescheduleModal}
               >
-                Kapat
+                Close
               </button>
             </div>
 
             <form onSubmit={handleSubmitReschedule}>
               <div style={styles.busySlotsCard}>
-                <strong>Uygun saat kontrolu</strong>
+                <strong>Availability Check</strong>
                 {busyLoading ? (
-                  <div style={styles.helperText}>Dolu saatler yukleniyor...</div>
+                  <div style={styles.helperText}>Occupied times are loading...</div>
                 ) : busyReservationsForDate.length > 0 ? (
                   <ul style={styles.busySlotList}>
                     {busyReservationsForDate.map((reservation) => (
                       <li key={reservation.id}>
-                        {reservation.startTime} - {reservation.endTime} dolu
+                        {reservation.startTime} - {reservation.endTime} occupied
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <div style={styles.helperText}>
-                    Secili tarih icin tum saatler uygun gorunuyor.
+                    All times look available for the selected date.
                   </div>
                 )}
               </div>
 
               <div style={styles.fieldGrid}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Tarih</label>
+                  <label style={styles.label}>Date</label>
                   <select
                     value={effectiveDate}
                     onChange={(event) => {
@@ -1653,7 +1653,7 @@ function ReservationManagementPanel({
                     style={styles.input}
                     disabled={rescheduleSaving || dateOptions.length === 0}
                   >
-                    <option value="">Tarih secin</option>
+                    <option value="">Select date</option>
                     {dateOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -1661,12 +1661,12 @@ function ReservationManagementPanel({
                     ))}
                   </select>
                   {dateOptions.length === 0 && (
-                    <p style={styles.helperText}>Su anda secilebilir tarih bulunmuyor.</p>
+                    <p style={styles.helperText}>There are currently no selectable dates.</p>
                   )}
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Baslangic saati</label>
+                  <label style={styles.label}>Start time</label>
                   <select
                     value={effectiveStartTime}
                     onChange={(event) => {
@@ -1680,7 +1680,7 @@ function ReservationManagementPanel({
                       startTimeOptions.length === 0
                     }
                   >
-                    <option value="">Baslangic saati secin</option>
+                    <option value="">Select start time</option>
                     {startTimeOptions.map((option) => (
                       <option
                         key={option.value}
@@ -1693,7 +1693,7 @@ function ReservationManagementPanel({
                   </select>
                   {effectiveDate && startTimeOptions.length === 0 && (
                     <p style={styles.helperText}>
-                      Bu tarih icin uygun baslangic saati bulunmuyor.
+                      No available start time was found for this date.
                     </p>
                   )}
                 </div>
@@ -1701,7 +1701,7 @@ function ReservationManagementPanel({
 
               <div style={{ ...styles.fieldGrid, gridTemplateColumns: "1fr" }}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Bitis saati</label>
+                  <label style={styles.label}>End time</label>
                   <select
                     value={effectiveEndTime}
                     onChange={(event) => setRescheduleEndTime(event.target.value)}
@@ -1712,7 +1712,7 @@ function ReservationManagementPanel({
                       endTimeOptions.length === 0
                     }
                   >
-                    <option value="">Bitis saati secin</option>
+                    <option value="">Select end time</option>
                     {endTimeOptions.map((option) => (
                       <option
                         key={option.label}
@@ -1725,7 +1725,7 @@ function ReservationManagementPanel({
                   </select>
                   {effectiveStartTime && endTimeOptions.length === 0 && (
                     <p style={styles.helperText}>
-                      Secilen baslangic saatine gore uygun bitis saati bulunmuyor.
+                      No available end time was found for the selected start time.
                     </p>
                   )}
                 </div>
@@ -1752,7 +1752,7 @@ function ReservationManagementPanel({
                   }}
                   disabled={rescheduleSaving}
                 >
-                  {rescheduleSaving ? "Kaydediliyor..." : "Yeni Saati Kaydet"}
+                  {rescheduleSaving ? "Saving..." : "Save New Time"}
                 </button>
                 <button
                   type="button"
@@ -1760,7 +1760,7 @@ function ReservationManagementPanel({
                   onClick={handleCloseRescheduleModal}
                   disabled={rescheduleSaving}
                 >
-                  Vazgec
+                  Never mind
                 </button>
               </div>
             </form>

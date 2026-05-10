@@ -124,7 +124,7 @@ export default function AdminDashboardScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Ozet metrikler alinamadi. Firestore baglantisini kontrol edin.");
+        setError("Summary metrics could not be loaded. Check the Firestore connection.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -138,13 +138,13 @@ export default function AdminDashboardScreen() {
 
   return (
     <div>
-      <h2 style={styles.title}>Genel Ozet</h2>
+      <h2 style={styles.title}>Overview</h2>
       <p style={styles.subtitle}>
-        Firestore verilerine gore rezervasyon ve tamamlanan sarj oturumlarinin genel durumunu
+        Track the overall status of reservations and completed charging sessions based on Firestore data.
         goruntuleyin.
       </p>
 
-      {loading && <div style={styles.loading}>Yukleniyor...</div>}
+      {loading && <div style={styles.loading}>Loading...</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && metrics && (
@@ -171,7 +171,7 @@ export default function AdminDashboardScreen() {
               <div style={styles.cardInner}>
                 <div style={styles.label}>Total Revenue</div>
                 <div style={styles.value}>{formatMoney(metrics.totalRevenue)}</div>
-                <div style={styles.hint}>Toplam gelir</div>
+                <div style={styles.hint}>Total revenue</div>
               </div>
             </div>
             <div className="admin-card" style={styles.card}>
@@ -179,7 +179,7 @@ export default function AdminDashboardScreen() {
               <div style={styles.cardInner}>
                 <div style={styles.label}>Total Energy Consumed</div>
                 <div style={styles.value}>{metrics.totalEnergyConsumed} kWh</div>
-                <div style={styles.hint}>Toplam tuketim</div>
+                <div style={styles.hint}>Total consumption</div>
               </div>
             </div>
           </div>
@@ -188,19 +188,19 @@ export default function AdminDashboardScreen() {
             <div style={styles.chartWrap}>
               <TimeSeriesChart
                 title="Kullanim Trendi"
-                description="Son 14 gun rezervasyon ve sarj oturumu sayisi."
+                description="Reservation and charging session count for the last 14 days."
                 yAxisLabel="Adet"
-                xAxisLabel="Tarih"
-                xAxisNote="X ekseni: Tarih (gg.aa)"
+                xAxisLabel="Date"
+                xAxisNote="X ekseni: Date (gg.aa)"
                 labels={series.map((row) => row.dateLabel)}
                 series={[
                   {
-                    name: "Rezervasyon",
+                    name: "Reservation",
                     color: "#A9D869",
                     data: series.map((row) => row.reservations),
                   },
                   {
-                    name: "Sarj oturumu",
+                    name: "Charging oturumu",
                     color: "#1F5E4D",
                     data: series.map((row) => row.sessions),
                   },

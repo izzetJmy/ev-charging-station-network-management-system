@@ -206,10 +206,10 @@ export default function LandingPageScreen() {
         <main style={styles.main}>
           <section style={styles.heroCard}>
             <div style={styles.heroContent}>
-              <h1 style={styles.title}>EV istasyonlarini tek ekrandan yonetin.</h1>
+              <h1 style={styles.title}>Manage EV stations from one screen.</h1>
               <p style={styles.subtitle}>
-                Arac profilini olusturun, uygun istasyonlari haritada gorun, rezervasyon yapin ve
-                sarj oturumu maliyetinizi aninda hesaplayin.
+                Create your vehicle profile, view available stations on the map, make reservations, and
+                calculate your charging session cost instantly.
               </p>
 
               <button

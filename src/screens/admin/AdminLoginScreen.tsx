@@ -133,10 +133,10 @@ export default function AdminLoginScreen() {
       <section style={styles.card}>
         <h1 style={styles.title}>Admin Girisi</h1>
         <p style={styles.subtitle}>
-          Yonetim paneline erismek icin giris yapin.
+          Sign in to access the admin panel.
         </p>
 
-        <label style={styles.label}>Kullanici adi</label>
+        <label style={styles.label}>Username</label>
         <input
           value={username}
           onChange={(event) => setUsername(event.target.value)}
@@ -164,12 +164,12 @@ export default function AdminLoginScreen() {
               setError(null);
               const ok = adminLogin(username, password);
               if (!ok) {
-                setError("Kullanici adi veya sifre hatali. (admin / admin)");
+                setError("Username or password is incorrect. (admin / admin)");
                 return;
               }
               navigate(redirectTo, {
                 replace: true,
-                state: { snackbar: { message: "Admin girisi basarili.", variant: "success" } },
+                state: { snackbar: { message: "Admin sign-in successful.", variant: "success" } },
               });
             }}
           >
@@ -178,7 +178,7 @@ export default function AdminLoginScreen() {
         </div>
 
         {isAdminAuthenticated() && (
-          <div style={styles.message}>Zaten giris yapilmis. Admin paneline yonlendirilebilirsin.</div>
+          <div style={styles.message}>You are already signed in. You can continue to the admin panel.</div>
         )}
         {error && <div style={styles.error}>{error}</div>}
       </section>

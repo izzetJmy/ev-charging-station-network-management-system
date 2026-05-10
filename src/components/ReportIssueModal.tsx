@@ -14,10 +14,10 @@ interface ReportIssueModalProps {
 }
 
 const issueOptions: Array<{ value: ReportIssueType; label: string }> = [
-  { value: "charger_not_working", label: "Sarj cihazi calismiyor" },
-  { value: "wrong_price", label: "Yanlis ucret" },
-  { value: "station_offline", label: "Istasyon cevrimdisi" },
-  { value: "location_problem", label: "Konum sorunu" },
+  { value: "charger_not_working", label: "Charger is not working" },
+  { value: "wrong_price", label: "Incorrect fee" },
+  { value: "station_offline", label: "Station offline" },
+  { value: "location_problem", label: "Location issue" },
   { value: "payment_problem", label: "Odeme sorunu" },
   { value: "other", label: "Diger" },
 ];
@@ -200,7 +200,7 @@ function ReportIssueModal({
   const [saving, setSaving] = useState(false);
 
   const issueTarget = useMemo(
-    () => (charger ? `Sarj cihazi ${charger.id}` : "Istasyon seviyesi sorun"),
+    () => (charger ? `Charging cihazi ${charger.id}` : "Station-level issue"),
     [charger],
   );
 
@@ -210,12 +210,12 @@ function ReportIssueModal({
     const trimmedDescription = description.trim();
 
     if (!issueType) {
-      setErrorMessage("Sorun turu secilmelidir.");
+      setErrorMessage("Issue type must be selected.");
       return;
     }
 
     if (!trimmedDescription) {
-      setErrorMessage("Aciklama alani bos birakilamaz.");
+      setErrorMessage("Description cannot be empty.");
       return;
     }
 
@@ -235,7 +235,7 @@ function ReportIssueModal({
       onSubmitSuccess();
       onClose();
     } catch {
-      setErrorMessage("Sorun bildirimi kaydedilemedi. Lutfen tekrar deneyin.");
+      setErrorMessage("Issue report could not be saved. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -247,7 +247,7 @@ function ReportIssueModal({
         <div style={styles.topBar}>
           <div style={styles.titleWrap}>
             <div style={styles.eyebrow}>Sorun Bildirimi</div>
-            <h3 style={styles.title}>Istasyon / Sarj Cihazi Sorunu Bildir</h3>
+            <h3 style={styles.title}>Report Station / Charger Issue</h3>
           </div>
           <button
             type="button"
@@ -255,7 +255,7 @@ function ReportIssueModal({
             onClick={onClose}
             disabled={saving}
           >
-            Kapat
+            Close
           </button>
         </div>
 
@@ -275,7 +275,7 @@ function ReportIssueModal({
               style={styles.input}
               disabled={saving}
             >
-              <option value="">Sorun turu secin</option>
+              <option value="">Select issue type</option>
               {issueOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -319,7 +319,7 @@ function ReportIssueModal({
               onClick={onClose}
               disabled={saving}
             >
-              Vazgec
+              Never mind
             </button>
           </div>
         </form>

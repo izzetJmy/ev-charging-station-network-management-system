@@ -223,7 +223,7 @@ export default function StationStatisticsScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Istasyon istatistikleri alinamadi. Firestore baglantisini kontrol edin.");
+        setError("Station statistics could not be loaded. Check the Firestore connection.");
       })
       .finally(() => {
         if (cancelled) return;
@@ -268,13 +268,13 @@ export default function StationStatisticsScreen() {
 
   return (
     <div>
-      <h2 style={styles.title}>Istasyon Istatistikleri</h2>
+      <h2 style={styles.title}>Station Statistics</h2>
       <p style={styles.subtitle}>
-        Istasyonlarin kullanim yogunlugunu, sarj oturumu sayisini ve tuketilen enerjiyi istasyon
+        Compare station usage intensity, charging session count, and consumed energy by station.
         bazinda goruntuleyin.
       </p>
 
-      {loading && <div style={styles.loading}>Yukleniyor...</div>}
+      {loading && <div style={styles.loading}>Loading...</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && data && (
@@ -296,7 +296,7 @@ export default function StationStatisticsScreen() {
               <div style={styles.cardInner}>
                 <div style={styles.label}>Station status summary</div>
                 <div style={styles.value}>
-                  {data.stationStatusSummary.available} uygun - {data.stationStatusSummary.occupied} dolu -{" "}
+                  {data.stationStatusSummary.available} available - {data.stationStatusSummary.occupied} occupied -{" "}
                   {data.stationStatusSummary.offline} offline
                 </div>
               </div>
@@ -325,7 +325,7 @@ export default function StationStatisticsScreen() {
                   {sessionRows.length === 0 && energyRows.length === 0 && (
                     <tr>
                       <td style={styles.td} colSpan={3}>
-                        Henuz veri yok.
+                        No data yet.
                       </td>
                     </tr>
                   )}

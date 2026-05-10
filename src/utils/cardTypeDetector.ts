@@ -36,7 +36,7 @@ export function getCardTypeLabel(cardType: CardType): string {
     return "Mastercard";
   }
   if (cardType === "invalid") {
-    return "Hatalı Kart";
+    return "Invalid Card";
   }
   return "";
 }

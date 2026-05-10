@@ -415,9 +415,9 @@ function formatLocation(
   location: Location | null | undefined,
   resolvedLabel: string,
 ) {
-  if (!location) return "Konum kaydi yok";
+  if (!location) return "No location record";
 
-  if (resolvedLabel && resolvedLabel !== "Konum cozumleniyor...") {
+  if (resolvedLabel && resolvedLabel !== "Resolving location...") {
     return resolvedLabel;
   }
 
@@ -446,7 +446,7 @@ function VehicleProfileScreen() {
   const [success, setSuccess] = useState("");
 
   const displayName =
-    [brand.trim(), model.trim()].filter(Boolean).join(" ") || "Kayitli arac";
+    [brand.trim(), model.trim()].filter(Boolean).join(" ") || "Saved vehicle";
   const displayPlate = plateNumber.trim().toUpperCase() || "--";
 
   const estimatedRange = useMemo(() => {
@@ -481,13 +481,13 @@ function VehicleProfileScreen() {
 
         if (userVehicles.length === 0) {
           setVehicleId("");
-          setError("Bu kullanici icin kayitli arac bulunamadi.");
+          setError("No saved vehicle was found for this user.");
           return;
         }
 
         fillVehicleForm(userVehicles[0]);
       } catch {
-        setError("Arac bilgileri alinirken bir hata olustu.");
+        setError("An error occurred while loading vehicle details.");
       } finally {
         setLoading(false);
       }
@@ -505,7 +505,7 @@ function VehicleProfileScreen() {
         return;
       }
 
-      setCurrentLocationLabel("Konum cozumleniyor...");
+      setCurrentLocationLabel("Resolving location...");
       const result = await reverseGeocodeCoordinates({
         lat: currentLocation.latitude,
         lng: currentLocation.longitude,
@@ -539,14 +539,14 @@ function VehicleProfileScreen() {
   }, []);
 
   const validateForm = () => {
-    if (!brand.trim()) return "Brand alani bos birakilamaz.";
-    if (!model.trim()) return "Model alani bos birakilamaz.";
+    if (!brand.trim()) return "Brand cannot be empty.";
+    if (!model.trim()) return "Model cannot be empty.";
     if (!batteryCapacity.trim())
-      return "Battery Capacity alani bos birakilamaz.";
+      return "Battery capacity cannot be empty.";
     if (Number(batteryCapacity) <= 0)
-      return "Battery Capacity pozitif bir sayi olmalidir.";
-    if (!connectorType.trim()) return "Connector Type alani bos birakilamaz.";
-    if (!plateNumber.trim()) return "Plate Number alani bos birakilamaz.";
+      return "Battery capacity must be a positive number.";
+    if (!connectorType.trim()) return "Connector type cannot be empty.";
+    if (!plateNumber.trim()) return "Plate number cannot be empty.";
     return "";
   };
 
@@ -558,7 +558,7 @@ function VehicleProfileScreen() {
     if (!result.currentLocation) {
       setError(
         result.permissionState === "denied"
-          ? "Konum izni verilmedi. Mevcut konum korunacak."
+          ? "Location permission was denied. The existing location will be kept."
           : result.message,
       );
       setLocationLoading(false);
@@ -572,9 +572,9 @@ function VehicleProfileScreen() {
 
       setCurrentLocation(result.currentLocation);
       setError("");
-      setSuccess("Konum guncellendi ve Firestore'a yazildi.");
+      setSuccess("Location updated and written to Firestore.");
     } catch {
-      setError("Konum Firestore'a kaydedilirken bir hata olustu.");
+      setError("An error occurred while saving the location to Firestore.");
     } finally {
       setLocationLoading(false);
     }
@@ -591,7 +591,7 @@ function VehicleProfileScreen() {
     }
 
     if (!vehicleId) {
-      setError("Guncellenecek arac kaydi bulunamadi.");
+      setError("No vehicle record was found to update.");
       setSuccess("");
       return;
     }
@@ -614,13 +614,13 @@ function VehicleProfileScreen() {
       navigate("/app", {
         state: {
           snackbar: {
-            message: "Arac bilgileri guncellendi.",
+            message: "Vehicle details updated.",
             variant: "success",
           },
         },
       });
     } catch {
-      setError("Arac bilgileri guncellenirken bir hata olustu.");
+      setError("An error occurred while updating vehicle details.");
     } finally {
       setSaving(false);
     }
@@ -638,8 +638,8 @@ function VehicleProfileScreen() {
             </div>
             <h1 style={styles.title}>{displayName}</h1>
             <p style={styles.summaryText}>
-              Profil bilgilerini guncelleyin. Soket ve batarya bilgisi, istasyon
-              eslesmesi icin kullanilir.
+              Update profile details. Connector and battery information is used for station
+              matching.
             </p>
 
             <div style={styles.vehiclePlate} aria-hidden="true">
@@ -669,11 +669,11 @@ function VehicleProfileScreen() {
               <div style={styles.metricValue}>{estimatedRange}</div>
             </div>
             <div style={styles.metric}>
-              <div style={styles.metricLabel}>Soket</div>
+              <div style={styles.metricLabel}>Connector</div>
               <div style={styles.metricValue}>{connectorType || "--"}</div>
             </div>
             <div style={styles.metric}>
-                <div style={styles.metricLabel}>Konum</div>
+                <div style={styles.metricLabel}>Location</div>
                 <div style={styles.metricValue}>
                 {formatLocation(currentLocation, currentLocationLabel)}
                 </div>
@@ -682,15 +682,15 @@ function VehicleProfileScreen() {
         </section>
 
         <section style={styles.panel}>
-          <h2 style={styles.panelTitle}>Arac Profili</h2>
+          <h2 style={styles.panelTitle}>Vehicle Profili</h2>
           <p style={styles.subtitle}>
-            Brand, model, batarya, soket, plaka ve konum bilgilerini
-            guncelleyin.
+            Update brand, model, battery, connector, plate, and location details.
+
           </p>
 
           {loading ? (
             <div style={{ ...styles.message, ...styles.success }}>
-              Arac bilgileri yukleniyor...
+              Vehicle details are loading...
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
@@ -808,7 +808,7 @@ function VehicleProfileScreen() {
                     disabled={!vehicleId || saving || locationLoading}
                     style={styles.secondaryButton}
                   >
-                    {locationLoading ? "Aliniyor..." : "Konumu Guncelle"}
+                    {locationLoading ? "Fetching..." : "Update Location"}
                   </button>
                 </div>
               </div>
@@ -821,7 +821,7 @@ function VehicleProfileScreen() {
                   ...(!vehicleId || saving ? styles.disabledButton : {}),
                 }}
               >
-                {saving ? "Guncelleniyor..." : "Arac Bilgilerini Guncelle"}
+                {saving ? "Updating..." : "Update Vehicle Details"}
               </button>
 
               <button
@@ -829,7 +829,7 @@ function VehicleProfileScreen() {
                 onClick={() => navigate("/vehicles/new")}
                 style={styles.navigationButton}
               >
-                Yeni Arac Olustur
+                Yeni Vehicle Olustur
               </button>
             </form>
           )}

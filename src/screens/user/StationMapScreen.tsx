@@ -856,7 +856,7 @@ function getStatusText(permissionState: LocationPermissionState) {
     case "denied":
       return "Kapali";
     case "error":
-      return "Hata";
+      return "Error";
     default:
       return "Bos";
   }
@@ -1146,12 +1146,12 @@ function StationMapScreen() {
         setStationsError(
           result.length
             ? ""
-            : "Istasyon verisi bulunamadi. Admin panelden stations/chargers seed edebilirsiniz.",
+            : "Station data could not be found. You can seed stations/chargers from the admin panel.",
         );
       })
       .catch(() => {
         if (cancelled) return;
-        setStationsError("Istasyon verisi alinamadi. Firestore baglantisini kontrol edin.");
+        setStationsError("Station data could not be loaded. Check the Firestore connection.");
       });
 
     return () => {
@@ -1195,7 +1195,7 @@ function StationMapScreen() {
             lng: vehicle.currentLocation.longitude,
           });
           setPermissionState("granted");
-          setMessage("Kayitli currentLocation verisi kullaniliyor.");
+          setMessage("Saved currentLocation data is being used.");
         }
       } catch {
         setVehicle(null);
@@ -1223,7 +1223,7 @@ function StationMapScreen() {
         return;
       }
 
-      setCoordsLabel("Konum cozumleniyor...");
+      setCoordsLabel("Resolving location...");
       const result = await reverseGeocodeCoordinates(coords);
       if (isCancelled) return;
 
@@ -1240,7 +1240,7 @@ function StationMapScreen() {
   const requestLocation = useCallback(
     async ({ persistToVehicle = false }: RequestLocationOptions = {}) => {
       setPermissionState("loading");
-      setMessage("Konum izni isteniyor ve guncel konum alinmaya calisiliyor.");
+      setMessage("Requesting location permission and trying to get the current location.");
       setLocationUpdateError("");
       setSuccessMessage("");
 
@@ -1261,7 +1261,7 @@ function StationMapScreen() {
         setLocationUpdateLoading(false);
         setLocationUpdateError(
           result.permissionState === "denied"
-            ? "Konum izni verilmedi. Vehicle konumu guncellenemedi."
+            ? "Location permission was denied. Vehicle location could not be updated."
             : result.message,
         );
         return;
@@ -1270,7 +1270,7 @@ function StationMapScreen() {
       if (!vehicleIdRef.current) {
         setLocationUpdateLoading(false);
         setLocationUpdateError(
-          "Konum alindi ancak guncellenecek vehicle kaydi bulunamadi.",
+          "Location was received, but no vehicle record was found to update.",
         );
         return;
       }
@@ -1281,10 +1281,10 @@ function StationMapScreen() {
           result.currentLocation,
         );
         setSuccessMessage(
-          "Konum guncellendi, harita merkeze alindi ve Firestore'a yazildi.",
+          "Location updated, the map was centered, and Firestore was updated.",
         );
       } catch {
-        setLocationUpdateError("Konum Firestore'a kaydedilirken bir hata olustu.");
+        setLocationUpdateError("An error occurred while saving the location to Firestore.");
       } finally {
         setLocationUpdateLoading(false);
       }
@@ -1344,9 +1344,9 @@ function StationMapScreen() {
     permissionState === "error" || (permissionState === "granted" && !!mapsError);
   const directionsLeg = directionsResult?.routes[0]?.legs[0] ?? null;
   const navigationOriginLabel =
-    coordsLabel && coordsLabel !== "Konum cozumleniyor..."
+    coordsLabel && coordsLabel !== "Resolving location..."
       ? coordsLabel
-      : "Konumunuz";
+      : "Locationunuz";
 
   const handleSelectStation = (station: Station) => {
     setSelectedStation(station);
@@ -1361,13 +1361,13 @@ function StationMapScreen() {
 
   const handleGetDirections = async () => {
     if (!selectedStation) {
-      setDirectionsError("Rota cizmek icin once bir istasyon secin.");
+      setDirectionsError("Select a station first to draw a route.");
       return;
     }
 
     if (!isLoaded || mapsError) {
       setDirectionsError(
-        mapsError || "Google Maps hazir olmadigi icin rota cizilemiyor.",
+        mapsError || "The route cannot be drawn because Google Maps is not ready.",
       );
       return;
     }
@@ -1377,7 +1377,7 @@ function StationMapScreen() {
     setDirectionsResult(null);
     setNavigationStation(null);
     setIsNavigationPreviewOpen(false);
-    setMessage("Rota icin guncel konum aliniyor.");
+    setMessage("Getting current location for the route.");
 
     const locationResult = await getCurrentLocation();
     setPermissionState(locationResult.permissionState);
@@ -1388,7 +1388,7 @@ function StationMapScreen() {
       setDirectionsLoading(false);
       setDirectionsError(
         locationResult.permissionState === "denied"
-          ? "Konum izni verilmedi. Rota cizebilmek icin tarayicidan konum izni vermelisiniz."
+          ? "Location permission was denied. Allow location permission in the browser to draw a route."
           : locationResult.message,
       );
       return;
@@ -1412,7 +1412,7 @@ function StationMapScreen() {
 
           if (status !== google.maps.DirectionsStatus.OK || !result) {
             setDirectionsError(
-              "Google Maps rota bilgisini olusturamadi. Lutfen daha sonra tekrar deneyin.",
+              "Google Maps could not create route details. Please try again later.",
             );
             return;
           }
@@ -1421,13 +1421,13 @@ function StationMapScreen() {
           setNavigationStation(selectedStation);
           setIsNavigationPreviewOpen(true);
           setSelectedStation(null);
-          setSuccessMessage("Rota harita uzerinde cizildi.");
+          setSuccessMessage("Route drawn on the map.");
         },
       );
     } catch {
       setDirectionsLoading(false);
       setDirectionsError(
-        "DirectionsService baslatilirken bir hata olustu. Uygulama calismaya devam ediyor.",
+        "An error occurred while starting DirectionsService. The app is still running.",
       );
     }
   };
@@ -1470,7 +1470,7 @@ function StationMapScreen() {
         favoriteStationIds.has(station.id),
       );
     } catch {
-      setLocationUpdateError("Favori islemi kaydedilemedi. Lutfen tekrar deneyin.");
+      setLocationUpdateError("Favorite action could not be saved. Please try again.");
     } finally {
       setFavoriteActionLoadingId("");
     }
@@ -1488,22 +1488,22 @@ function StationMapScreen() {
               EV Network
             </div>
 
-            <h1 style={styles.title}>Bulundugun noktaya odakli istasyon haritasi</h1>
+            <h1 style={styles.title}>Station Map Focused on Your Location</h1>
             <p style={styles.summaryText}>
-              Konum izni verildiginde sistem mevcut konumunu algilar, Google
-              Maps haritasini acip yakindaki istasyon marker&apos;larini ayni
+              When location permission is granted, the system detects your current location,
+              opens Google Maps, and shows nearby station markers in the same view.
               ekranda gosterir.
             </p>
 
             <div style={styles.locationStrip}>
                 <div>
-                  <div style={styles.locationStatus}>Guncel konum</div>
+                  <div style={styles.locationStatus}>Current location</div>
                   <div style={styles.locationValue}>
                     {coords
-                      ? coordsLabel && coordsLabel !== "Konum cozumleniyor..."
+                      ? coordsLabel && coordsLabel !== "Resolving location..."
                         ? coordsLabel
                         : formatCoordinates(coords)
-                      : "Konum bekleniyor"}
+                      : "Waiting for location"}
                   </div>
                 </div>
                 <div style={styles.chip}>{getStatusText(permissionState)}</div>
@@ -1511,17 +1511,17 @@ function StationMapScreen() {
 
             {selectedStation && (
               <div style={styles.selectedRow}>
-                <div style={styles.selectedLabel}>Secili istasyon</div>
+                <div style={styles.selectedLabel}>Selected station</div>
                 <div style={styles.selectedValue}>{selectedStation.name}</div>
               </div>
             )}
 
             <div style={styles.filterCard}>
-              <p style={styles.filterTitle}>Arama ve Filtre</p>
+              <p style={styles.filterTitle}>Searchma ve Filtre</p>
               <input
                 value={stationSearch}
                 onChange={(event) => setStationSearch(event.target.value)}
-                placeholder="Istasyon adi veya adres ara..."
+                placeholder="Station name veya adres ara..."
                 style={styles.searchInput}
               />
 
@@ -1636,7 +1636,7 @@ function StationMapScreen() {
                   }}
                   onClick={() => setOnlyAvailable((current) => !current)}
                 >
-                  Sadece uygun
+                  Available only
                 </button>
                 <button
                   type="button"
@@ -1646,7 +1646,7 @@ function StationMapScreen() {
                   }}
                   onClick={() => setOpenNowOnly((current) => !current)}
                 >
-                  Su an acik
+                  Open now
                 </button>
                 <button
                   type="button"
@@ -1661,7 +1661,7 @@ function StationMapScreen() {
             <div style={styles.listCard}>
               <div style={styles.listHeader}>
                 <p style={styles.listTitle}>Yakinimdakiler</p>
-                <div style={styles.listCount}>{filteredStations.length} istasyon</div>
+                <div style={styles.listCount}>{filteredStations.length} stations</div>
               </div>
 
               <div style={styles.stationList}>
@@ -1669,7 +1669,7 @@ function StationMapScreen() {
                   const isActive = station.id === selectedStation?.id;
                   const distanceLabel =
                     distanceKm == null
-                      ? "Konum yok"
+                      ? "No location"
                       : formatDistanceLabel(distanceKm);
 
                   return (
@@ -1707,7 +1707,7 @@ function StationMapScreen() {
                             : "Favorilere ekle"
                         }
                       >
-                        {favoriteStationIds.has(station.id) ? "♥" : "♡"}
+                        {favoriteStationIds.has(station.id) ? "â™¥" : "â™¡"}
                       </button>
                     </div>
                   );
@@ -1720,7 +1720,7 @@ function StationMapScreen() {
                   style={styles.listToggle}
                   onClick={() => setIsNearbyExpanded((current) => !current)}
                 >
-                  <span>{isNearbyExpanded ? "Daha az goster" : "Tumunu goster"}</span>
+                  <span>{isNearbyExpanded ? "Show less" : "Show all"}</span>
                   <span
                     aria-hidden="true"
                     style={{
@@ -1736,11 +1736,11 @@ function StationMapScreen() {
           <div style={styles.metricGrid}>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{coords ? "Canli" : "--"}</div>
-              <div style={styles.metricLabel}>Konum</div>
+              <div style={styles.metricLabel}>Location</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{stationCounts.totalStations}</div>
-              <div style={styles.metricLabel}>Istasyon</div>
+              <div style={styles.metricLabel}>Station</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{stationCounts.availableStations}</div>
@@ -1752,17 +1752,17 @@ function StationMapScreen() {
         <section style={styles.mapPanel}>
           <div style={styles.topBar}>
             <div>
-              <h2 style={styles.panelTitle}>Istasyon Haritasi</h2>
+              <h2 style={styles.panelTitle}>Station Map</h2>
               <p style={styles.subtitle}>
-                Kullanici konumu mavi marker ile, istasyon durumlari ise renkli
-                marker&apos;larla gosterilir. Konum izni yoksa harita yerine ayni
+                The user location is shown with a blue marker, and station statuses are shown with colored
+                markers. If location permission is missing, the same area appears instead of the map.
                 tasarim dilinde bilgilendirme karti gorunur.
               </p>
             </div>
 
             <div style={styles.statusWrap}>
               <div style={styles.statusValue}>{progressValue}%</div>
-              <div style={styles.statusLabel}>Harita durumu</div>
+              <div style={styles.statusLabel}>Map durumu</div>
             </div>
           </div>
 
@@ -1775,7 +1775,7 @@ function StationMapScreen() {
             />
           </div>
 
-          <div style={styles.sectionLabel}>Konum ve Marker Durumu</div>
+          <div style={styles.sectionLabel}>Location and Marker Status</div>
 
           <div style={styles.card}>
             <div style={styles.infoGrid}>
@@ -1784,10 +1784,10 @@ function StationMapScreen() {
                 <div style={styles.infoValue}>{getStatusText(permissionState)}</div>
               </div>
               <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Konum</div>
+                <div style={styles.infoLabel}>Location</div>
                 <div style={styles.infoValue}>
                   {coords
-                    ? coordsLabel && coordsLabel !== "Konum cozumleniyor..."
+                    ? coordsLabel && coordsLabel !== "Resolving location..."
                       ? coordsLabel
                       : formatCoordinates(coords)
                     : "--"}
@@ -1874,11 +1874,11 @@ function StationMapScreen() {
               <div style={styles.warningCard}>
                 <div style={styles.warningBox}>
                   <div style={styles.warningBadge}>!</div>
-                  <h3 style={styles.warningTitle}>Harita kullanilamiyor</h3>
+                  <h3 style={styles.warningTitle}>Map kullanilamiyor</h3>
                   <p style={styles.warningText}>
                     {permissionState === "denied"
-                      ? "Konum izni verilmeden harita gosterilemez."
-                      : mapsError || "Harita su anda hazir degil."}
+                      ? "The map cannot be displayed without location permission."
+                      : mapsError || "Map is not ready right now."}
                   </p>
                 </div>
               </div>
@@ -1910,7 +1910,7 @@ function StationMapScreen() {
                 style={styles.primaryButton}
                 disabled={locationUpdateLoading}
               >
-                {locationUpdateLoading ? "Guncelleniyor..." : "Konumumu Guncelle"}
+                {locationUpdateLoading ? "Updating..." : "Update My Location"}
               </button>
 
               <button
@@ -1919,7 +1919,7 @@ function StationMapScreen() {
                 style={styles.secondaryButton}
                 disabled={locationUpdateLoading}
               >
-                Arac Profiline Don
+                Back to Vehicle Profile
               </button>
 
               <button
@@ -1950,10 +1950,10 @@ function StationMapScreen() {
             <div style={styles.navigationHeader}>
               <div>
                 <h3 style={styles.routeTitle}>
-                  Konumunuz to {navigationStation.name}
+                  Locationunuz to {navigationStation.name}
                 </h3>
                 <p style={styles.routeSubtitle}>
-                  {navigationOriginLabel} konumundan secili sarj istasyonuna surus rotasi.
+                  {navigationOriginLabel} route from your location to the selected charging station.
                 </p>
                 <div style={styles.routeSummaryRow}>
                   <span style={styles.routeSummaryPill}>
@@ -1979,7 +1979,7 @@ function StationMapScreen() {
                   onClick={handleCloseNavigationPreview}
                   style={styles.secondaryButton}
                 >
-                  Kapat
+                  Close
                 </button>
               </div>
             </div>
