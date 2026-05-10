@@ -10,11 +10,13 @@ export interface Location {
 export interface Vehicle {
   id: string;
   userId?: string;
+  ownerName?: string;
   brand: string;
   model: string;
   batteryCapacity: number; // in kWh
   connectorType: string;
   plateNumber: string;
+  stationRatings?: Record<string, number>;
   currentLocation?: Location | null;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;

@@ -7,6 +7,7 @@ import {
   checkVehicleChargerCompatibility,
   getReservationStatusBlockMessage,
 } from "../utils/chargerCompatibility";
+import { useI18n } from "../i18n/I18nProvider";
 
 interface ChargerItemProps {
   charger: Charger;
@@ -160,16 +161,37 @@ function ChargerItem({
   onReportIssue,
   onBlockedAction,
 }: ChargerItemProps) {
+  const { t } = useI18n();
   const compatibility = checkVehicleChargerCompatibility(
     vehicle,
     charger,
     station,
   );
   const statusBlockMessage = getReservationStatusBlockMessage(station, charger);
+  const localizedStatusBlockMessage = station.manualOffline
+    ? t("charger.status.stationManualOffline")
+    : charger.status === "offline"
+      ? t("charger.status.chargerOfflineReservation")
+      : statusBlockMessage;
   const reserveBlockMessage =
-    statusBlockMessage ||
-    (compatibility.state === "not-compatible" ? compatibility.reason : "");
+    localizedStatusBlockMessage ||
+    (compatibility.state === "not-compatible" ? t("charger.compatibility.notCompatible") : "");
   const canReserve = !reserveBlockMessage;
+  const compatibilityText =
+    compatibility.state === "compatible"
+      ? t("charger.compatibility.compatible")
+      : compatibility.state === "not-compatible"
+        ? t("charger.compatibility.notCompatible")
+        : compatibility.state === "offline"
+          ? t("charger.status.chargerOffline")
+          : t("charger.status.occupied");
+
+  const statusText =
+    charger.status === "available"
+      ? t("charger.status.available")
+      : charger.status === "occupied"
+        ? t("charger.status.occupied")
+        : t("charger.status.offline");
 
   const compatibilityStyle =
     compatibility.state === "compatible"
@@ -190,32 +212,32 @@ function ChargerItem({
               backgroundColor: STATION_STATUS_COLORS[charger.status],
             }}
           />
-          <span style={styles.statusText}>{charger.status}</span>
+          <span style={styles.statusText}>{statusText}</span>
         </div>
       </div>
 
       <div style={{ ...styles.compatibilityBadge, ...compatibilityStyle }}>
-        {compatibility.reason}
+        {compatibilityText}
       </div>
 
       <div style={styles.specGrid}>
         <div style={styles.specItem}>
-          <div style={styles.label}>Power Output</div>
+          <div style={styles.label}>{t("charger.powerOutput")}</div>
           <div style={styles.value}>{charger.powerOutput}</div>
         </div>
 
         <div style={styles.specItem}>
-          <div style={styles.label}>Connector</div>
+          <div style={styles.label}>{t("charger.connector")}</div>
           <div style={styles.value}>{charger.connectorType}</div>
         </div>
 
         <div style={styles.specItem}>
-          <div style={styles.label}>Price per kWh</div>
+          <div style={styles.label}>{t("charger.pricePerKwh")}</div>
           <div style={styles.value}>{charger.pricePerKwh.toFixed(2)} TL</div>
         </div>
 
         <div style={styles.specItem}>
-          <div style={styles.label}>Charger ID</div>
+          <div style={styles.label}>{t("charger.chargerId")}</div>
           <div style={styles.value}>{charger.id}</div>
         </div>
       </div>
@@ -237,7 +259,7 @@ function ChargerItem({
             }}
             disabled={!onReserve}
           >
-            Reserve
+            {t("charger.reserve")}
           </button>
           <button
             type="button"
@@ -245,7 +267,7 @@ function ChargerItem({
             onClick={() => onReportIssue?.(charger)}
             disabled={!onReportIssue}
           >
-            Report Issue
+            {t("charger.reportIssue")}
           </button>
         </div>
       )}

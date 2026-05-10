@@ -4,6 +4,7 @@ import {
   fetchAdminTimeSeries,
 } from "../../services/firebase/adminReportsService";
 import TimeSeriesChart from "../../components/charts/TimeSeriesChart";
+import { useI18n } from "../../i18n/I18nProvider";
 
 const styles: Record<string, CSSProperties> = {
   title: {
@@ -89,6 +90,7 @@ function formatMoney(value: number) {
 }
 
 export default function AdminDashboardScreen() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<{
     totalReservations: number;
@@ -124,7 +126,7 @@ export default function AdminDashboardScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Summary metrics could not be loaded. Check the Firestore connection.");
+        setError(t("adminDashboard.loadFailed"));
       })
       .finally(() => {
         if (cancelled) return;
@@ -134,17 +136,14 @@ export default function AdminDashboardScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   return (
     <div>
-      <h2 style={styles.title}>Overview</h2>
-      <p style={styles.subtitle}>
-        Track the overall status of reservations and completed charging sessions based on Firestore data.
-        goruntuleyin.
-      </p>
+      <h2 style={styles.title}>{t("adminDashboard.title")}</h2>
+      <p style={styles.subtitle}>{t("adminDashboard.subtitle")}</p>
 
-      {loading && <div style={styles.loading}>Loading...</div>}
+      {loading && <div style={styles.loading}>{t("common.loading")}</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && metrics && (
@@ -153,33 +152,33 @@ export default function AdminDashboardScreen() {
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Total Reservations</div>
+                <div style={styles.label}>{t("adminDashboard.totalReservations")}</div>
                 <div style={styles.value}>{metrics.totalReservations}</div>
-                <div style={styles.hint}>reservations</div>
+                <div style={styles.hint}>{t("adminDashboard.reservationsHint")}</div>
               </div>
             </div>
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Total Charging Sessions</div>
+                <div style={styles.label}>{t("adminDashboard.totalChargingSessions")}</div>
                 <div style={styles.value}>{metrics.totalChargingSessions}</div>
-                <div style={styles.hint}>chargingSessions</div>
+                <div style={styles.hint}>{t("adminDashboard.chargingSessionsHint")}</div>
               </div>
             </div>
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Total Revenue</div>
+                <div style={styles.label}>{t("adminDashboard.totalRevenue")}</div>
                 <div style={styles.value}>{formatMoney(metrics.totalRevenue)}</div>
-                <div style={styles.hint}>Total revenue</div>
+                <div style={styles.hint}>{t("adminDashboard.totalRevenueHint")}</div>
               </div>
             </div>
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Total Energy Consumed</div>
+                <div style={styles.label}>{t("adminDashboard.totalEnergyConsumed")}</div>
                 <div style={styles.value}>{metrics.totalEnergyConsumed} kWh</div>
-                <div style={styles.hint}>Total consumption</div>
+                <div style={styles.hint}>{t("adminDashboard.totalConsumptionHint")}</div>
               </div>
             </div>
           </div>
@@ -187,25 +186,25 @@ export default function AdminDashboardScreen() {
           {series.length > 1 && (
             <div style={styles.chartWrap}>
               <TimeSeriesChart
-                title="Kullanim Trendi"
-                description="Reservation and charging session count for the last 14 days."
-                yAxisLabel="Adet"
-                xAxisLabel="Date"
-                xAxisNote="X ekseni: Date (gg.aa)"
+                title={t("adminDashboard.usageTrend")}
+                description={t("adminDashboard.usageTrendDescription")}
+                yAxisLabel={t("adminDashboard.countAxis")}
+                xAxisLabel={t("adminDashboard.dateAxis")}
+                xAxisNote={t("adminDashboard.dateAxisNote")}
                 labels={series.map((row) => row.dateLabel)}
                 series={[
                   {
-                    name: "Reservation",
+                    name: t("adminDashboard.reservationSeries"),
                     color: "#A9D869",
                     data: series.map((row) => row.reservations),
                   },
                   {
-                    name: "Charging oturumu",
+                    name: t("adminDashboard.chargingSeries"),
                     color: "#1F5E4D",
                     data: series.map((row) => row.sessions),
                   },
                 ]}
-                valueFormatter={(value) => `${value} adet`}
+                valueFormatter={(value) => t("adminDashboard.countValue", { count: value })}
               />
             </div>
           )}

@@ -1,6 +1,7 @@
 import { type CSSProperties, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { adminLogin, isAdminAuthenticated } from "../../services/auth/adminAuth";
+import { useI18n } from "../../i18n/I18nProvider";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -119,6 +120,7 @@ const styles: Record<string, CSSProperties> = {
 export default function AdminLoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("admin");
   const [error, setError] = useState<string | null>(null);
@@ -131,12 +133,10 @@ export default function AdminLoginScreen() {
   return (
     <div style={styles.page}>
       <section style={styles.card}>
-        <h1 style={styles.title}>Admin Girisi</h1>
-        <p style={styles.subtitle}>
-          Sign in to access the admin panel.
-        </p>
+        <h1 style={styles.title}>{t("admin.login.title")}</h1>
+        <p style={styles.subtitle}>{t("admin.login.subtitle")}</p>
 
-        <label style={styles.label}>Username</label>
+        <label style={styles.label}>{t("admin.login.username")}</label>
         <input
           value={username}
           onChange={(event) => setUsername(event.target.value)}
@@ -144,7 +144,7 @@ export default function AdminLoginScreen() {
           style={styles.input}
         />
 
-        <label style={styles.label}>Sifre</label>
+        <label style={styles.label}>{t("admin.login.password")}</label>
         <input
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -155,7 +155,7 @@ export default function AdminLoginScreen() {
 
         <div style={styles.actionRow}>
           <button type="button" style={styles.secondaryButton} onClick={() => navigate("/")}>
-            Ana sayfa
+            {t("admin.login.home")}
           </button>
           <button
             type="button"
@@ -164,21 +164,21 @@ export default function AdminLoginScreen() {
               setError(null);
               const ok = adminLogin(username, password);
               if (!ok) {
-                setError("Username or password is incorrect. (admin / admin)");
+                setError(t("admin.login.invalid"));
                 return;
               }
               navigate(redirectTo, {
                 replace: true,
-                state: { snackbar: { message: "Admin sign-in successful.", variant: "success" } },
+                state: { snackbar: { message: t("admin.login.success"), variant: "success" } },
               });
             }}
           >
-            Uygulamaya gec
+            {t("admin.login.continue")}
           </button>
         </div>
 
         {isAdminAuthenticated() && (
-          <div style={styles.message}>You are already signed in. You can continue to the admin panel.</div>
+          <div style={styles.message}>{t("admin.login.already")}</div>
         )}
         {error && <div style={styles.error}>{error}</div>}
       </section>

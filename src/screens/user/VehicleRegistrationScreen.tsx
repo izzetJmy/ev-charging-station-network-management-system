@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { Location } from "../../models/vehicle";
 import { getCurrentLocation } from "../../services/maps/locationService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
@@ -411,11 +412,13 @@ const styles: Record<string, CSSProperties> = {
 };
 
 function VehicleRegistrationScreen() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
 
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [batteryCapacity, setBatteryCapacity] = useState("");
   const [connectorType, setConnectorType] = useState("");
   const [connectorOptions, setConnectorOptions] = useState<string[]>([]);
@@ -433,13 +436,14 @@ function VehicleRegistrationScreen() {
   const completedFields = [
     brand.trim(),
     model.trim(),
+    ownerName.trim(),
     batteryCapacity.trim(),
     connectorType.trim(),
     plateNumber.trim(),
     currentLocation,
   ].filter(Boolean).length;
 
-  const completionPercent = Math.round((completedFields / 6) * 100);
+  const completionPercent = Math.round((completedFields / 7) * 100);
 
   const estimatedRange = useMemo(() => {
     const battery = Number(batteryCapacity);
@@ -466,9 +470,8 @@ function VehicleRegistrationScreen() {
 
     if (result.currentLocation) {
       setCurrentLocation(result.currentLocation);
-      setError("");
     } else if (result.permissionState === "denied") {
-      setError("Location permission was denied. The vehicle can be saved without a location.");
+      setError(t("vehicleForm.locationDenied"));
     } else {
       setError(result.message);
     }
@@ -485,7 +488,7 @@ function VehicleRegistrationScreen() {
         return;
       }
 
-      setCurrentLocationLabel("Resolving location...");
+      setCurrentLocationLabel(t("vehicleForm.resolvingLocation"));
       const result = await reverseGeocodeCoordinates({
         lat: currentLocation.latitude,
         lng: currentLocation.longitude,
@@ -519,14 +522,15 @@ function VehicleRegistrationScreen() {
   }, []);
 
   const validateForm = () => {
-    if (!brand.trim()) return "Brand cannot be empty.";
-    if (!model.trim()) return "Model cannot be empty.";
+    if (!brand.trim()) return t("vehicleForm.brandRequired");
+    if (!model.trim()) return t("vehicleForm.modelRequired");
+    if (!ownerName.trim()) return "Name surname cannot be empty.";
     if (!batteryCapacity.trim())
-      return "Battery capacity cannot be empty.";
+      return t("vehicleForm.batteryRequired");
     if (Number(batteryCapacity) <= 0)
-      return "Battery capacity must be a positive number.";
-    if (!connectorType.trim()) return "Connector type cannot be empty.";
-    if (!plateNumber.trim()) return "Plate number cannot be empty.";
+      return t("vehicleForm.batteryPositive");
+    if (!connectorType.trim()) return t("vehicleForm.connectorRequired");
+    if (!plateNumber.trim()) return t("vehicleForm.plateRequired");
     return "";
   };
 
@@ -545,6 +549,7 @@ function VehicleRegistrationScreen() {
 
       await createVehicle({
         userId,
+        ownerName: ownerName.trim(),
         brand,
         model,
         batteryCapacity: Number(batteryCapacity),
@@ -556,13 +561,13 @@ function VehicleRegistrationScreen() {
       navigate("/app", {
         state: {
           snackbar: {
-            message: "New vehicle saved.",
+            message: t("vehicleForm.saveSuccess"),
             variant: "success",
           },
         },
       });
     } catch {
-      setError("An error occurred while saving the vehicle.");
+      setError(t("vehicleForm.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -571,22 +576,17 @@ function VehicleRegistrationScreen() {
   return (
     <div style={styles.page}>
       <main className="registration-shell" style={styles.shell}>
-        <section style={styles.previewPanel} aria-label="Vehicle preview">
+        <section style={styles.previewPanel} aria-label={t("vehicleRegistration.previewAria")}>
           <div style={styles.routeLayer} />
 
           <div style={styles.previewContent}>
             <div style={styles.eyebrow}>
               <span style={styles.signalDot} />
-              EV Network
+              {t("vehicleRegistration.eyebrow")}
             </div>
 
-            <h1 style={styles.previewTitle}>
-              Prepare the vehicle profile for smart charging
-            </h1>
-            <p style={styles.previewText}>
-              As registration is completed, a live vehicle card appears here. Plate,
-              battery, and connector details are used for station matching.
-            </p>
+            <h1 style={styles.previewTitle}>{t("vehicleRegistration.title")}</h1>
+            <p style={styles.previewText}>{t("vehicleRegistration.description")}</p>
 
             <div style={styles.vehiclePlate}>
               <div style={styles.carBody}>
@@ -597,7 +597,7 @@ function VehicleRegistrationScreen() {
 
               <div style={styles.platePreview}>
                 <div>
-                  <div style={styles.statusText}>Active profile</div>
+                  <div style={styles.statusText}>{t("vehicleRegistration.activeProfile")}</div>
                   <div
                     style={{
                       marginTop: "6px",
@@ -616,17 +616,17 @@ function VehicleRegistrationScreen() {
           <div style={styles.metricGrid}>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{estimatedRange}</div>
-              <div style={styles.metricLabel}>Tahmini menzil</div>
+              <div style={styles.metricLabel}>{t("vehicleRegistration.estimatedRange")}</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{connectorType || "--"}</div>
-              <div style={styles.metricLabel}>Connector</div>
+              <div style={styles.metricLabel}>{t("vehicleRegistration.connector")}</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>
-                {currentLocation ? "Hazir" : "Opsiyonel"}
+                {currentLocation ? t("common.close") : "--"}
               </div>
-              <div style={styles.metricLabel}>Location</div>
+              <div style={styles.metricLabel}>{t("vehicleRegistration.location")}</div>
             </div>
           </div>
         </section>
@@ -634,16 +634,13 @@ function VehicleRegistrationScreen() {
         <section style={styles.formPanel}>
           <div style={styles.topBar}>
             <div>
-              <h2 style={styles.title}>Vehicle Kaydi</h2>
-              <p style={styles.subtitle}>
-                Save your electric vehicle, find suitable charging points faster,
-                and manage your profile from one screen.
-              </p>
+              <h2 style={styles.title}>{t("vehicleRegistration.formTitle")}</h2>
+              <p style={styles.subtitle}>{t("vehicleRegistration.formDescription")}</p>
             </div>
 
             <div style={styles.progressWrap}>
               <div style={styles.progressValue}>{completionPercent}%</div>
-              <div style={styles.progressLabel}>Completed</div>
+              <div style={styles.progressLabel}>{t("vehicleRegistration.vehicleSaved")}</div>
             </div>
           </div>
 
@@ -657,11 +654,24 @@ function VehicleRegistrationScreen() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div style={styles.sectionLabel}>Vehicle Bilgileri</div>
+            <div style={styles.sectionLabel}>{t("vehicleRegistration.formTitle")}</div>
 
             <div className="form-grid" style={styles.formGrid}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Brand</label>
+                <label style={styles.label}>Name Surname</label>
+                <input
+                  type="text"
+                  value={ownerName}
+                  onChange={(event) => setOwnerName(event.target.value)}
+                  placeholder="Ada Lovelace"
+                  style={getInputStyle("ownerName")}
+                  onFocus={() => setFocusedField("ownerName")}
+                  onBlur={() => setFocusedField(null)}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>{t("vehicleRegistration.brand")}</label>
                 <input
                   type="text"
                   value={brand}
@@ -674,7 +684,7 @@ function VehicleRegistrationScreen() {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Model</label>
+                <label style={styles.label}>{t("vehicleRegistration.model")}</label>
                 <input
                   type="text"
                   value={model}
@@ -689,7 +699,7 @@ function VehicleRegistrationScreen() {
 
             <div className="form-grid" style={styles.formGrid}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Battery (kWh)</label>
+                <label style={styles.label}>{t("vehicleRegistration.batteryCapacity")}</label>
                 <input
                   type="number"
                   value={batteryCapacity}
@@ -702,7 +712,7 @@ function VehicleRegistrationScreen() {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Connector Type</label>
+                <label style={styles.label}>{t("vehicleRegistration.connectorType")}</label>
                 <select
                   value={connectorType}
                   onChange={(event) => setConnectorType(event.target.value)}
@@ -711,7 +721,7 @@ function VehicleRegistrationScreen() {
                   onBlur={() => setFocusedField(null)}
                 >
                   <option value="" disabled>
-                    Select connector
+                    {t("common.search")}
                   </option>
                   {connectorOptions.map((option) => (
                     <option key={option} value={option}>
@@ -741,7 +751,7 @@ function VehicleRegistrationScreen() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Plate Number</label>
+              <label style={styles.label}>{t("vehicleRegistration.plateNumber")}</label>
               <input
                 type="text"
                 value={plateNumber}
@@ -757,7 +767,7 @@ function VehicleRegistrationScreen() {
             </div>
 
             <div style={{ ...styles.sectionLabel, marginTop: "6px" }}>
-              Location
+              {t("vehicleRegistration.currentLocation")}
             </div>
 
             <div style={styles.locationBox}>
@@ -784,18 +794,18 @@ function VehicleRegistrationScreen() {
                 onMouseEnter={() => setLocationButtonHover(true)}
                 onMouseLeave={() => setLocationButtonHover(false)}
               >
-                {locationLoading ? "Fetching..." : "Get Location"}
+                {locationLoading ? t("common.loading") : t("vehicleRegistration.getLocation")}
               </button>
             </div>
 
             {currentLocation && (
               <div style={{ ...styles.message, ...styles.successMessage }}>
-                <span>OK</span>
+                <span>{t("common.close")}</span>
                 <span>
-                  Location received:{" "}
+                  {t("vehicleRegistration.currentLocation")}: {" "}
                   <strong>
                     {currentLocationLabel &&
-                    currentLocationLabel !== "Resolving location..."
+                    currentLocationLabel !== t("vehicleForm.resolvingLocation")
                       ? currentLocationLabel
                       : `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`}
                   </strong>
@@ -829,10 +839,10 @@ function VehicleRegistrationScreen() {
               {loading ? (
                 <>
                   <span className="spinner" />
-                  <span>Saving...</span>
+                  <span>{t("vehicleRegistration.saving")}</span>
                 </>
               ) : (
-                <span>Save Vehicle</span>
+                <span>{t("vehicleRegistration.save")}</span>
               )}
             </button>
           </form>
@@ -842,11 +852,11 @@ function VehicleRegistrationScreen() {
             onClick={() => navigate("/app")}
             style={styles.navigationButton}
           >
-            Go to Vehicle Profile
+            {t("vehicleHome.goHome")}
           </button>
 
           <div style={styles.footer}>
-            Verileriniz EV Network altyapisinda guvenle saklanir.
+            {t("vehicleRegistration.description")}
           </div>
         </section>
       </main>

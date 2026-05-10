@@ -1,6 +1,11 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
-import { fetchAdminTimeSeries, fetchRevenueReport } from "../../services/firebase/adminReportsService";
+import {
+  fetchAdminActivityInsights,
+  fetchAdminTimeSeries,
+  fetchRevenueReport,
+} from "../../services/firebase/adminReportsService";
 import TimeSeriesChart from "../../components/charts/TimeSeriesChart";
+import { useI18n } from "../../i18n/I18nProvider";
 
 const styles: Record<string, CSSProperties> = {
   title: {
@@ -102,6 +107,12 @@ const styles: Record<string, CSSProperties> = {
     backgroundColor: "rgba(255,255,255,0.72)",
   },
   right: { textAlign: "right" },
+  splitGrid: {
+    marginTop: "14px",
+    display: "grid",
+    gridTemplateColumns: "0.8fr 1.2fr",
+    gap: "12px",
+  },
   loading: {
     marginTop: "14px",
     borderRadius: "16px",
@@ -122,6 +133,7 @@ function formatMoney(value: number) {
 }
 
 export default function RevenueReportScreen() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{
@@ -130,21 +142,34 @@ export default function RevenueReportScreen() {
     revenueByStation: Array<{ stationId: string; stationName: string; revenue: number }>;
   } | null>(null);
   const [timeSeries, setTimeSeries] = useState<Array<{ dateLabel: string; revenue: number }>>([]);
+  const [insights, setInsights] = useState<{
+    peakHours: Array<{ hourLabel: string; sessionCount: number; revenue: number }>;
+    userActivity: Array<{
+      userId: string;
+      displayName: string;
+      vehicleCount: number;
+      reservationCount: number;
+      chargingSessionCount: number;
+      cancelledReservationCount: number;
+      revenue: number;
+    }>;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    Promise.all([fetchRevenueReport(), fetchAdminTimeSeries(30)])
-      .then(([result, series]) => {
+    Promise.all([fetchRevenueReport(), fetchAdminTimeSeries(30), fetchAdminActivityInsights()])
+      .then(([result, series, activityInsights]) => {
         if (cancelled) return;
         setData(result);
         setTimeSeries(series.map((row) => ({ dateLabel: row.dateLabel, revenue: row.revenue })));
+        setInsights(activityInsights);
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Revenue report could not be loaded. Check the Firestore connection.");
+        setError(t("adminRevenue.loadFailed"));
       })
       .finally(() => {
         if (cancelled) return;
@@ -154,19 +179,16 @@ export default function RevenueReportScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const rows = useMemo(() => data?.revenueByStation ?? [], [data]);
 
   return (
     <div>
-      <h2 style={styles.title}>Gelir Raporu</h2>
-      <p style={styles.subtitle}>
-        Review revenue from completed charging sessions by total, average, and station.
-        inceleyin.
-      </p>
+      <h2 style={styles.title}>{t("adminRevenue.title")}</h2>
+      <p style={styles.subtitle}>{t("adminRevenue.subtitle")}</p>
 
-      {loading && <div style={styles.loading}>Loading...</div>}
+      {loading && <div style={styles.loading}>{t("common.loading")}</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && data && (
@@ -175,14 +197,14 @@ export default function RevenueReportScreen() {
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Total revenue</div>
+                <div style={styles.label}>{t("adminRevenue.totalRevenue")}</div>
                 <div style={styles.value}>{formatMoney(data.totalRevenue)}</div>
               </div>
             </div>
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Average revenue per session</div>
+                <div style={styles.label}>{t("adminRevenue.averageRevenuePerSession")}</div>
                 <div style={styles.value}>{formatMoney(data.averageRevenuePerSession)}</div>
               </div>
             </div>
@@ -191,15 +213,15 @@ export default function RevenueReportScreen() {
           {timeSeries.length > 1 && (
             <div style={{ marginTop: "14px" }}>
               <TimeSeriesChart
-                title="Gelir Trendi"
-                description="Daily total revenue for the last 30 days."
+                title={t("adminRevenue.revenueTrend")}
+                description={t("adminRevenue.revenueTrendDescription")}
                 yAxisLabel="TL"
-                xAxisLabel="Date"
-                xAxisNote="X ekseni: Date (gg.aa)"
+                xAxisLabel={t("adminDashboard.dateAxis")}
+                xAxisNote={t("adminDashboard.dateAxisNote")}
                 labels={timeSeries.map((row) => row.dateLabel)}
                 series={[
                   {
-                    name: "Gelir (TL)",
+                    name: t("adminRevenue.revenueSeries"),
                     color: "#1F5E4D",
                     data: timeSeries.map((row) => row.revenue),
                   },
@@ -215,15 +237,15 @@ export default function RevenueReportScreen() {
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Station</th>
-                    <th style={{ ...styles.th, ...styles.right }}>Revenue</th>
+                    <th style={styles.th}>{t("adminRevenue.station")}</th>
+                    <th style={{ ...styles.th, ...styles.right }}>{t("adminRevenue.revenue")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 && (
                     <tr>
                       <td style={styles.td} colSpan={2}>
-                        No charging sessions yet.
+                        {t("adminRevenue.noSessions")}
                       </td>
                     </tr>
                   )}
@@ -240,6 +262,64 @@ export default function RevenueReportScreen() {
             </div>
           </div>
 
+          {insights && (
+            <div className="admin-report-split" style={styles.splitGrid}>
+              <div className="admin-card admin-table" style={styles.tableWrap}>
+                <div style={styles.tableGlow} aria-hidden="true" />
+                <div style={styles.tableInner}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Peak hour</th>
+                        <th style={{ ...styles.th, ...styles.right }}>Sessions</th>
+                        <th style={{ ...styles.th, ...styles.right }}>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {insights.peakHours.map((row) => (
+                        <tr key={row.hourLabel} className="admin-row">
+                          <td style={styles.td}>{row.hourLabel}</td>
+                          <td style={{ ...styles.td, ...styles.right }}>{row.sessionCount}</td>
+                          <td style={{ ...styles.td, ...styles.right }}>{formatMoney(row.revenue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="admin-card admin-table" style={styles.tableWrap}>
+                <div style={styles.tableGlow} aria-hidden="true" />
+                <div style={styles.tableInner}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>User activity</th>
+                        <th style={{ ...styles.th, ...styles.right }}>Vehicles</th>
+                        <th style={{ ...styles.th, ...styles.right }}>Reservations</th>
+                        <th style={{ ...styles.th, ...styles.right }}>Sessions</th>
+                        <th style={{ ...styles.th, ...styles.right }}>Cancelled</th>
+                        <th style={{ ...styles.th, ...styles.right }}>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {insights.userActivity.map((row) => (
+                        <tr key={row.userId} className="admin-row">
+                          <td style={styles.td}>{row.displayName}</td>
+                          <td style={{ ...styles.td, ...styles.right }}>{row.vehicleCount}</td>
+                          <td style={{ ...styles.td, ...styles.right }}>{row.reservationCount}</td>
+                          <td style={{ ...styles.td, ...styles.right }}>{row.chargingSessionCount}</td>
+                          <td style={{ ...styles.td, ...styles.right }}>{row.cancelledReservationCount}</td>
+                          <td style={{ ...styles.td, ...styles.right }}>{formatMoney(row.revenue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           <style>{`
             .admin-card:hover {
               transform: translateY(-1px);
@@ -249,6 +329,12 @@ export default function RevenueReportScreen() {
 
             .admin-table .admin-row:hover td {
               background: linear-gradient(90deg, rgba(169,216,105,0.16), rgba(255,255,255,0.82));
+            }
+
+            @media (max-width: 1100px) {
+              .admin-report-split {
+                grid-template-columns: 1fr !important;
+              }
             }
           `}</style>
         </>

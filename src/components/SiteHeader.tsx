@@ -1,5 +1,7 @@
 import { type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useI18n } from "../i18n/I18nProvider";
+import NotificationCenter from "./NotificationCenter";
 
 const styles: Record<string, CSSProperties> = {
   header: {
@@ -72,19 +74,39 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 12px 24px rgba(31,94,77,0.22)",
     whiteSpace: "nowrap",
   },
+  landingNotificationSlot: {
+    display: "inline-flex",
+    alignItems: "center",
+  },
+  langButton: {
+    border: "1px solid rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: "999px",
+    minHeight: "42px",
+    padding: "0 12px",
+    fontSize: "13px",
+    fontWeight: 950,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    color: "rgba(255,255,255,0.92)",
+    boxShadow: "0 12px 24px rgba(0,0,0,0.14)",
+    whiteSpace: "nowrap",
+  },
 };
 
 export default function SiteHeader() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { lang, toggleLang, t } = useI18n();
 
   const isActive = (path: string) => location.pathname === path;
+  const isLandingPage = location.pathname === "/";
 
   return (
     <header style={styles.header}>
       <div style={styles.brand} onClick={() => navigate("/")}>
         <img src="/fse_logo.png" alt="FSE" style={styles.brandLogo} />
-        EV Network
+        {t("app.name")}
       </div>
 
       <div style={styles.right}>
@@ -97,7 +119,7 @@ export default function SiteHeader() {
             }}
             onClick={() => navigate("/about")}
           >
-            About Us
+            {t("nav.about")}
           </button>
           <button
             type="button"
@@ -107,13 +129,23 @@ export default function SiteHeader() {
             }}
             onClick={() => navigate("/contact")}
           >
-            Contact
+            {t("nav.contact")}
           </button>
         </nav>
 
-        <button type="button" style={styles.adminButton} onClick={() => navigate("/admin")}>
-          Admin Girisi
+        <button type="button" style={styles.langButton} onClick={() => toggleLang()} aria-label={t("nav.language")}>
+          {lang === "tr" ? "TR" : "EN"}
         </button>
+
+        <button type="button" style={styles.adminButton} onClick={() => navigate("/admin")}>
+          {t("nav.adminLogin")}
+        </button>
+
+        {isLandingPage && (
+          <div style={styles.landingNotificationSlot}>
+            <NotificationCenter variant="inline" />
+          </div>
+        )}
       </div>
     </header>
   );

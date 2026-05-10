@@ -1,8 +1,10 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { Charger } from "../../models/Charger";
 import type { Station } from "../../models/Station";
+import { updateChargerStatus } from "../../services/firebase/chargerService";
 import { getReports, type ReportIssueType, type ReportRecord } from "../../services/firebase/reportService";
-import { getStationsWithChargers } from "../../services/firebase/stationService";
+import { getStationsWithChargers, upsertStation } from "../../services/firebase/stationService";
 
 const styles: Record<string, CSSProperties> = {
   title: {
@@ -138,6 +140,25 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.6,
     fontWeight: 850,
   },
+  actionRow: {
+    marginTop: "12px",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+  dangerButton: {
+    minHeight: "40px",
+    borderRadius: "14px",
+    border: "1px solid rgba(166, 62, 48, 0.24)",
+    backgroundColor: "#FFF3F1",
+    color: "#A63E30",
+    padding: "0 12px",
+    fontFamily: "inherit",
+    fontSize: "13px",
+    fontWeight: 950,
+    cursor: "pointer",
+  },
   empty: {
     marginTop: "14px",
     borderRadius: "18px",
@@ -154,12 +175,12 @@ const styles: Record<string, CSSProperties> = {
 };
 
 const ISSUE_LABELS: Record<ReportIssueType, string> = {
-  charger_not_working: "Charger is not working",
-  wrong_price: "Incorrect price",
-  station_offline: "Station offline",
-  location_problem: "Location problem",
-  payment_problem: "Odeme problemi",
-  other: "Diger",
+  charger_not_working: "adminReports.issueTypes.charger_not_working",
+  wrong_price: "adminReports.issueTypes.wrong_price",
+  station_offline: "adminReports.issueTypes.station_offline",
+  location_problem: "adminReports.issueTypes.location_problem",
+  payment_problem: "adminReports.issueTypes.payment_problem",
+  other: "adminReports.issueTypes.other",
 };
 
 function formatCreatedAt(createdAt: unknown) {
@@ -172,11 +193,14 @@ function formatCreatedAt(createdAt: unknown) {
 type TargetFilter = "all" | "station" | "charger";
 
 export default function AdminReportsScreen() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [stationsById, setStationsById] = useState<Record<string, Station>>({});
   const [chargersById, setChargersById] = useState<Record<string, Charger>>({});
+  const [actionLoadingId, setActionLoadingId] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
 
   const [queryText, setQueryText] = useState("");
   const [issueType, setIssueType] = useState<ReportIssueType | "all">("all");
@@ -205,7 +229,7 @@ export default function AdminReportsScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Reports could not be loaded. Check the Firestore connection.");
+        setError(t("adminReports.reportLoadFailed"));
       })
       .finally(() => {
         if (cancelled) return;
@@ -215,7 +239,7 @@ export default function AdminReportsScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const filtered = useMemo(() => {
     const q = queryText.trim().toLowerCase();
@@ -235,57 +259,102 @@ export default function AdminReportsScreen() {
     });
   }, [reports, queryText, issueType, target, stationsById, chargersById]);
 
+  const refreshStations = async () => {
+    const stations = await getStationsWithChargers();
+    const stationMap: Record<string, Station> = {};
+    const chargerMap: Record<string, Charger> = {};
+
+    for (const station of stations) {
+      stationMap[station.id] = station;
+      for (const charger of station.chargers ?? []) {
+        chargerMap[charger.id] = charger;
+      }
+    }
+
+    setStationsById(stationMap);
+    setChargersById(chargerMap);
+  };
+
+  const handleMarkOutOfService = async (report: ReportRecord) => {
+    const station = stationsById[report.stationId] ?? null;
+    const charger = report.chargerId ? chargersById[report.chargerId] ?? null : null;
+    if (!station && !charger) return;
+
+    setActionLoadingId(report.id);
+    setActionMessage("");
+
+    try {
+      if (charger) {
+        await updateChargerStatus(charger.id, "offline");
+      } else if (station) {
+        await upsertStation({
+          ...station,
+          status: "offline",
+          manualOffline: true,
+        });
+      }
+
+      await refreshStations();
+      setActionMessage("Out-of-service action applied. Active reservations were cancelled and users were notified.");
+    } catch {
+      setActionMessage("Out-of-service action could not be completed.");
+    } finally {
+      setActionLoadingId("");
+    }
+  };
+
   return (
     <div>
-      <h2 style={styles.title}>Raporlar</h2>
-      <p style={styles.subtitle}>View station and charger issues reported by users.</p>
+      <h2 style={styles.title}>{t("adminReports.title")}</h2>
+      <p style={styles.subtitle}>{t("adminReports.subtitle")}</p>
 
       <div className="admin-reports-toolbar" style={styles.toolbar}>
         <div style={styles.field}>
-          <div style={styles.label}>Searchma</div>
+          <div style={styles.label}>{t("adminReports.search")}</div>
           <input
             style={styles.input}
-            placeholder="Station name, issue type, description..."
+            placeholder={t("adminReports.searchPlaceholder")}
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
           />
         </div>
 
         <div style={styles.field}>
-          <div style={styles.label}>Tur</div>
+          <div style={styles.label}>{t("adminReports.type")}</div>
           <select
             style={styles.input}
             value={issueType}
             onChange={(e) => setIssueType(e.target.value as ReportIssueType | "all")}
           >
-            <option value="all">Tumu</option>
+            <option value="all">{t("adminReports.all")}</option>
             {Object.entries(ISSUE_LABELS).map(([key, label]) => (
               <option key={key} value={key}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </select>
         </div>
 
         <div style={styles.field}>
-          <div style={styles.label}>Kapsam</div>
+          <div style={styles.label}>{t("adminReports.scope")}</div>
           <select style={styles.input} value={target} onChange={(e) => setTarget(e.target.value as TargetFilter)}>
-            <option value="all">Tumu</option>
-            <option value="station">Station only</option>
-            <option value="charger">Charger only</option>
+            <option value="all">{t("adminReports.all")}</option>
+            <option value="station">{t("adminReports.stationOnly")}</option>
+            <option value="charger">{t("adminReports.chargerOnly")}</option>
           </select>
         </div>
       </div>
 
       <div style={styles.metaRow}>
-        <div style={styles.count}>{filtered.length} reports</div>
+        <div style={styles.count}>{t("adminReports.reportsCount", { count: filtered.length })}</div>
       </div>
+      {actionMessage && <div style={styles.loading}>{actionMessage}</div>}
 
-      {loading && <div style={styles.loading}>Loading...</div>}
+      {loading && <div style={styles.loading}>{t("adminReports.loading")}</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && !error && filtered.length === 0 && (
-        <div style={styles.empty}>No reports match the filters.</div>
+        <div style={styles.empty}>{t("adminReports.noResults")}</div>
       )}
 
       {!loading && !error && filtered.length > 0 && (
@@ -294,8 +363,8 @@ export default function AdminReportsScreen() {
             const station = stationsById[report.stationId] ?? null;
             const charger = report.chargerId ? chargersById[report.chargerId] ?? null : null;
             const stationName = station?.name ?? report.stationId;
-            const issue = ISSUE_LABELS[report.issueType] ?? report.issueType;
-            const badgeText = charger ? `Charger - ${issue}` : `Station - ${issue}`;
+            const issue = t(ISSUE_LABELS[report.issueType] ?? report.issueType);
+            const badgeText = charger ? `${t("adminReports.charger")} - ${issue}` : `${t("adminReports.station")} - ${issue}`;
             const chargerLine = charger
               ? `${charger.connectorType} - ${charger.powerOutput} - ${charger.type}`
               : "--";
@@ -310,12 +379,24 @@ export default function AdminReportsScreen() {
                   </div>
 
                   <div style={styles.details}>
-                    Date: {formatCreatedAt(report.createdAt)} <br />
-                    Station ID: {report.stationId} <br />
-                    Charger: {report.chargerId ? chargerLine : "--"}
+                    {t("adminReports.date")}: {formatCreatedAt(report.createdAt)} <br />
+                    {t("adminReports.stationId")}: {report.stationId} <br />
+                    {t("adminReports.charger")}: {report.chargerId ? chargerLine : "--"}
                   </div>
 
                   <div style={styles.desc}>{report.description || "--"}</div>
+                  <div style={styles.actionRow}>
+                    <button
+                      type="button"
+                      style={styles.dangerButton}
+                      onClick={() => void handleMarkOutOfService(report)}
+                      disabled={actionLoadingId === report.id}
+                    >
+                      {actionLoadingId === report.id
+                        ? "Applying..."
+                        : "Mark out of service"}
+                    </button>
+                  </div>
                 </div>
               </article>
             );

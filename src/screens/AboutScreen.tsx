@@ -1,5 +1,6 @@
 import { type CSSProperties } from "react";
 import SiteHeader from "../components/SiteHeader";
+import { useI18n } from "../i18n/I18nProvider";
 
 const developers = ["Arda Ferad", "Ecesu Kocaerler", "Ismail Varol", "Izzet Jumaev"];
 
@@ -112,6 +113,8 @@ const styles: Record<string, CSSProperties> = {
 };
 
 export default function AboutScreen() {
+  const { t } = useI18n();
+
   return (
     <div style={styles.page}>
       <div style={styles.heroBg} aria-hidden="true" />
@@ -122,19 +125,15 @@ export default function AboutScreen() {
 
         <main style={styles.main}>
           <section style={styles.card} aria-label="About Us">
-            <h1 style={styles.title}>About Us</h1>
-            <p style={styles.desc}>
-              EV Network brings vehicle profiles, reservations, and charging session flows together in one interface
-              to make the station experience faster. This project focuses on ease of use,
-              transparent cost calculation, and station management.
-            </p>
+            <h1 style={styles.title}>{t("about.title")}</h1>
+            <p style={styles.desc}>{t("about.description")}</p>
 
             <div className="about-grid" style={styles.grid}>
               {developers.map((name) => (
                 <div key={name} style={styles.devCard}>
                   <div style={styles.devGlow} aria-hidden="true" />
                   <div style={styles.devInner}>
-                    <div style={styles.devRole}>Developer</div>
+                    <div style={styles.devRole}>{t("about.developer")}</div>
                     <div style={styles.devName}>{name}</div>
                   </div>
                 </div>

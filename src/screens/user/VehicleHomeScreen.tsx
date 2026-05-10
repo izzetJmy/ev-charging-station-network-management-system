@@ -5,6 +5,7 @@ import { getVehiclesByUserId } from "../../services/firebase/userService";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
 import WalletPanel from "../../components/WalletPanel";
+import { useI18n } from "../../i18n/I18nProvider";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -45,15 +46,16 @@ const styles: Record<string, CSSProperties> = {
     borderBottom: "1px solid rgba(255,255,255,0.12)",
     display: "flex",
     alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
   },
   headerTopActions: {
-    position: "absolute",
-    top: "16px",
-    right: "22px",
     zIndex: 3,
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-end",
+    gap: "10px",
+    flexWrap: "wrap",
   },
   headerMedia: {
     position: "relative",
@@ -394,6 +396,7 @@ function formatCoordinates(latitude: number, longitude: number) {
 
 function VehicleHomeScreen() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
@@ -420,7 +423,7 @@ function VehicleHomeScreen() {
         setVehicles(result);
         setSelectedVehicleId(result[0]?.id ?? "");
       } catch {
-        setError("Vehicle list could not be loaded. Please try again.");
+        setError(t("errors.vehicleListLoadFailed"));
       } finally {
         setLoading(false);
       }
@@ -443,7 +446,7 @@ function VehicleHomeScreen() {
         return;
       }
 
-      setSelectedVehicleLocationLabel("Resolving location...");
+      setSelectedVehicleLocationLabel(t("vehicleHome.resolvingLocation"));
       const result = await reverseGeocodeCoordinates({
         lat: location.latitude,
         lng: location.longitude,
@@ -468,12 +471,6 @@ function VehicleHomeScreen() {
   const handleEditVehicle = () => {
     if (!selectedVehicleId) return;
     navigate(`/vehicles/${selectedVehicleId}/edit`);
-    setIsDetailOpen(false);
-  };
-
-  const handleOpenHistory = () => {
-    if (!selectedVehicleId) return;
-    navigate("/charging-history", { state: { vehicleId: selectedVehicleId } });
     setIsDetailOpen(false);
   };
 
@@ -503,23 +500,31 @@ function VehicleHomeScreen() {
       <main className="vehicle-home-shell" style={styles.shell}>
         <header style={styles.header}>
           <div style={styles.headerTop}>
+            <h1 style={styles.title}>{t("vehicleHome.title")}</h1>
             <div style={styles.headerTopActions}>
+              <WalletPanel userId={userId} variant="header" />
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={handleOpenReservations}
+              >
+                {t("vehicleHome.myReservations")}
+              </button>
               <button
                 type="button"
                 style={styles.secondaryButton}
                 onClick={handleGoToLanding}
               >
-                Ana sayfaya don
+                {t("vehicleHome.goHome")}
               </button>
             </div>
-            <h1 style={styles.title}>Saved Vehicles</h1>
           </div>
 
           <div style={styles.headerMedia} aria-hidden="true">
             <div style={styles.headerEyebrow}>
               <div style={styles.eyebrow}>
                 <span style={styles.signalDot} />
-                EV Network
+                {t("app.name")}
               </div>
             </div>
             <img
@@ -539,35 +544,25 @@ function VehicleHomeScreen() {
           </div>
         </header>
 
-        <section style={styles.body} aria-label="Vehicle listesi">
-          <WalletPanel userId={userId} compact />
-
+        <section style={styles.body} aria-label={t("vehicleHome.listTitle")}>
           <div style={styles.listTitleRow}>
-            <h2 style={styles.listTitle}>Vehicle listesi</h2>
+            <h2 style={styles.listTitle}>{t("vehicleHome.listTitle")}</h2>
             <div style={styles.listTitleRight}>
               <div style={styles.counter}>
-                {loading ? "Loading..." : `${vehicles.length} vehicle`}
+                {loading ? t("vehicleHome.loading") : t("vehicleHome.count", { count: vehicles.length })}
               </div>
-              <button
-                type="button"
-                style={styles.compactButton}
-                onClick={handleOpenReservations}
-              >
-                My Reservations
-              </button>
             </div>
           </div>
 
           <p style={styles.listSubtitle}>
-            Click a vehicle in the list to select it. Details open after you click.
+            {t("vehicleHome.listSubtitle")}
           </p>
 
           {error && <div style={styles.emptyMessage}>{error}</div>}
 
           {!error && !loading && vehicles.length === 0 && (
             <div style={styles.emptyMessage}>
-              No saved vehicles. To add a new vehicle, use the "New Vehicle
-              Olustur" butonunu kullanin.
+              {t("vehicleHome.emptyNoVehicles")}
             </div>
           )}
 
@@ -594,8 +589,8 @@ function VehicleHomeScreen() {
                     {getVehicleDisplayName(vehicle)}
                   </span>
                   <span style={styles.vehicleMeta}>
-                    Plate: {vehicle.plateNumber?.trim().toUpperCase() || "--"} -
-                    Connector: {vehicle.connectorType || "--"}
+                    {t("vehicleHome.plate")}: {vehicle.plateNumber?.trim().toUpperCase() || "--"} -{" "}
+                    {t("vehicleHome.connector")}: {vehicle.connectorType || "--"}
                   </span>
                   </button>
 
@@ -605,14 +600,14 @@ function VehicleHomeScreen() {
                       style={styles.compactButton}
                       onClick={() => handleOpenReservationsForVehicle(vehicle.id)}
                     >
-                      Reservations
+                      {t("vehicleHome.reservations")}
                     </button>
                     <button
                       type="button"
                       style={styles.compactButton}
                       onClick={() => handleOpenHistoryForVehicle(vehicle.id)}
                     >
-                      Charging History
+                      {t("vehicleHome.chargingHistory")}
                     </button>
                   </div>
                 </article>
@@ -626,7 +621,7 @@ function VehicleHomeScreen() {
               style={styles.primaryButton}
               onClick={handleCreateVehicle}
             >
-              Yeni Vehicle Olustur
+              {t("vehicleHome.newVehicle")}
             </button>
           </div>
         </section>
@@ -645,7 +640,7 @@ function VehicleHomeScreen() {
               <div style={styles.modalTop}>
                 <div>
                   <div style={{ color: "#7A8982", fontSize: "11px", fontWeight: 850, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                    Selected Vehicle
+                    {t("vehicleHome.selectedVehicle")}
                   </div>
                   <h3 style={styles.modalTitle}>
                     {getVehicleDisplayName(selectedVehicle)}
@@ -656,25 +651,25 @@ function VehicleHomeScreen() {
                   style={styles.closeButton}
                   onClick={() => setIsDetailOpen(false)}
                 >
-                  Close
+                  {t("vehicleHome.close")}
                 </button>
               </div>
 
               <div style={styles.infoGrid}>
                 <div style={styles.infoItem}>
-                  <div style={styles.infoLabel}>Plate</div>
+                  <div style={styles.infoLabel}>{t("vehicleHome.plate")}</div>
                   <div style={styles.infoValue}>
                     {selectedVehicle.plateNumber?.trim().toUpperCase() || "--"}
                   </div>
                 </div>
                 <div style={styles.infoItem}>
-                  <div style={styles.infoLabel}>Connector</div>
+                  <div style={styles.infoLabel}>{t("vehicleHome.connector")}</div>
                   <div style={styles.infoValue}>
                     {selectedVehicle.connectorType || "--"}
                   </div>
                 </div>
                 <div style={styles.infoItem}>
-                  <div style={styles.infoLabel}>Battery</div>
+                  <div style={styles.infoLabel}>{t("vehicleHome.battery")}</div>
                   <div style={styles.infoValue}>
                     {selectedVehicle.batteryCapacity
                       ? `${selectedVehicle.batteryCapacity} kWh`
@@ -682,7 +677,7 @@ function VehicleHomeScreen() {
                   </div>
                 </div>
                 <div style={styles.infoItem}>
-                  <div style={styles.infoLabel}>Location</div>
+                  <div style={styles.infoLabel}>{t("vehicleHome.location")}</div>
                   <div style={styles.infoValue}>
                     {(() => {
                       const location = selectedVehicle.currentLocation;
@@ -691,12 +686,12 @@ function VehicleHomeScreen() {
                         typeof location.latitude !== "number" ||
                         typeof location.longitude !== "number"
                       ) {
-                        return "No location record";
+                        return t("vehicleHome.noLocation");
                       }
 
                       if (
                         selectedVehicleLocationLabel &&
-                        selectedVehicleLocationLabel !== "Resolving location..."
+                        selectedVehicleLocationLabel !== t("vehicleHome.resolvingLocation")
                       ) {
                         return selectedVehicleLocationLabel;
                       }
@@ -713,34 +708,14 @@ function VehicleHomeScreen() {
                   style={styles.primaryButton}
                   onClick={handleGoToMap}
                 >
-                  Open Map with This Vehicle
+                  {t("vehicleHome.openMap")}
                 </button>
                 <button
                   type="button"
                   style={styles.secondaryButton}
                   onClick={handleEditVehicle}
                 >
-                  Update Vehicle
-                </button>
-              </div>
-
-              <div style={{ marginTop: "12px" }}>
-                <button
-                  type="button"
-                  style={styles.secondaryButton}
-                  onClick={() => handleOpenReservationsForVehicle(selectedVehicle.id)}
-                >
-                  My Reservations
-                </button>
-              </div>
-
-              <div style={{ marginTop: "12px" }}>
-                <button
-                  type="button"
-                  style={styles.secondaryButton}
-                  onClick={handleOpenHistory}
-                >
-                  Charging History
+                  {t("vehicleHome.updateVehicle")}
                 </button>
               </div>
             </section>

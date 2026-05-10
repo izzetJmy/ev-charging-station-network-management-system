@@ -14,9 +14,12 @@ import { STATION_STATUS_COLORS } from "../../constants/mapConstants";
 import type { Station } from "../../models/Station";
 import type { Vehicle } from "../../models/vehicle";
 import {
+  getStationAverageRatings,
   getVehicleById,
   getVehicleByUserId,
   updateVehicleCurrentLocation,
+  updateVehicleStationRating,
+  type StationRatingSummary,
 } from "../../services/firebase/vehicleService";
 import { getStationsWithChargers } from "../../services/firebase/stationService";
 import { useGoogleMapsLoader } from "../../services/maps/googleMapsLoader";
@@ -33,6 +36,7 @@ import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { useFavoriteStations } from "../../hooks/useFavoriteStations";
 import { toggleFavoriteStation } from "../../services/firebase/favoriteService";
 import { isStationOpenAt } from "../../utils/stationOperatingHours";
+import { useI18n } from "../../i18n/I18nProvider";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -385,11 +389,11 @@ const styles: Record<string, CSSProperties> = {
     fontFamily: "inherit",
     transition: "transform 0.18s ease, box-shadow 0.18s ease",
     boxSizing: "border-box",
-    overflow: "hidden",
+    overflow: "visible",
   },
   stationCardRow: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto",
+    gridTemplateColumns: "minmax(0, 1fr) auto auto",
     gap: "8px",
     alignItems: "center",
   },
@@ -417,6 +421,67 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
     lineHeight: 1,
+  },
+  ratingWrap: {
+    position: "relative",
+  },
+  ratingIconButton: {
+    minWidth: "38px",
+    minHeight: "38px",
+    padding: "0 8px",
+    borderRadius: "13px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    color: "#FFD36A",
+    fontSize: "20px",
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    lineHeight: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "5px",
+  },
+  ratingAverage: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: "11px",
+    fontWeight: 900,
+    lineHeight: 1,
+  },
+  ratingPopover: {
+    position: "absolute",
+    top: "44px",
+    right: 0,
+    width: "170px",
+    padding: "12px",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.22)",
+    backgroundColor: "#FFFFFF",
+    boxShadow: "0 18px 36px rgba(0,0,0,0.20)",
+    zIndex: 5,
+  },
+  ratingTitle: {
+    margin: "0 0 8px",
+    color: "#17231F",
+    fontSize: "12px",
+    fontWeight: 900,
+  },
+  starRow: {
+    display: "flex",
+    gap: "4px",
+  },
+  starButton: {
+    width: "27px",
+    height: "27px",
+    padding: 0,
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#D49B1E",
+    fontSize: "22px",
+    lineHeight: 1,
+    cursor: "pointer",
+    fontFamily: "inherit",
   },
   stationButtonActive: {
     boxShadow: "0 0 0 3px rgba(184,240,97,0.14), 0 14px 28px rgba(0,0,0,0.22)",
@@ -725,17 +790,30 @@ const styles: Record<string, CSSProperties> = {
     marginTop: "12px",
   },
   routeSummaryPill: {
-    minHeight: "34px",
-    display: "inline-flex",
-    alignItems: "center",
+    minHeight: "42px",
+    display: "inline-grid",
     gap: "8px",
-    padding: "0 12px",
-    borderRadius: "999px",
+    padding: "8px 12px",
+    borderRadius: "14px",
     backgroundColor: "#F0F7F1",
     border: "1px solid #D7E6DA",
     color: "#245243",
     fontSize: "13px",
     fontWeight: 850,
+  },
+  routeSummaryLabel: {
+    color: "#5B736A",
+    fontSize: "10px",
+    fontWeight: 950,
+    letterSpacing: "0.07em",
+    textTransform: "uppercase",
+    lineHeight: 1,
+  },
+  routeSummaryValue: {
+    color: "#10352E",
+    fontSize: "14px",
+    fontWeight: 1000,
+    lineHeight: 1.1,
   },
   navigationActions: {
     display: "flex",
@@ -847,18 +925,18 @@ function formatCoordinates(coords: UserCoordinates | null) {
   return `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
 }
 
-function getStatusText(permissionState: LocationPermissionState) {
+function getStatusText(permissionState: LocationPermissionState, t: (key: string) => string) {
   switch (permissionState) {
     case "granted":
-      return "Hazir";
+      return t("stationMapScreen.statusReady");
     case "loading":
-      return "Bekliyor";
+      return t("stationMapScreen.statusWaiting");
     case "denied":
-      return "Closed";
+      return t("stationMapScreen.statusDenied");
     case "error":
-      return "Error";
+      return t("stationMapScreen.statusError");
     default:
-      return "Bos";
+      return t("stationMapScreen.statusEmpty");
   }
 }
 
@@ -918,6 +996,7 @@ function getUniqueChargerValues(
 function StationMapScreen() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
   const { isLoaded, isLoading: mapsLoading, errorMessage: mapsError } =
     useGoogleMapsLoader();
@@ -956,6 +1035,11 @@ function StationMapScreen() {
   const [navigationStation, setNavigationStation] = useState<Station | null>(null);
   const [isNavigationPreviewOpen, setIsNavigationPreviewOpen] = useState(false);
   const [favoriteActionLoadingId, setFavoriteActionLoadingId] = useState("");
+  const [ratingStationId, setRatingStationId] = useState("");
+  const [ratingActionLoadingId, setRatingActionLoadingId] = useState("");
+  const [stationRatingSummaries, setStationRatingSummaries] = useState<
+    Record<string, StationRatingSummary>
+  >({});
   const vehicleIdRef = useRef("");
   const coordsRef = useRef<UserCoordinates | null>(null);
 
@@ -1160,6 +1244,24 @@ function StationMapScreen() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    getStationAverageRatings()
+      .then((summaries) => {
+        if (cancelled) return;
+        setStationRatingSummaries(summaries);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStationRatingSummaries({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const routeState = location.state as StationMapLocationState | null;
     const requestedStationId = routeState?.stationId;
 
@@ -1280,16 +1382,14 @@ function StationMapScreen() {
           vehicleIdRef.current,
           result.currentLocation,
         );
-        setSuccessMessage(
-          "Location updated, the map was centered, and Firestore was updated.",
-        );
+        setSuccessMessage(t("stationMapScreen.locationUpdated"));
       } catch {
-        setLocationUpdateError("An error occurred while saving the location to Firestore.");
+        setLocationUpdateError(t("stationMapScreen.locationSaveFailed"));
       } finally {
         setLocationUpdateLoading(false);
       }
     },
-    [],
+    [t],
   );
 
   useEffect(() => {
@@ -1329,11 +1429,11 @@ function StationMapScreen() {
 
   const statusSummary = useMemo(
     () => [
-      { label: "available", color: STATION_STATUS_COLORS.available },
-      { label: "occupied", color: STATION_STATUS_COLORS.occupied },
-      { label: "offline", color: STATION_STATUS_COLORS.offline },
+      { label: t("stationMapScreen.availableCharger"), color: STATION_STATUS_COLORS.available },
+      { label: t("stationMapScreen.busyCharger"), color: STATION_STATUS_COLORS.occupied },
+      { label: t("stationMapScreen.offlineCharger"), color: STATION_STATUS_COLORS.offline },
     ],
-    [],
+    [t],
   );
 
   const shouldShowLoadingState =
@@ -1346,7 +1446,14 @@ function StationMapScreen() {
   const navigationOriginLabel =
     coordsLabel && coordsLabel !== "Resolving location..."
       ? coordsLabel
-      : "Your location";
+      : t("stationMapScreen.yourLocation");
+  const navigationDirectDistanceLabel =
+    coords && navigationStation
+      ? formatDistanceLabel(calculateDistanceFromCurrentLocation(coords, navigationStation))
+      : "--";
+  const navigationRouteDistanceLabel =
+    directionsLeg?.distance?.text ?? navigationDirectDistanceLabel;
+  const navigationDurationLabel = directionsLeg?.duration?.text ?? "--";
 
   const handleSelectStation = (station: Station) => {
     setSelectedStation(station);
@@ -1361,13 +1468,13 @@ function StationMapScreen() {
 
   const handleGetDirections = async () => {
     if (!selectedStation) {
-      setDirectionsError("Select a station first to draw a route.");
+      setDirectionsError(t("stationMapScreen.routeSelectStation"));
       return;
     }
 
     if (!isLoaded || mapsError) {
       setDirectionsError(
-        mapsError || "The route cannot be drawn because Google Maps is not ready.",
+        mapsError || t("stationMapScreen.routeNotReady"),
       );
       return;
     }
@@ -1377,7 +1484,7 @@ function StationMapScreen() {
     setDirectionsResult(null);
     setNavigationStation(null);
     setIsNavigationPreviewOpen(false);
-    setMessage("Getting current location for the route.");
+    setMessage(t("stationMapScreen.routeRequestingLocation"));
 
     const locationResult = await getCurrentLocation();
     setPermissionState(locationResult.permissionState);
@@ -1388,7 +1495,7 @@ function StationMapScreen() {
       setDirectionsLoading(false);
       setDirectionsError(
         locationResult.permissionState === "denied"
-          ? "Location permission was denied. Allow location permission in the browser to draw a route."
+          ? t("stationMapScreen.routeLocationDenied")
           : locationResult.message,
       );
       return;
@@ -1412,7 +1519,7 @@ function StationMapScreen() {
 
           if (status !== google.maps.DirectionsStatus.OK || !result) {
             setDirectionsError(
-              "Google Maps could not create route details. Please try again later.",
+              t("stationMapScreen.routeFailed"),
             );
             return;
           }
@@ -1421,13 +1528,13 @@ function StationMapScreen() {
           setNavigationStation(selectedStation);
           setIsNavigationPreviewOpen(true);
           setSelectedStation(null);
-          setSuccessMessage("Route drawn on the map.");
+          setSuccessMessage(t("stationMapScreen.routeDrawn"));
         },
       );
     } catch {
       setDirectionsLoading(false);
       setDirectionsError(
-        "An error occurred while starting DirectionsService. The app is still running.",
+        t("stationMapScreen.routeServiceFailed"),
       );
     }
   };
@@ -1470,94 +1577,151 @@ function StationMapScreen() {
         favoriteStationIds.has(station.id),
       );
     } catch {
-      setLocationUpdateError("Favorite action could not be saved. Please try again.");
+      setLocationUpdateError(t("stationMapScreen.favoriteSaveFailed"));
     } finally {
       setFavoriteActionLoadingId("");
+    }
+  };
+
+  const handleRateStation = async (station: Station, rating: number) => {
+    if (!vehicle?.id) {
+      setLocationUpdateError(t("stationDetail.ratingVehicleRequired"));
+      return;
+    }
+
+    const previousRating = vehicle.stationRatings?.[station.id] ?? 0;
+    setRatingActionLoadingId(station.id);
+    setLocationUpdateError("");
+
+    try {
+      await updateVehicleStationRating(vehicle.id, station.id, rating);
+      setVehicle((currentVehicle) =>
+        currentVehicle
+          ? {
+              ...currentVehicle,
+              stationRatings: {
+                ...(currentVehicle.stationRatings ?? {}),
+                [station.id]: rating,
+              },
+            }
+          : currentVehicle,
+      );
+      setStationRatingSummaries((currentSummaries) => {
+        const currentSummary = currentSummaries[station.id] ?? { average: 0, count: 0 };
+        if (previousRating > 0 && currentSummary.count === 0) {
+          return {
+            ...currentSummaries,
+            [station.id]: {
+              average: rating,
+              count: 1,
+            },
+          };
+        }
+
+        const nextCount = previousRating > 0 ? currentSummary.count : currentSummary.count + 1;
+        const currentTotal = currentSummary.average * currentSummary.count;
+        const nextTotal = previousRating > 0
+          ? currentTotal - previousRating + rating
+          : currentTotal + rating;
+
+        return {
+          ...currentSummaries,
+          [station.id]: {
+            average: nextTotal / nextCount,
+            count: nextCount,
+          },
+        };
+      });
+      setSuccessMessage("");
+    } catch {
+      setLocationUpdateError(t("stationDetail.ratingSaveFailed"));
+    } finally {
+      setRatingActionLoadingId("");
     }
   };
 
   return (
     <div style={styles.page}>
       <main className="station-map-shell" style={styles.shell}>
-        <section style={styles.summaryPanel} aria-label="Station map summary">
+        <section style={styles.summaryPanel} aria-label={t("stationMapScreen.summaryAria")}>
           <div style={styles.routeLayer} />
 
           <div style={styles.content}>
             <div style={styles.eyebrow}>
               <span style={styles.signalDot} />
-              EV Network
+              {t("stationMapScreen.eyebrow")}
             </div>
 
-            <h1 style={styles.title}>Station Map Focused on Your Location</h1>
-            <p style={styles.summaryText}>
-              When location permission is granted, the system detects your current location,
-              opens Google Maps, and shows nearby station markers in the same view.
-              ekranda gosterir.
-            </p>
+            <h1 style={styles.title}>{t("stationMapScreen.title")}</h1>
+            <p style={styles.summaryText}>{t("stationMapScreen.subtitle")}</p>
 
             <div style={styles.locationStrip}>
                 <div>
-                  <div style={styles.locationStatus}>Current location</div>
+                  <div style={styles.locationStatus}>{t("stationMapScreen.currentLocation")}</div>
                   <div style={styles.locationValue}>
                     {coords
                       ? coordsLabel && coordsLabel !== "Resolving location..."
                         ? coordsLabel
                         : formatCoordinates(coords)
-                      : "Waiting for location"}
+                      : t("stationMapScreen.waitingLocation")}
                   </div>
                 </div>
-                <div style={styles.chip}>{getStatusText(permissionState)}</div>
+                <div style={styles.chip}>{getStatusText(permissionState, t)}</div>
               </div>
 
             {selectedStation && (
               <div style={styles.selectedRow}>
-                <div style={styles.selectedLabel}>Selected station</div>
+                <div style={styles.selectedLabel}>{t("stationMapScreen.selectedStation")}</div>
                 <div style={styles.selectedValue}>{selectedStation.name}</div>
               </div>
             )}
 
             <div style={styles.filterCard}>
-              <p style={styles.filterTitle}>Searchma ve Filtre</p>
+              <p style={styles.filterTitle}>{t("stationMapScreen.searchFilters")}</p>
               <input
                 value={stationSearch}
                 onChange={(event) => setStationSearch(event.target.value)}
-                placeholder="Station name veya adres ara..."
+                placeholder={t("stationMapScreen.searchPlaceholder")}
                 style={styles.searchInput}
               />
 
               <div className="station-filter-grid" style={styles.filterGrid}>
                 <div style={styles.filterGroup}>
-                  <label style={styles.filterLabel}>Station status</label>
+                  <label style={styles.filterLabel}>{t("stationMapScreen.stationStatus")}</label>
                   <select
                     value={stationStatusFilter}
                     onChange={(event) => setStationStatusFilter(event.target.value)}
                     style={styles.filterSelect}
                   >
-                    <option value="all">Tum durumlar</option>
+                    <option value="all">{t("stationMapScreen.allStatuses")}</option>
                     {stationStatusOptions.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {status === "available"
+                          ? t("charger.status.available")
+                          : status === "occupied"
+                            ? t("charger.status.occupied")
+                            : t("charger.status.offline")}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div style={styles.filterGroup}>
-                  <label style={styles.filterLabel}>Availability</label>
+                  <label style={styles.filterLabel}>{t("stationMapScreen.availability")}</label>
                   <select
                     value={availabilityFilter}
                     onChange={(event) => setAvailabilityFilter(event.target.value)}
                     style={styles.filterSelect}
                   >
-                    <option value="all">Tum charger'lar</option>
-                    <option value="available">Available charger</option>
-                    <option value="busy">Dolu charger</option>
-                    <option value="offline">Offline charger</option>
+                    <option value="all">{t("stationMapScreen.allChargers")}</option>
+                    <option value="available">{t("stationMapScreen.availableCharger")}</option>
+                    <option value="busy">{t("stationMapScreen.busyCharger")}</option>
+                    <option value="offline">{t("stationMapScreen.offlineCharger")}</option>
                   </select>
                 </div>
 
                 <div style={{ ...styles.filterGroup, ...styles.filterGroupWide }}>
-                  <label style={styles.filterLabel}>Connector type</label>
+                  <label style={styles.filterLabel}>{t("stationMapScreen.connectorType")}</label>
                   <div style={styles.filterRow}>
                     {connectorTypeOptions.map((connectorType) => (
                       <button
@@ -1582,7 +1746,7 @@ function StationMapScreen() {
                 </div>
 
                 <div style={{ ...styles.filterGroup, ...styles.filterGroupWide }}>
-                  <label style={styles.filterLabel}>Power output</label>
+                  <label style={styles.filterLabel}>{t("stationMapScreen.powerOutput")}</label>
                   <div style={styles.filterRow}>
                     {powerOutputOptions.map((powerOutput) => (
                       <button
@@ -1607,7 +1771,7 @@ function StationMapScreen() {
                 </div>
 
                 <div style={{ ...styles.filterGroup, ...styles.filterGroupWide }}>
-                  <label style={styles.filterLabel}>Price range TL/kWh</label>
+                  <label style={styles.filterLabel}>{t("stationMapScreen.priceRange")}</label>
                   <div className="price-filter-row" style={styles.priceRow}>
                     <input
                       value={priceMin}
@@ -1636,7 +1800,7 @@ function StationMapScreen() {
                   }}
                   onClick={() => setOnlyAvailable((current) => !current)}
                 >
-                  Available only
+                  {t("stationMapScreen.availableOnly")}
                 </button>
                 <button
                   type="button"
@@ -1646,30 +1810,32 @@ function StationMapScreen() {
                   }}
                   onClick={() => setOpenNowOnly((current) => !current)}
                 >
-                  Open now
+                  {t("stationMapScreen.openNow")}
                 </button>
                 <button
                   type="button"
                   style={styles.filterResetButton}
                   onClick={resetFilters}
                 >
-                  Filtreleri temizle
+                  {t("stationMapScreen.clearFilters")}
                 </button>
               </div>
             </div>
 
             <div style={styles.listCard}>
               <div style={styles.listHeader}>
-                <p style={styles.listTitle}>Yakinimdakiler</p>
-                <div style={styles.listCount}>{filteredStations.length} stations</div>
+                <p style={styles.listTitle}>{t("stationMapScreen.nearby")}</p>
+                <div style={styles.listCount}>{filteredStations.length} {t("stationMapScreen.stationsCount")}</div>
               </div>
 
               <div style={styles.stationList}>
                 {visibleNearbyStations.map(({ station, distanceKm }) => {
                   const isActive = station.id === selectedStation?.id;
+                  const stationRating = vehicle?.stationRatings?.[station.id] ?? 0;
+                  const averageRating = stationRatingSummaries[station.id]?.average ?? 0;
                   const distanceLabel =
                     distanceKm == null
-                      ? "No location"
+                      ? t("vehicleHome.noLocation")
                       : formatDistanceLabel(distanceKm);
 
                   return (
@@ -1688,9 +1854,32 @@ function StationMapScreen() {
                       >
                       <span style={styles.stationName}>{station.name}</span>
                       <span style={styles.stationMeta}>
-                        {distanceLabel} - {station.status}
+                        {distanceLabel} - {station.status === "available"
+                          ? t("charger.status.available")
+                          : station.status === "occupied"
+                            ? t("charger.status.occupied")
+                            : t("charger.status.offline")}
                       </span>
                       </button>
+                      <div style={styles.ratingWrap}>
+                        <button
+                          type="button"
+                          style={styles.ratingIconButton}
+                          onClick={() =>
+                            setRatingStationId((current) =>
+                              current === station.id ? "" : station.id,
+                            )
+                          }
+                          disabled={ratingActionLoadingId === station.id}
+                          aria-label={t("stationDetail.rateStation")}
+                          title={t("stationDetail.rateStation")}
+                        >
+                          <span style={styles.ratingAverage}>
+                            {averageRating > 0 ? averageRating.toFixed(1) : "--"}
+                          </span>
+                          <span>{stationRating > 0 ? "★" : "☆"}</span>
+                        </button>
+                      </div>
                       <button
                         type="button"
                         style={styles.favoriteIconButton}
@@ -1698,17 +1887,47 @@ function StationMapScreen() {
                         disabled={favoriteActionLoadingId === station.id}
                         aria-label={
                           favoriteStationIds.has(station.id)
-                            ? "Remove from favorites"
-                            : "Add to favorites"
+                            ? t("stationDetail.favoritesRemove")
+                            : t("stationDetail.favoritesAdd")
                         }
                         title={
                           favoriteStationIds.has(station.id)
-                            ? "Remove from favorites"
-                            : "Add to favorites"
+                            ? t("stationDetail.favoritesRemove")
+                            : t("stationDetail.favoritesAdd")
                         }
                       >
                         {favoriteStationIds.has(station.id) ? "♥" : "♡"}
                       </button>
+                      {ratingStationId === station.id && (
+                        <div
+                          style={{
+                            ...styles.ratingPopover,
+                            position: "static",
+                            gridColumn: "1 / -1",
+                            width: "auto",
+                          }}
+                        >
+                          <p style={styles.ratingTitle}>{t("stationDetail.rateStation")}</p>
+                          <div style={styles.starRow}>
+                            {[1, 2, 3, 4, 5].map((rating) => (
+                              <button
+                                key={rating}
+                                type="button"
+                                style={styles.starButton}
+                                onClick={() => {
+                                  setRatingStationId("");
+                                  void handleRateStation(station, rating);
+                                }}
+                                disabled={ratingActionLoadingId === station.id}
+                                aria-label={t("stationDetail.ratingValue", { rating })}
+                                title={t("stationDetail.ratingValue", { rating })}
+                              >
+                                {rating <= stationRating ? "★" : "☆"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1720,7 +1939,7 @@ function StationMapScreen() {
                   style={styles.listToggle}
                   onClick={() => setIsNearbyExpanded((current) => !current)}
                 >
-                  <span>{isNearbyExpanded ? "Show less" : "Show all"}</span>
+                  <span>{isNearbyExpanded ? t("stationMap.showLess") : t("stationMap.showAll")}</span>
                   <span
                     aria-hidden="true"
                     style={{
@@ -1735,16 +1954,16 @@ function StationMapScreen() {
 
           <div style={styles.metricGrid}>
             <div style={styles.metric}>
-              <div style={styles.metricValue}>{coords ? "Canli" : "--"}</div>
-              <div style={styles.metricLabel}>Location</div>
+              <div style={styles.metricValue}>{coords ? t("stationMap.live") : "--"}</div>
+              <div style={styles.metricLabel}>{t("stationMapScreen.locationMetric")}</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{stationCounts.totalStations}</div>
-              <div style={styles.metricLabel}>Station</div>
+              <div style={styles.metricLabel}>{t("stationMapScreen.stationMetric")}</div>
             </div>
             <div style={styles.metric}>
               <div style={styles.metricValue}>{stationCounts.availableStations}</div>
-              <div style={styles.metricLabel}>Available</div>
+              <div style={styles.metricLabel}>{t("stationMapScreen.availableMetric")}</div>
             </div>
           </div>
         </section>
@@ -1752,17 +1971,13 @@ function StationMapScreen() {
         <section style={styles.mapPanel}>
           <div style={styles.topBar}>
             <div>
-              <h2 style={styles.panelTitle}>Station Map</h2>
-              <p style={styles.subtitle}>
-                The user location is shown with a blue marker, and station statuses are shown with colored
-                markers. If location permission is missing, the same area appears instead of the map.
-                tasarim dilinde bilgilendirme karti gorunur.
-              </p>
+              <h2 style={styles.panelTitle}>{t("stationMapScreen.mapTitle")}</h2>
+              <p style={styles.subtitle}>{t("stationMapScreen.mapDescription")}</p>
             </div>
 
             <div style={styles.statusWrap}>
               <div style={styles.statusValue}>{progressValue}%</div>
-              <div style={styles.statusLabel}>Map status</div>
+              <div style={styles.statusLabel}>{t("stationMapScreen.mapStatus")}</div>
             </div>
           </div>
 
@@ -1775,16 +1990,16 @@ function StationMapScreen() {
             />
           </div>
 
-          <div style={styles.sectionLabel}>Location and Marker Status</div>
+          <div style={styles.sectionLabel}>{t("stationMapScreen.sectionStatus")}</div>
 
           <div style={styles.card}>
             <div style={styles.infoGrid}>
               <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Izin</div>
-                <div style={styles.infoValue}>{getStatusText(permissionState)}</div>
+                <div style={styles.infoLabel}>{t("stationMapScreen.permission")}</div>
+                <div style={styles.infoValue}>{getStatusText(permissionState, t)}</div>
               </div>
               <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Location</div>
+                <div style={styles.infoLabel}>{t("stationMap.location")}</div>
                 <div style={styles.infoValue}>
                   {coords
                     ? coordsLabel && coordsLabel !== "Resolving location..."
@@ -1874,11 +2089,11 @@ function StationMapScreen() {
               <div style={styles.warningCard}>
                 <div style={styles.warningBox}>
                   <div style={styles.warningBadge}>!</div>
-                  <h3 style={styles.warningTitle}>Map kullanilamiyor</h3>
+                  <h3 style={styles.warningTitle}>{t("stationMapScreen.mapUnavailableTitle")}</h3>
                   <p style={styles.warningText}>
                     {permissionState === "denied"
-                      ? "The map cannot be displayed without location permission."
-                      : mapsError || "Map is not ready right now."}
+                      ? t("stationMapScreen.mapNoPermission")
+                      : mapsError || t("stationMapScreen.mapNotReady")}
                   </p>
                 </div>
               </div>
@@ -1896,8 +2111,14 @@ function StationMapScreen() {
                   favoriteLoading={
                     favoritesLoading || favoriteActionLoadingId === selectedStation.id
                   }
+                  stationRating={vehicle?.stationRatings?.[selectedStation.id] ?? 0}
+                  stationAverageRating={
+                    stationRatingSummaries[selectedStation.id]?.average ?? 0
+                  }
+                  ratingLoading={ratingActionLoadingId === selectedStation.id}
                   onGetDirections={handleGetDirections}
                   onToggleFavorite={() => void handleToggleFavorite(selectedStation)}
+                  onRateStation={(rating) => void handleRateStation(selectedStation, rating)}
                   onClose={handleCloseStationCard}
                 />
               </div>
@@ -1910,7 +2131,7 @@ function StationMapScreen() {
                 style={styles.primaryButton}
                 disabled={locationUpdateLoading}
               >
-                {locationUpdateLoading ? "Updating..." : "Update My Location"}
+                {locationUpdateLoading ? t("stationMapScreen.updatingLocation") : t("stationMapScreen.updateMyLocation")}
               </button>
 
               <button
@@ -1919,7 +2140,7 @@ function StationMapScreen() {
                 style={styles.secondaryButton}
                 disabled={locationUpdateLoading}
               >
-                Back to Vehicle Profile
+                {t("stationMapScreen.backToVehicleProfile")}
               </button>
 
               <button
@@ -1928,7 +2149,7 @@ function StationMapScreen() {
                 style={styles.secondaryButton}
                 disabled={locationUpdateLoading}
               >
-                Favoriler
+                {t("stationMapScreen.favorites")}
               </button>
             </div>
           </div>
@@ -1957,12 +2178,21 @@ function StationMapScreen() {
                 </p>
                 <div style={styles.routeSummaryRow}>
                   <span style={styles.routeSummaryPill}>
-                    {directionsLeg?.duration?.text ?? "Sure hesaplanamadi"}
+                    <span style={styles.routeSummaryLabel}>Duration</span>
+                    <span style={styles.routeSummaryValue}>{navigationDurationLabel}</span>
                   </span>
                   <span style={styles.routeSummaryPill}>
-                    {directionsLeg?.distance?.text ?? "Mesafe hesaplanamadi"}
+                    <span style={styles.routeSummaryLabel}>Route distance</span>
+                    <span style={styles.routeSummaryValue}>{navigationRouteDistanceLabel}</span>
                   </span>
-                  <span style={styles.routeSummaryPill}>Driving</span>
+                  <span style={styles.routeSummaryPill}>
+                    <span style={styles.routeSummaryLabel}>Direct distance</span>
+                    <span style={styles.routeSummaryValue}>{navigationDirectDistanceLabel}</span>
+                  </span>
+                  <span style={styles.routeSummaryPill}>
+                    <span style={styles.routeSummaryLabel}>Mode</span>
+                    <span style={styles.routeSummaryValue}>Driving</span>
+                  </span>
                 </div>
               </div>
 

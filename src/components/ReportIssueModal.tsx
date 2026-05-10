@@ -4,6 +4,7 @@ import {
   createReport,
   type ReportIssueType,
 } from "../services/firebase/reportService";
+import { useI18n } from "../i18n/I18nProvider";
 
 interface ReportIssueModalProps {
   stationId: string;
@@ -13,13 +14,13 @@ interface ReportIssueModalProps {
   onSubmitSuccess: () => void;
 }
 
-const issueOptions: Array<{ value: ReportIssueType; label: string }> = [
-  { value: "charger_not_working", label: "Charger is not working" },
-  { value: "wrong_price", label: "Incorrect fee" },
-  { value: "station_offline", label: "Station offline" },
-  { value: "location_problem", label: "Location issue" },
-  { value: "payment_problem", label: "Odeme sorunu" },
-  { value: "other", label: "Diger" },
+const issueOptions: ReportIssueType[] = [
+  "charger_not_working",
+  "wrong_price",
+  "station_offline",
+  "location_problem",
+  "payment_problem",
+  "other",
 ];
 
 const styles: Record<string, CSSProperties> = {
@@ -194,14 +195,15 @@ function ReportIssueModal({
   onClose,
   onSubmitSuccess,
 }: ReportIssueModalProps) {
+  const { t } = useI18n();
   const [issueType, setIssueType] = useState<ReportIssueType | "">("");
   const [description, setDescription] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
   const issueTarget = useMemo(
-    () => (charger ? `Charger ${charger.id}` : "Station-level issue"),
-    [charger],
+    () => (charger ? t("reportModal.targetCharger", { id: charger.id }) : t("reportModal.targetStation")),
+    [charger, t],
   );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -210,12 +212,12 @@ function ReportIssueModal({
     const trimmedDescription = description.trim();
 
     if (!issueType) {
-      setErrorMessage("Issue type must be selected.");
+      setErrorMessage(t("reportModal.errorTypeRequired"));
       return;
     }
 
     if (!trimmedDescription) {
-      setErrorMessage("Description cannot be empty.");
+      setErrorMessage(t("reportModal.errorDescRequired"));
       return;
     }
 
@@ -235,7 +237,7 @@ function ReportIssueModal({
       onSubmitSuccess();
       onClose();
     } catch {
-      setErrorMessage("Issue report could not be saved. Please try again.");
+      setErrorMessage(t("reportModal.errorSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -246,8 +248,8 @@ function ReportIssueModal({
       <section style={styles.modal} onClick={(event) => event.stopPropagation()}>
         <div style={styles.topBar}>
           <div style={styles.titleWrap}>
-            <div style={styles.eyebrow}>Issue Report</div>
-            <h3 style={styles.title}>Report Station / Charger Issue</h3>
+            <div style={styles.eyebrow}>{t("reportModal.eyebrow")}</div>
+            <h3 style={styles.title}>{t("reportModal.title")}</h3>
           </div>
           <button
             type="button"
@@ -255,12 +257,12 @@ function ReportIssueModal({
             onClick={onClose}
             disabled={saving}
           >
-            Close
+            {t("reportModal.close")}
           </button>
         </div>
 
         <div style={styles.contextCard}>
-          <div style={styles.contextLabel}>Hedef</div>
+          <div style={styles.contextLabel}>{t("reportModal.target")}</div>
           <div style={styles.contextValue}>
             {stationName} - {issueTarget}
           </div>
@@ -268,29 +270,29 @@ function ReportIssueModal({
 
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
-            <label style={styles.label}>Issue Type</label>
+            <label style={styles.label}>{t("reportModal.issueType")}</label>
             <select
               value={issueType}
               onChange={(event) => setIssueType(event.target.value as ReportIssueType)}
               style={styles.input}
               disabled={saving}
             >
-              <option value="">Select issue type</option>
+              <option value="">{t("reportModal.selectIssueType")}</option>
               {issueOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+                <option key={option} value={option}>
+                  {t(`report.issueTypes.${option}`)}
                 </option>
               ))}
             </select>
           </div>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>Description</label>
+            <label style={styles.label}>{t("reportModal.description")}</label>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               style={styles.textarea}
-              placeholder="Sorunu detayli sekilde yazin..."
+              placeholder={t("reportModal.descriptionPlaceholder")}
               disabled={saving}
             />
           </div>
@@ -311,7 +313,7 @@ function ReportIssueModal({
               }}
               disabled={saving}
             >
-              {saving ? "Gonderiliyor..." : "Gonder"}
+              {saving ? t("reportModal.saving") : t("reportModal.submit")}
             </button>
             <button
               type="button"
@@ -319,7 +321,7 @@ function ReportIssueModal({
               onClick={onClose}
               disabled={saving}
             >
-              Never mind
+              {t("reportModal.cancel")}
             </button>
           </div>
         </form>

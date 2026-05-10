@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../i18n/I18nProvider";
 import {
   cancelReservation,
   getActiveReservationsByChargerId,
@@ -607,6 +608,7 @@ function ReservationManagementPanel({
   description = "Manage your active and past reservations here.",
 }: ReservationManagementPanelProps) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [reservations, setReservations] = useState<ReservationDetailRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -835,14 +837,14 @@ function ReservationManagementPanel({
       if (key === todayKey) {
         return {
           value: key,
-          label: `Today (${formattedDate})`,
+          label: t("reservationPanel.today", { date: formattedDate }),
         };
       }
 
       if (key === tomorrowKey) {
         return {
           value: key,
-          label: `Yarin (${formattedDate})`,
+          label: t("reservationPanel.tomorrow", { date: formattedDate }),
         };
       }
 
@@ -983,11 +985,11 @@ function ReservationManagementPanel({
 
   const validateReschedule = useCallback(() => {
     if (!rescheduleReservationTarget) {
-      return "No reservation was found to reschedule.";
+      return t("reservationPanel.noReservationToReschedule");
     }
 
     if (!effectiveDate || !effectiveStartTime || !effectiveEndTime) {
-      return "Please select the date, start time, and end time completely.";
+      return t("reservationPanel.selectSchedule");
     }
 
     const resolvedDateRange = getReservationDateRange(
@@ -997,35 +999,35 @@ function ReservationManagementPanel({
     );
 
     if (!resolvedDateRange) {
-      return "The selected date or time is invalid.";
+      return t("reservationPanel.invalidDateOrTime");
     }
 
     const { startDateTime, endDateTime } = resolvedDateRange;
 
     if (startDateTime.getTime() >= endDateTime.getTime()) {
-      return "Start time must be before end time.";
+      return t("reservationPanel.startBeforeEnd");
     }
 
     if (
       startDateTime.getTime() < nowDateTime.getTime() ||
       endDateTime.getTime() <= nowDateTime.getTime()
     ) {
-      return "Reservations cannot be updated for a past time range.";
+      return t("reservationPanel.pastRange");
     }
 
     if (startDateTime.getTime() - nowDateTime.getTime() > MAX_ADVANCE_MS) {
-      return "Reservations cannot be made more than 24 hours in advance.";
+      return t("reservationPanel.advanceLimit");
     }
 
     if (
       endDateTime.getTime() - startDateTime.getTime() >
       MAX_RESERVATION_DURATION_MS
     ) {
-      return "Reservation duration can be at most 2 hours.";
+      return t("reservationPanel.durationLimit");
     }
 
     if (!rescheduleReservationTarget.station || !rescheduleReservationTarget.charger) {
-      return "Station or charger information is missing.";
+      return t("reservationPanel.stationOrChargerMissing");
     }
 
     if (
@@ -1035,9 +1037,11 @@ function ReservationManagementPanel({
         endDateTime,
       )
     ) {
-      return `The station is closed at these hours. Operating hours: ${formatOperatingHours(
-        rescheduleReservationTarget.station.operatingHours,
-      )}.`;
+      return t("reservationPanel.closedAtHours", {
+        hours: formatOperatingHours(
+          rescheduleReservationTarget.station.operatingHours,
+        ),
+      });
     }
 
     const statusBlockMessage = getReservationStatusBlockMessage(
@@ -1050,14 +1054,14 @@ function ReservationManagementPanel({
     }
 
     if (!vehicleConnectorType.trim()) {
-      return "Vehicle connector type could not be found.";
+      return t("reservationPanel.vehicleConnectorMissing");
     }
 
     if (
       vehicleConnectorType.trim() !==
       rescheduleReservationTarget.charger.connectorType
     ) {
-      return "The vehicle connector type is not compatible with the selected charger.";
+      return t("reservationPanel.incompatibleConnector");
     }
 
     return "";
@@ -1155,13 +1159,13 @@ function ReservationManagementPanel({
           status: "active",
         };
       });
-      setSuccessMessage("Reservation time updated.");
+      setSuccessMessage(t("reservationPanel.timeUpdated"));
       setRescheduleReservationTarget(null);
       await loadReservations();
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       setRescheduleError(
-        message || "An error occurred while updating the reservation.",
+        message || t("reservationPanel.updateFailed"),
       );
     } finally {
       setRescheduleSaving(false);
@@ -1190,11 +1194,11 @@ function ReservationManagementPanel({
         };
       });
       setCancelReservationTarget(null);
-      setSuccessMessage("Reservation cancelled.");
+      setSuccessMessage(t("reservationPanel.cancelled"));
       await loadReservations();
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      setErrorMessage(message || "An error occurred while cancelling the reservation.");
+      setErrorMessage(message || t("reservationPanel.cancelFailed"));
     } finally {
       setCancelLoading(false);
     }
@@ -1248,28 +1252,28 @@ function ReservationManagementPanel({
     }
 
     if (detailReservation.status !== "active") {
-      return "Charging sessions cannot be started for inactive reservations.";
+      return t("reservationPanel.inactiveStart");
     }
 
     if (!detailReservation.station || !detailReservation.charger) {
-      return "The session cannot be started because station or charger information is missing.";
+      return t("reservationPanel.missingSessionInfo");
     }
 
     if (!canStartChargingFromDetail) {
-      return "The charging session can only be started during the reservation time range.";
+      return t("reservationPanel.startWindow");
     }
 
-    return "Reservation time is valid. The charging session can be started.";
+    return t("reservationPanel.startAllowed");
   }, [canStartChargingFromDetail, detailReservation]);
 
   if (!vehicleId) {
     return (
-      <section style={styles.section} aria-label="My Reservations">
+      <section style={styles.section} aria-label={t("reservationPanel.title")}>
         <div style={styles.sectionHeader}>
           <div>
             <h3 style={styles.sectionTitle}>{title}</h3>
             <p style={styles.sectionText}>
-              Select a vehicle first to view reservations.
+              {t("reservationPanel.selectVehicle")}
             </p>
           </div>
         </div>
@@ -1279,7 +1283,7 @@ function ReservationManagementPanel({
 
   return (
     <>
-      <section style={styles.section} aria-label="My Reservations">
+      <section style={styles.section} aria-label={t("reservationPanel.title")}>
         <div style={styles.sectionHeader}>
           <div>
             <h3 style={styles.sectionTitle}>{title}</h3>
@@ -1287,8 +1291,11 @@ function ReservationManagementPanel({
           </div>
           <div style={styles.counterPill}>
             {loading
-              ? "Loading..."
-              : `${groupedReservations.active.length} active / ${groupedReservations.history.length} past`}
+              ? t("reservationPanel.loading")
+              : t("reservationPanel.counter", {
+                  active: groupedReservations.active.length,
+                  past: groupedReservations.history.length,
+                })}
           </div>
         </div>
 
@@ -1303,7 +1310,7 @@ function ReservationManagementPanel({
         <div className="reservation-columns" style={styles.reservationColumns}>
           <article style={styles.reservationListCard}>
             <div style={styles.reservationListHeader}>
-              <h4 style={styles.reservationListTitle}>Active Reservations</h4>
+              <h4 style={styles.reservationListTitle}>{t("reservationPanel.activeReservations")}</h4>
               <span style={styles.reservationListCount}>
                 {groupedReservations.active.length}
               </span>
@@ -1311,7 +1318,7 @@ function ReservationManagementPanel({
 
             {groupedReservations.active.length === 0 ? (
               <div style={styles.empty}>
-                No active reservations found.
+                {t("reservationPanel.noneActive")}
               </div>
             ) : (
               <div style={styles.reservationList}>
@@ -1370,21 +1377,21 @@ function ReservationManagementPanel({
                           style={styles.actionButton}
                           onClick={() => handleOpenDetail(reservation)}
                         >
-                          Details
+                          {t("reservationPanel.details")}
                         </button>
                         <button
                           type="button"
                           style={styles.actionButton}
                           onClick={() => handleOpenRescheduleModal(reservation)}
                         >
-                          Reschedule
+                          {t("reservationPanel.reschedule")}
                         </button>
                         <button
                           type="button"
                           style={{ ...styles.actionButton, ...styles.cancelButton }}
                           onClick={() => setCancelReservationTarget(reservation)}
                         >
-                          Cancel
+                          {t("reservationPanel.cancel")}
                         </button>
                       </div>
                     </article>
@@ -1396,14 +1403,14 @@ function ReservationManagementPanel({
 
           <article style={styles.reservationListCard}>
             <div style={styles.reservationListHeader}>
-              <h4 style={styles.reservationListTitle}>Past Reservations</h4>
+              <h4 style={styles.reservationListTitle}>{t("reservationPanel.pastReservations")}</h4>
               <span style={styles.reservationListCount}>
                 {groupedReservations.history.length}
               </span>
             </div>
 
             {groupedReservations.history.length === 0 ? (
-              <div style={styles.empty}>No past reservations found.</div>
+              <div style={styles.empty}>{t("reservationPanel.nonePast")}</div>
             ) : (
               <div style={styles.reservationList}>
                 {groupedReservations.history.map((reservation) => {
@@ -1461,7 +1468,7 @@ function ReservationManagementPanel({
                           style={styles.actionButton}
                           onClick={() => handleOpenDetail(reservation)}
                         >
-                          Details
+                          {t("reservationPanel.details")}
                         </button>
                       </div>
                     </article>
@@ -1478,7 +1485,7 @@ function ReservationManagementPanel({
           <section style={styles.modal} onClick={(event) => event.stopPropagation()}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Reservation Detailsi</h3>
+                <h3 style={styles.modalTitle}>{t("reservationPanel.reservationDetails")}</h3>
                 <p style={styles.modalText}>{detailReservation.stationName}</p>
               </div>
               <button
@@ -1486,13 +1493,13 @@ function ReservationManagementPanel({
                 style={styles.closeButton}
                 onClick={() => setDetailReservation(null)}
               >
-                Close
+                {t("reservationPanel.close")}
               </button>
             </div>
 
             <div style={styles.infoGrid}>
               <div style={styles.infoItem}>
-                <div style={styles.infoLabel}>Charger</div>
+                <div style={styles.infoLabel}>{t("reservationPanel.charger")}</div>
                 <div style={styles.infoValue}>{detailReservation.chargerLabel}</div>
               </div>
               <div style={styles.infoItem}>
@@ -1504,17 +1511,17 @@ function ReservationManagementPanel({
                 <div style={styles.infoValue}>{detailReservation.date}</div>
               </div>
               <div style={styles.infoItem}>
-                <div style={styles.infoLabel}>Time range</div>
+                <div style={styles.infoLabel}>{t("reservationPanel.timeRange")}</div>
                 <div style={styles.infoValue}>
                   {detailReservation.startTime} - {detailReservation.endTime}
                 </div>
               </div>
               <div style={styles.infoItem}>
-                <div style={styles.infoLabel}>Connector</div>
+                <div style={styles.infoLabel}>{t("reservationPanel.connector")}</div>
                 <div style={styles.infoValue}>{detailReservation.connectorType}</div>
               </div>
               <div style={styles.infoItem}>
-                <div style={styles.infoLabel}>Power output</div>
+                <div style={styles.infoLabel}>{t("reservationPanel.powerOutput")}</div>
                 <div style={styles.infoValue}>{detailReservation.powerOutput}</div>
               </div>
             </div>
@@ -1544,14 +1551,14 @@ function ReservationManagementPanel({
                 disabled={!canStartChargingFromDetail}
                 onClick={handleStartChargingFromDetail}
               >
-                Start Charging Session
+                {t("reservationPanel.startChargingSession")}
               </button>
               <button
                 type="button"
                 style={styles.secondaryButton}
                 onClick={() => setDetailReservation(null)}
               >
-                Close
+                {t("reservationPanel.close")}
               </button>
             </div>
           </section>
@@ -1570,10 +1577,9 @@ function ReservationManagementPanel({
           <section style={styles.modal} onClick={(event) => event.stopPropagation()}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Cancel Reservation</h3>
+                <h3 style={styles.modalTitle}>{t("reservationPanel.cancelTitle")}</h3>
                 <p style={styles.modalText}>
-                  {cancelReservationTarget.stationName} reservation
-                  Are you sure you want to cancel it?
+                  {cancelReservationTarget.stationName} - {t("reservationPanel.cancelText")}
                 </p>
               </div>
             </div>
@@ -1588,7 +1594,7 @@ function ReservationManagementPanel({
                 onClick={() => void handleConfirmCancel()}
                 disabled={cancelLoading}
               >
-                {cancelLoading ? "Cancelling..." : "Cancel Reservation"}
+                {cancelLoading ? t("reservationPanel.cancelLoading") : t("reservationPanel.cancelAction")}
               </button>
               <button
                 type="button"
@@ -1596,7 +1602,7 @@ function ReservationManagementPanel({
                 onClick={() => setCancelReservationTarget(null)}
                 disabled={cancelLoading}
               >
-                Never mind
+                {t("reservationPanel.neverMind")}
               </button>
             </div>
           </section>
@@ -1608,7 +1614,7 @@ function ReservationManagementPanel({
           <section style={styles.modal} onClick={(event) => event.stopPropagation()}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Reservationu Yeniden Planla</h3>
+                <h3 style={styles.modalTitle}>{t("reservationPanel.rescheduleTitle")}</h3>
                 <p style={styles.modalText}>{rescheduleReservationTarget.stationName}</p>
               </div>
               <button
@@ -1616,15 +1622,15 @@ function ReservationManagementPanel({
                 style={styles.closeButton}
                 onClick={handleCloseRescheduleModal}
               >
-                Close
+                {t("reservationPanel.close")}
               </button>
             </div>
 
             <form onSubmit={handleSubmitReschedule}>
               <div style={styles.busySlotsCard}>
-                <strong>Availability Check</strong>
+                <strong>{t("reservationPanel.availabilityCheck")}</strong>
                 {busyLoading ? (
-                  <div style={styles.helperText}>Occupied times are loading...</div>
+                  <div style={styles.helperText}>{t("reservationPanel.busyLoading")}</div>
                 ) : busyReservationsForDate.length > 0 ? (
                   <ul style={styles.busySlotList}>
                     {busyReservationsForDate.map((reservation) => (
@@ -1635,14 +1641,14 @@ function ReservationManagementPanel({
                   </ul>
                 ) : (
                   <div style={styles.helperText}>
-                    All times look available for the selected date.
+                    {t("reservationPanel.allTimesAvailable")}
                   </div>
                 )}
               </div>
 
               <div style={styles.fieldGrid}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Date</label>
+                  <label style={styles.label}>{t("reservationPanel.selectDateLabel")}</label>
                   <select
                     value={effectiveDate}
                     onChange={(event) => {
@@ -1653,7 +1659,7 @@ function ReservationManagementPanel({
                     style={styles.input}
                     disabled={rescheduleSaving || dateOptions.length === 0}
                   >
-                    <option value="">Select date</option>
+                    <option value="">{t("reservationPanel.selectDatePlaceholder")}</option>
                     {dateOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -1661,12 +1667,12 @@ function ReservationManagementPanel({
                     ))}
                   </select>
                   {dateOptions.length === 0 && (
-                    <p style={styles.helperText}>There are currently no selectable dates.</p>
+                    <p style={styles.helperText}>{t("reservationPanel.noSelectableDates")}</p>
                   )}
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Start time</label>
+                  <label style={styles.label}>{t("reservationPanel.selectStartTimeLabel")}</label>
                   <select
                     value={effectiveStartTime}
                     onChange={(event) => {
@@ -1680,7 +1686,7 @@ function ReservationManagementPanel({
                       startTimeOptions.length === 0
                     }
                   >
-                    <option value="">Select start time</option>
+                    <option value="">{t("reservationPanel.selectStartTimePlaceholder")}</option>
                     {startTimeOptions.map((option) => (
                       <option
                         key={option.value}
@@ -1693,7 +1699,7 @@ function ReservationManagementPanel({
                   </select>
                   {effectiveDate && startTimeOptions.length === 0 && (
                     <p style={styles.helperText}>
-                      No available start time was found for this date.
+                      {t("reservationPanel.noAvailableStartTime")}
                     </p>
                   )}
                 </div>
@@ -1701,7 +1707,7 @@ function ReservationManagementPanel({
 
               <div style={{ ...styles.fieldGrid, gridTemplateColumns: "1fr" }}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>End time</label>
+                  <label style={styles.label}>{t("reservationPanel.selectEndTimeLabel")}</label>
                   <select
                     value={effectiveEndTime}
                     onChange={(event) => setRescheduleEndTime(event.target.value)}
@@ -1712,7 +1718,7 @@ function ReservationManagementPanel({
                       endTimeOptions.length === 0
                     }
                   >
-                    <option value="">Select end time</option>
+                    <option value="">{t("reservationPanel.selectEndTimePlaceholder")}</option>
                     {endTimeOptions.map((option) => (
                       <option
                         key={option.label}
@@ -1725,7 +1731,7 @@ function ReservationManagementPanel({
                   </select>
                   {effectiveStartTime && endTimeOptions.length === 0 && (
                     <p style={styles.helperText}>
-                      No available end time was found for the selected start time.
+                      {t("reservationPanel.noAvailableEndTime")}
                     </p>
                   )}
                 </div>
@@ -1752,7 +1758,7 @@ function ReservationManagementPanel({
                   }}
                   disabled={rescheduleSaving}
                 >
-                  {rescheduleSaving ? "Saving..." : "Save New Time"}
+                  {rescheduleSaving ? t("reservationPanel.saving") : t("reservationPanel.saveNewTime")}
                 </button>
                 <button
                   type="button"
@@ -1760,7 +1766,7 @@ function ReservationManagementPanel({
                   onClick={handleCloseRescheduleModal}
                   disabled={rescheduleSaving}
                 >
-                  Never mind
+                  {t("reservationPanel.neverMind")}
                 </button>
               </div>
             </form>

@@ -433,6 +433,7 @@ function VehicleProfileScreen() {
   const [vehicleId, setVehicleId] = useState("");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [batteryCapacity, setBatteryCapacity] = useState("");
   const [connectorType, setConnectorType] = useState("");
   const [connectorOptions, setConnectorOptions] = useState<string[]>([]);
@@ -457,6 +458,7 @@ function VehicleProfileScreen() {
 
   const fillVehicleForm = (vehicle: Vehicle) => {
     setVehicleId(vehicle.id);
+    setOwnerName(vehicle.ownerName ?? "");
     setBrand(vehicle.brand ?? "");
     setModel(vehicle.model ?? "");
     setBatteryCapacity(String(vehicle.batteryCapacity ?? ""));
@@ -541,6 +543,7 @@ function VehicleProfileScreen() {
   const validateForm = () => {
     if (!brand.trim()) return "Brand cannot be empty.";
     if (!model.trim()) return "Model cannot be empty.";
+    if (!ownerName.trim()) return "Name surname cannot be empty.";
     if (!batteryCapacity.trim())
       return "Battery capacity cannot be empty.";
     if (Number(batteryCapacity) <= 0)
@@ -603,6 +606,7 @@ function VehicleProfileScreen() {
 
       await updateVehicle(vehicleId, {
         userId,
+        ownerName: ownerName.trim(),
         brand: brand.trim(),
         model: model.trim(),
         batteryCapacity: Number(batteryCapacity),
@@ -707,6 +711,18 @@ function VehicleProfileScreen() {
               )}
 
               <div className="form-grid" style={styles.formGrid}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Name Surname</label>
+                  <input
+                    type="text"
+                    value={ownerName}
+                    onChange={(event) => setOwnerName(event.target.value)}
+                    placeholder="Ada Lovelace"
+                    style={styles.input}
+                    disabled={!vehicleId || saving}
+                  />
+                </div>
+
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Brand</label>
                   <input

@@ -18,6 +18,7 @@ import {
 interface WalletPanelProps {
   userId: string;
   compact?: boolean;
+  variant?: "panel" | "header";
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -34,6 +35,50 @@ const styles: Record<string, CSSProperties> = {
     marginBottom: 0,
     borderRadius: "16px",
     boxShadow: "0 10px 24px rgba(31,94,77,0.06)",
+  },
+  headerWallet: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "9px",
+    minHeight: "50px",
+    padding: "8px 13px",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.30)",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    color: "#FFFFFF",
+    fontFamily: "inherit",
+    cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)",
+  },
+  headerWalletIcon: {
+    width: "34px",
+    height: "34px",
+    borderRadius: "12px",
+    display: "grid",
+    placeItems: "center",
+    backgroundColor: "#FFFFFF",
+    color: "#1F5E4D",
+    fontSize: "17px",
+    fontWeight: 950,
+    lineHeight: 1,
+  },
+  headerWalletText: {
+    display: "grid",
+    gap: "2px",
+    textAlign: "left",
+  },
+  headerWalletLabel: {
+    fontSize: "10px",
+    fontWeight: 850,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "rgba(255,255,255,0.72)",
+  },
+  headerWalletBalance: {
+    fontSize: "14px",
+    fontWeight: 950,
+    color: "#FFFFFF",
+    whiteSpace: "nowrap",
   },
   top: {
     display: "grid",
@@ -272,7 +317,7 @@ function formatAmount(amount: number, type: WalletTransactionRecord["type"]) {
   return `${prefix}${Number(amount).toFixed(2)} TL`;
 }
 
-function WalletPanel({ userId, compact = false }: WalletPanelProps) {
+function WalletPanel({ userId, compact = false, variant = "panel" }: WalletPanelProps) {
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<WalletTransactionRecord[]>(
     [],
@@ -337,6 +382,12 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
     event.preventDefault();
     setPaymentError("");
 
+    const parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setPaymentError("The top-up amount must be greater than zero.");
+      return;
+    }
+
     const digits = cardNumber.replace(/\D/g, "");
     if (digits.length !== 16) {
       setPaymentError("Card number must be 16 digits.");
@@ -370,7 +421,6 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
 
     try {
       setSaving(true);
-      const parsedAmount = Number(amount);
       await topUpWallet(userId, parsedAmount);
       setAmount("");
       setCardName("");
@@ -405,6 +455,177 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
       setReceiptError("Receipt details could not be loaded.");
     }
   };
+
+  const paymentDialog = paymentOpen ? (
+    <div
+      style={styles.overlay}
+      onClick={() => !saving && setPaymentOpen(false)}
+    >
+      <section
+        style={styles.paymentModal}
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div style={styles.modalTop}>
+          <div>
+            <h3 style={styles.modalTitle}>Add Balance</h3>
+            <p style={styles.modalText}>
+              Enter an amount and card details to top up your wallet.
+            </p>
+          </div>
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            onClick={() => {
+              setPaymentOpen(false);
+              setCardType(null);
+            }}
+            disabled={saving}
+          >
+            Close
+          </button>
+        </div>
+
+        <form onSubmit={handleConfirmFakePayment}>
+          <div style={styles.fieldGrid}>
+            <div style={{ ...styles.fieldWide }}>
+              <div style={styles.label}>Amount</div>
+              <input
+                type="number"
+                min="1"
+                step="0.01"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                placeholder="Amount"
+                style={{ ...styles.input, width: "100%" }}
+                disabled={saving}
+              />
+            </div>
+            <div style={{ ...styles.fieldWide }}>
+              <div style={styles.label}>Name on Card</div>
+              <input
+                value={cardName}
+                onChange={(event) => setCardName(event.target.value)}
+                placeholder="Full Name"
+                style={{ ...styles.input, width: "100%" }}
+                disabled={saving}
+              />
+            </div>
+            <div style={{ ...styles.fieldWide }}>
+              <div style={styles.label}>Card Number</div>
+              <input
+                value={cardNumber}
+                onChange={(event) => {
+                  const digits = event.target.value
+                    .replace(/\D/g, "")
+                    .slice(0, 16);
+                  const formatted = digits.replace(/(.{4})/g, "$1 ").trim();
+                  setCardNumber(formatted);
+                  setCardType(detectCardType(digits));
+                }}
+                placeholder="0000 0000 0000 0000"
+                style={{ ...styles.input, width: "100%" }}
+                disabled={saving}
+              />
+              {cardType && (
+                <div
+                  style={{
+                    ...styles.cardTypeIndicator,
+                    ...(cardType === "visa"
+                      ? styles.cardTypeVisa
+                      : cardType === "mastercard"
+                        ? styles.cardTypeMastercard
+                        : styles.cardTypeInvalid),
+                  }}
+                >
+                  {getCardTypeLabel(cardType)}
+                </div>
+              )}
+            </div>
+            <div>
+              <div style={styles.label}>Expiration</div>
+              <input
+                value={cardExpiry}
+                onChange={(event) => {
+                  const digits = event.target.value
+                    .replace(/\D/g, "")
+                    .slice(0, 4);
+                  setCardExpiry(
+                    digits.length > 2
+                      ? `${digits.slice(0, 2)}/${digits.slice(2)}`
+                      : digits,
+                  );
+                }}
+                placeholder="MM/YY"
+                style={{ ...styles.input, width: "100%" }}
+                disabled={saving}
+              />
+            </div>
+            <div>
+              <div style={styles.label}>CVV</div>
+              <input
+                value={cardCvv}
+                onChange={(event) =>
+                  setCardCvv(
+                    event.target.value.replace(/\D/g, "").slice(0, 3),
+                  )
+                }
+                placeholder="000"
+                style={{ ...styles.input, width: "100%" }}
+                disabled={saving}
+              />
+            </div>
+          </div>
+
+          {paymentError && (
+            <div style={{ ...styles.message, ...styles.error }}>
+              {paymentError}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            style={{
+              ...styles.primaryButton,
+              width: "100%",
+              marginTop: "14px",
+            }}
+            disabled={saving}
+          >
+            {saving ? "Processing..." : "Complete Payment"}
+          </button>
+        </form>
+      </section>
+    </div>
+  ) : null;
+
+  if (variant === "header") {
+    return (
+      <>
+        <button
+          type="button"
+          style={styles.headerWallet}
+          onClick={() => {
+            setMessage("");
+            setError("");
+            setPaymentError("");
+            setPaymentOpen(true);
+          }}
+          aria-label="Add wallet balance"
+        >
+          <span style={styles.headerWalletIcon}>TL</span>
+          <span style={styles.headerWalletText}>
+            <span style={styles.headerWalletLabel}>Balance</span>
+            <span style={styles.headerWalletBalance}>
+              {loading ? "..." : `${balance.toFixed(2)} TL`}
+            </span>
+          </span>
+        </button>
+        {paymentDialog}
+      </>
+    );
+  }
 
   return (
     <section
@@ -545,136 +766,7 @@ function WalletPanel({ userId, compact = false }: WalletPanelProps) {
         </div>
       )}
 
-      {paymentOpen && (
-        <div
-          style={styles.overlay}
-          onClick={() => !saving && setPaymentOpen(false)}
-        >
-          <section
-            style={styles.paymentModal}
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div style={styles.modalTop}>
-              <div>
-                <h3 style={styles.modalTitle}>Add Balance</h3>
-                <p style={styles.modalText}>
-                  {Number(amount).toFixed(2)} TL, enter your card details.
-                </p>
-              </div>
-              <button
-                type="button"
-                style={styles.secondaryButton}
-                onClick={() => {
-                  setPaymentOpen(false);
-                  setCardType(null);
-                }}
-                disabled={saving}
-              >
-                Close
-              </button>
-            </div>
-
-            <form onSubmit={handleConfirmFakePayment}>
-              <div style={styles.fieldGrid}>
-                <div style={{ ...styles.fieldWide }}>
-                  <div style={styles.label}>Name on Card</div>
-                  <input
-                    value={cardName}
-                    onChange={(event) => setCardName(event.target.value)}
-                    placeholder="Full Name"
-                    style={{ ...styles.input, width: "100%" }}
-                    disabled={saving}
-                  />
-                </div>
-                <div style={{ ...styles.fieldWide }}>
-                  <div style={styles.label}>Card Number</div>
-                  <input
-                    value={cardNumber}
-                    onChange={(event) => {
-                      const digits = event.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 16);
-                      const formatted = digits.replace(/(.{4})/g, "$1 ").trim();
-                      setCardNumber(formatted);
-                      setCardType(detectCardType(digits));
-                    }}
-                    placeholder="0000 0000 0000 0000"
-                    style={{ ...styles.input, width: "100%" }}
-                    disabled={saving}
-                  />
-                  {cardType && (
-                    <div
-                      style={{
-                        ...styles.cardTypeIndicator,
-                        ...(cardType === "visa"
-                          ? styles.cardTypeVisa
-                          : cardType === "mastercard"
-                            ? styles.cardTypeMastercard
-                            : styles.cardTypeInvalid),
-                      }}
-                    >
-                      {getCardTypeLabel(cardType)}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div style={styles.label}>Expiration</div>
-                  <input
-                    value={cardExpiry}
-                    onChange={(event) => {
-                      const digits = event.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 4);
-                      setCardExpiry(
-                        digits.length > 2
-                          ? `${digits.slice(0, 2)}/${digits.slice(2)}`
-                          : digits,
-                      );
-                    }}
-                    placeholder="AA/YY"
-                    style={{ ...styles.input, width: "100%" }}
-                    disabled={saving}
-                  />
-                </div>
-                <div>
-                  <div style={styles.label}>CVV</div>
-                  <input
-                    value={cardCvv}
-                    onChange={(event) =>
-                      setCardCvv(
-                        event.target.value.replace(/\D/g, "").slice(0, 3),
-                      )
-                    }
-                    placeholder="000"
-                    style={{ ...styles.input, width: "100%" }}
-                    disabled={saving}
-                  />
-                </div>
-              </div>
-
-              {paymentError && (
-                <div style={{ ...styles.message, ...styles.error }}>
-                  {paymentError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                style={{
-                  ...styles.primaryButton,
-                  width: "100%",
-                  marginTop: "14px",
-                }}
-                disabled={saving}
-              >
-                {saving ? "Processing..." : "Complete Payment"}
-              </button>
-            </form>
-          </section>
-        </div>
-      )}
+      {paymentDialog}
     </section>
   );
 }

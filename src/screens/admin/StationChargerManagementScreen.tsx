@@ -4,10 +4,11 @@ import { GoogleMap, Marker } from "@react-google-maps/api";
 import type { Charger, ChargerConnectorType, ChargerPowerOutput, ChargerStatus, ChargerType } from "../../models/Charger";
 import type { Station, StationStatus } from "../../models/Station";
 import { getChargersByStationId, upsertCharger } from "../../services/firebase/chargerService";
-import { getStationsWithChargers, updateStationChargerIds, upsertStation } from "../../services/firebase/stationService";
+import { deleteStation, getStationsWithChargers, updateStationChargerIds, upsertStation } from "../../services/firebase/stationService";
 import { DEFAULT_MAP_CENTER, MAP_OPTIONS } from "../../constants/mapConstants";
 import { useGoogleMapsLoader } from "../../services/maps/googleMapsLoader";
 import { reverseGeocodeCoordinates } from "../../services/maps/geocodingService";
+import { useI18n } from "../../i18n/I18nProvider";
 
 const styles: Record<string, CSSProperties> = {
   headerRow: {
@@ -194,6 +195,17 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
   },
+  dangerButton: {
+    border: "1px solid rgba(166, 62, 48, 0.24)",
+    backgroundColor: "#FFF3F1",
+    color: "#A63E30",
+    borderRadius: "12px",
+    padding: "10px 12px",
+    fontSize: "12px",
+    fontWeight: 950,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
   overlay: {
     position: "fixed",
     inset: 0,
@@ -362,16 +374,16 @@ const CHARGER_POWER_OPTIONS: ChargerPowerOutput[] = ["22kW", "50kW", "150kW"];
 const CHARGER_CONNECTOR_OPTIONS: ChargerConnectorType[] = ["Type 2", "CCS", "CHAdeMO"];
 const CHARGER_STATUS_OPTIONS: ChargerStatus[] = ["available", "occupied", "offline"];
 
-function stationStatusLabel(status: StationStatus) {
-  if (status === "available") return "Available";
-  if (status === "occupied") return "Occupied";
-  return "Offline";
+function stationStatusLabel(status: StationStatus, t: (key: string) => string) {
+  if (status === "available") return t("charger.status.available");
+  if (status === "occupied") return t("charger.status.occupied");
+  return t("charger.status.offline");
 }
 
-function chargerStatusLabel(status: ChargerStatus) {
-  if (status === "available") return "Available";
-  if (status === "occupied") return "Occupied";
-  return "Offline";
+function chargerStatusLabel(status: ChargerStatus, t: (key: string) => string) {
+  if (status === "available") return t("charger.status.available");
+  if (status === "occupied") return t("charger.status.occupied");
+  return t("charger.status.offline");
 }
 
 type StationDraft = {
@@ -436,6 +448,7 @@ type LocationMode = "map" | "search";
 export default function StationChargerManagementScreen() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
   const mapsLoader = useGoogleMapsLoader();
 
   const [loading, setLoading] = useState(true);
@@ -467,6 +480,7 @@ export default function StationChargerManagementScreen() {
   const [chargerDraft, setChargerDraft] = useState<ChargerDraft>(makeChargerDraft(null));
   const [chargerSaving, setChargerSaving] = useState(false);
   const [chargerError, setChargerError] = useState<string | null>(null);
+  const [stationDeletingId, setStationDeletingId] = useState<string | null>(null);
 
   const refresh = () => {
     setLoading(true);
@@ -479,7 +493,7 @@ export default function StationChargerManagementScreen() {
         }
       })
       .catch(() => {
-        setError("Data could not be loaded. Check the Firestore connection.");
+        setError(t("adminStationChargerManagement.dataLoadFailed"));
       })
       .finally(() => setLoading(false));
   };
@@ -648,10 +662,10 @@ export default function StationChargerManagementScreen() {
 
       navigate(location.pathname, {
         replace: true,
-        state: { snackbar: { message: "Station saved.", variant: "success" } },
+        state: { snackbar: { message: t("adminStationChargerManagement.stationSaved"), variant: "success" } },
       });
     } catch {
-      setStationError("Station could not be saved.");
+      setStationError(t("adminStationChargerManagement.stationSaveFailed"));
     } finally {
       setStationSaving(false);
     }
@@ -663,13 +677,13 @@ export default function StationChargerManagementScreen() {
 
     const id = chargerDraft.id.trim();
     if (!id) {
-      setChargerError("Charger ID cannot be empty.");
+      setChargerError(t("adminStationChargerManagement.chargerIdRequired"));
       return;
     }
 
     const price = Number(chargerDraft.pricePerKwh);
     if (!Number.isFinite(price) || price < 0) {
-      setChargerError("Enter a valid kWh price.");
+      setChargerError(t("adminStationChargerManagement.priceInvalid"));
       return;
     }
 
@@ -696,12 +710,34 @@ export default function StationChargerManagementScreen() {
 
       navigate(location.pathname, {
         replace: true,
-        state: { snackbar: { message: "Charger saved.", variant: "success" } },
+        state: { snackbar: { message: t("adminStationChargerManagement.chargerSaved"), variant: "success" } },
       });
     } catch {
-      setChargerError("Charger could not be saved.");
+      setChargerError(t("adminStationChargerManagement.chargerSaveFailed"));
     } finally {
       setChargerSaving(false);
+    }
+  };
+
+  const handleDeleteStation = async (station: Station) => {
+    const confirmed = window.confirm(
+      `Delete ${station.name}? Related chargers will also be deleted and active reservations will be cancelled.`,
+    );
+    if (!confirmed) return;
+
+    setStationDeletingId(station.id);
+    try {
+      await deleteStation(station.id);
+      setSelectedStationId(null);
+      refresh();
+      navigate(location.pathname, {
+        replace: true,
+        state: { snackbar: { message: "Station deleted.", variant: "success" } },
+      });
+    } catch {
+      setError("Station could not be deleted.");
+    } finally {
+      setStationDeletingId(null);
     }
   };
 
@@ -712,7 +748,7 @@ export default function StationChargerManagementScreen() {
       const result = await reverseGeocodeCoordinates({ lat: coords.lat, lng: coords.lng });
       const label = result?.label?.trim() ?? "";
       const full = result?.fullAddress?.trim() ?? "";
-      const fallback = label || full || "Selected location";
+      const fallback = label || full || t("adminStationChargerManagement.selectedLocation");
 
       setPickedAddressLabel(fallback);
       setPickedFullAddress(full || fallback);
@@ -725,40 +761,38 @@ export default function StationChargerManagementScreen() {
     <div>
       <div style={styles.headerRow}>
         <div>
-          <h2 style={styles.title}>Station & Charger Management</h2>
-          <p style={styles.subtitle}>
-            Add and update stations and chargers in Firestore. Manage chargers for the selected station from the right panel.
-          </p>
+          <h2 style={styles.title}>{t("adminStationChargerManagement.title")}</h2>
+          <p style={styles.subtitle}>{t("adminStationChargerManagement.subtitle")}</p>
         </div>
         <div style={styles.actions}>
           <button type="button" style={styles.ghostButton} onClick={() => refresh()}>
-            Yenile
+            {t("common.refresh")}
           </button>
           <button type="button" style={styles.primaryButton} onClick={() => openNewStation()}>
-            New Station
+            {t("adminStationChargerManagement.newStation")}
           </button>
         </div>
       </div>
 
       <div className="admin-manage-toolbar" style={styles.toolbar}>
         <div style={styles.field}>
-          <div style={styles.label}>Searchma</div>
+          <div style={styles.label}>{t("adminStationChargerManagement.search")}</div>
           <input
             style={styles.input}
-            placeholder="Station name / ID / address..."
+            placeholder={t("adminStationChargerManagement.searchPlaceholder")}
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
           />
         </div>
         <div style={styles.field}>
-          <div style={styles.label}>Selected</div>
+          <div style={styles.label}>{t("adminStationChargerManagement.selected")}</div>
           <select
             style={styles.input}
             value={selectedStationId ?? ""}
             onChange={(e) => setSelectedStationId(e.target.value || null)}
           >
             <option value="" disabled>
-              Select station
+              {t("adminStationChargerManagement.selectStation")}
             </option>
             {filteredStations.map((s) => (
               <option key={s.id} value={s.id}>
@@ -769,21 +803,21 @@ export default function StationChargerManagementScreen() {
         </div>
       </div>
 
-      {loading && <div style={{ ...styles.card, marginTop: "14px", padding: "14px", fontWeight: 850 }}>Loading...</div>}
+      {loading && <div style={{ ...styles.card, marginTop: "14px", padding: "14px", fontWeight: 850 }}>{t("common.loading")}</div>}
       {!loading && error && <div style={{ ...styles.card, marginTop: "14px", padding: "14px", fontWeight: 850 }}>{error}</div>}
 
       {!loading && !error && (
         <div className="admin-manage-shell" style={styles.shell}>
           <section style={styles.card}>
             <div style={styles.cardHeader}>
-              <p style={styles.cardTitle}>Stations</p>
+              <p style={styles.cardTitle}>{t("adminStationChargerManagement.stations")}</p>
               <span style={styles.badge}>
                 <span style={styles.dot} />
                 {filteredStations.length}
               </span>
             </div>
             {filteredStations.length === 0 ? (
-              <div style={styles.empty}>No saved stations.</div>
+              <div style={styles.empty}>{t("adminStationChargerManagement.noStations")}</div>
             ) : (
               <div style={styles.list}>
                 {filteredStations.map((station) => (
@@ -803,9 +837,9 @@ export default function StationChargerManagementScreen() {
                     <p style={styles.stationName}>{station.name}</p>
                     <div style={styles.stationMeta}>
                       {station.address} <br />
-                      {stationStatusLabel(station.status)} - {station.chargers?.length ?? 0} charger
+                      {stationStatusLabel(station.status, t)} - {station.chargers?.length ?? 0} {t("adminStationChargerManagement.chargerCountUnit")}
                     </div>
-                    <div style={{ marginTop: "10px", display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                       <button
                         type="button"
                         style={styles.smallButton}
@@ -814,7 +848,18 @@ export default function StationChargerManagementScreen() {
                           openEditStation(station);
                         }}
                       >
-                        Duzenle
+                        {t("adminStationChargerManagement.edit")}
+                      </button>
+                      <button
+                        type="button"
+                        style={styles.dangerButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDeleteStation(station);
+                        }}
+                        disabled={stationDeletingId === station.id}
+                      >
+                        {stationDeletingId === station.id ? "Deleting..." : "Delete"}
                       </button>
                     </div>
                   </div>
@@ -825,16 +870,16 @@ export default function StationChargerManagementScreen() {
 
           <section style={styles.card}>
             <div style={styles.cardHeader}>
-              <p style={styles.cardTitle}>Charger'lar</p>
+              <p style={styles.cardTitle}>{t("adminStationChargerManagement.chargers")}</p>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <button type="button" style={styles.smallButton} onClick={() => openNewCharger()} disabled={!selectedStation}>
-                  Yeni Charger
+                  {t("adminStationChargerManagement.newCharger")}
                 </button>
               </div>
             </div>
 
             {!selectedStation ? (
-              <div style={styles.empty}>Select a station to use the right panel.</div>
+              <div style={styles.empty}>{t("adminStationChargerManagement.selectStationHint")}</div>
             ) : (
               <div style={styles.rightBody}>
                 <h3 style={styles.infoTitle}>{selectedStation.name}</h3>
@@ -842,13 +887,13 @@ export default function StationChargerManagementScreen() {
 
                 <div style={styles.split}>
                   <div style={{ ...styles.chargerCard, backgroundColor: "rgba(239, 248, 231, 0.55)" }}>
-                    <div style={{ ...styles.label, marginBottom: "8px" }}>Station Status</div>
+                    <div style={{ ...styles.label, marginBottom: "8px" }}>{t("adminStationChargerManagement.stationStatus")}</div>
                     <div style={{ fontSize: "16px", fontWeight: 1000, color: "#10352E" }}>
-                      {stationStatusLabel(selectedStation.status)}
+                      {stationStatusLabel(selectedStation.status, t)}
                     </div>
                   </div>
                   <div style={{ ...styles.chargerCard, backgroundColor: "rgba(239, 248, 231, 0.55)" }}>
-                    <div style={{ ...styles.label, marginBottom: "8px" }}>Charger Sayisi</div>
+                    <div style={{ ...styles.label, marginBottom: "8px" }}>{t("adminStationChargerManagement.chargerCount")}</div>
                     <div style={{ fontSize: "16px", fontWeight: 1000, color: "#10352E" }}>
                       {selectedStation.chargers?.length ?? 0}
                     </div>
@@ -861,14 +906,14 @@ export default function StationChargerManagementScreen() {
                       <div key={charger.id} style={styles.chargerCard}>
                         <div style={styles.chargerTop}>
                           <div>
-                            <p style={styles.chargerTitle}>Charger {charger.id}</p>
+                            <p style={styles.chargerTitle}>{t("adminStationChargerManagement.chargerTitle", { id: charger.id })}</p>
                             <div style={styles.chargerMeta}>
                               {charger.type} - {charger.powerOutput} - {charger.connectorType} <br />
-                              {chargerStatusLabel(charger.status)} - TL{charger.pricePerKwh}/kWh
+                              {chargerStatusLabel(charger.status, t)} - TL{charger.pricePerKwh}/kWh
                             </div>
                           </div>
                           <button type="button" style={styles.smallButton} onClick={() => openEditCharger(charger)}>
-                            Duzenle
+                            {t("adminStationChargerManagement.edit")}
                           </button>
                         </div>
                       </div>
@@ -876,7 +921,7 @@ export default function StationChargerManagementScreen() {
                   </div>
                 ) : (
                   <div style={{ ...styles.empty, marginTop: "14px" }}>
-                    This station has no chargers. Add one with "New Charger".
+                    {t("adminStationChargerManagement.noChargers")}
                   </div>
                 )}
               </div>
@@ -890,11 +935,11 @@ export default function StationChargerManagementScreen() {
           <div style={styles.modal}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>{stationModalEditingId ? "Edit Station" : "New Station"}</h3>
-                <p style={styles.modalSubtitle}>Fill in station details. The ID field is used as the document ID.</p>
+                <h3 style={styles.modalTitle}>{stationModalEditingId ? t("adminStationChargerManagement.editStation") : t("adminStationChargerManagement.newStation")}</h3>
+                <p style={styles.modalSubtitle}>{t("adminStationChargerManagement.stationModalSubtitle")}</p>
               </div>
               <button type="button" style={styles.modalClose} onClick={() => setStationModalOpen(false)}>
-                Close
+                {t("common.close")}
               </button>
             </div>
 
@@ -903,7 +948,7 @@ export default function StationChargerManagementScreen() {
             <div style={styles.form}>
               <div style={styles.row2}>
                 <div style={styles.field}>
-                  <div style={styles.label}>Station ID</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.stationId")}</div>
                   <input
                     style={styles.input}
                     value={stationDraft.id}
@@ -913,7 +958,7 @@ export default function StationChargerManagementScreen() {
                   />
                 </div>
                 <div style={styles.field}>
-                  <div style={styles.label}>Status</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.status")}</div>
                   <select
                     style={styles.input}
                     value={stationDraft.status}
@@ -921,18 +966,18 @@ export default function StationChargerManagementScreen() {
                   >
                     {STATION_STATUS_OPTIONS.map((s) => (
                       <option key={s} value={s}>
-                        {stationStatusLabel(s)}
+                        {stationStatusLabel(s, t)}
                       </option>
                     ))}
                   </select>
                   <div style={{ marginTop: "8px", color: "#5B736A", fontSize: "12px", fontWeight: 800, lineHeight: 1.5 }}>
-                    Occupied cannot be selected manually; it is assigned automatically when all online chargers are occupied.
+                    {t("adminStationChargerManagement.occupiedAutoHint")}
                   </div>
                 </div>
               </div>
 
               <div style={styles.field}>
-                <div style={styles.label}>Station Name</div>
+                <div style={styles.label}>{t("adminStationChargerManagement.stationName")}</div>
                 <input
                   style={styles.input}
                   value={stationDraft.name}
@@ -942,7 +987,7 @@ export default function StationChargerManagementScreen() {
               </div>
 
               <div style={styles.field}>
-                <div style={styles.label}>Address</div>
+                <div style={styles.label}>{t("adminStationChargerManagement.address")}</div>
                 <input
                   style={styles.input}
                   value={stationDraft.address}
@@ -953,7 +998,7 @@ export default function StationChargerManagementScreen() {
 
               <div style={styles.row2}>
                 <div style={styles.field}>
-                  <div style={styles.label}>Acilis Saati</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.openingTime")}</div>
                   <input
                     type="time"
                     style={styles.input}
@@ -968,7 +1013,7 @@ export default function StationChargerManagementScreen() {
                   />
                 </div>
                 <div style={styles.field}>
-                  <div style={styles.label}>Kapanis Saati</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.closingTime")}</div>
                   <input
                     type="time"
                     style={styles.input}
@@ -995,7 +1040,7 @@ export default function StationChargerManagementScreen() {
                     }))
                   }
                 />
-                Open 24 hours
+                {t("adminStationChargerManagement.open24Hours")}
               </label>
 
               <div style={styles.field}>
@@ -1014,20 +1059,20 @@ export default function StationChargerManagementScreen() {
                     setLocationPickerOpen(true);
                   }}
                 >
-                  Select location (map / search)
+                  {t("adminStationChargerManagement.selectLocation")}
                 </button>
                 <div style={{ marginTop: "8px", color: "#5B736A", fontSize: "12px", fontWeight: 800, lineHeight: 1.6 }}>
-                  Coordinates are not shown. When you select the location from the map or search, the nearest address or district is filled automatically.
+                  {t("adminStationChargerManagement.locationHint")}
                 </div>
               </div>
             </div>
 
             <div style={styles.modalActions}>
               <button type="button" style={styles.saveButton} disabled={stationSaving} onClick={() => saveStation()}>
-                {stationSaving ? "Saving..." : "Save"}
+                {stationSaving ? t("adminStationChargerManagement.saving") : t("common.save")}
               </button>
               <button type="button" style={styles.cancelButton} onClick={() => setStationModalOpen(false)}>
-                Never mind
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -1039,11 +1084,11 @@ export default function StationChargerManagementScreen() {
           <div style={styles.modal}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>Select Location</h3>
-                <p style={styles.modalSubtitle}>Select via map or search. After selection, the address or district is shown instead of coordinates.</p>
+                <h3 style={styles.modalTitle}>{t("adminStationChargerManagement.selectLocationTitle")}</h3>
+                <p style={styles.modalSubtitle}>{t("adminStationChargerManagement.selectLocationSubtitle")}</p>
               </div>
               <button type="button" style={styles.modalClose} onClick={() => setLocationPickerOpen(false)}>
-                Close
+                {t("common.close")}
               </button>
             </div>
 
@@ -1052,10 +1097,10 @@ export default function StationChargerManagementScreen() {
             ) : (
               <div style={styles.mapWrap}>
                 <div style={styles.mapHeader}>
-                  <p style={styles.mapTitle}>Map</p>
+                  <p style={styles.mapTitle}>{t("adminStationChargerManagement.map")}</p>
                   <span style={styles.badge}>
                     <span style={styles.dot} />
-                    {pickedAddressLoading ? "Finding address..." : pickedAddressLabel || "Select location"}
+                    {pickedAddressLoading ? t("adminStationChargerManagement.findingAddress") : pickedAddressLabel || t("adminStationChargerManagement.selectLocation")}
                   </span>
                 </div>
                 <div style={styles.tabRow}>
@@ -1064,21 +1109,21 @@ export default function StationChargerManagementScreen() {
                     style={{ ...styles.tab, ...(locationMode === "map" ? styles.tabActive : {}) }}
                     onClick={() => setLocationMode("map")}
                   >
-                    Map
+                    {t("adminStationChargerManagement.map")}
                   </button>
                   <button
                     type="button"
                     style={{ ...styles.tab, ...(locationMode === "search" ? styles.tabActive : {}) }}
                     onClick={() => setLocationMode("search")}
                   >
-                    Search
+                    {t("common.search")}
                   </button>
                 </div>
 
                 {locationMode === "search" && (
                   <div style={styles.searchWrap}>
                     <div style={styles.field}>
-                      <div style={styles.label}>Searchma</div>
+                      <div style={styles.label}>{t("common.search")}</div>
                       <input
                         style={styles.input}
                         placeholder="Ilce / semt / cadde / yer adi..."
@@ -1132,7 +1177,7 @@ export default function StationChargerManagementScreen() {
                 )}
 
                 <div style={styles.mapHint}>
-                  Tip: Zoom in to select the exact station point. Click again to correct a wrong selection.
+                  {t("adminStationChargerManagement.mapTip")}
                 </div>
 
                 <div style={{ height: "420px" }}>
@@ -1164,7 +1209,7 @@ export default function StationChargerManagementScreen() {
                     </GoogleMap>
                   ) : (
                     <div style={{ padding: "14px", fontWeight: 850, color: "#37594D" }}>
-                      Map is loading...
+                      {t("adminStationChargerManagement.mapLoading")}
                     </div>
                   )}
                 </div>
@@ -1187,10 +1232,10 @@ export default function StationChargerManagementScreen() {
                   setLocationPickerOpen(false);
                 }}
               >
-                Use location
+                {t("adminStationChargerManagement.useLocation")}
               </button>
               <button type="button" style={styles.cancelButton} onClick={() => setLocationPickerOpen(false)}>
-                Never mind
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -1202,13 +1247,13 @@ export default function StationChargerManagementScreen() {
           <div style={styles.modal}>
             <div style={styles.modalTop}>
               <div>
-                <h3 style={styles.modalTitle}>{chargerModalEditingId ? "Charger Duzenle" : "Yeni Charger"}</h3>
+                <h3 style={styles.modalTitle}>{chargerModalEditingId ? t("adminStationChargerManagement.editCharger") : t("adminStationChargerManagement.newCharger")}</h3>
                 <p style={styles.modalSubtitle}>
-                  Selected station: <b>{selectedStation.name}</b> ({selectedStation.id})
+                  {t("adminStationChargerManagement.selectedStationPrefix")} <b>{selectedStation.name}</b> ({selectedStation.id})
                 </p>
               </div>
               <button type="button" style={styles.modalClose} onClick={() => setChargerModalOpen(false)}>
-                Close
+                {t("common.close")}
               </button>
             </div>
 
@@ -1217,7 +1262,7 @@ export default function StationChargerManagementScreen() {
             <div style={styles.form}>
               <div style={styles.row2}>
                 <div style={styles.field}>
-                  <div style={styles.label}>Charger ID</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.chargerId")}</div>
                   <input
                     style={styles.input}
                     value={chargerDraft.id}
@@ -1227,7 +1272,7 @@ export default function StationChargerManagementScreen() {
                   />
                 </div>
                 <div style={styles.field}>
-                  <div style={styles.label}>Status</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.status")}</div>
                   <select
                     style={styles.input}
                     value={chargerDraft.status}
@@ -1235,7 +1280,7 @@ export default function StationChargerManagementScreen() {
                   >
                     {CHARGER_STATUS_OPTIONS.map((s) => (
                       <option key={s} value={s}>
-                        {chargerStatusLabel(s)}
+                        {chargerStatusLabel(s, t)}
                       </option>
                     ))}
                   </select>
@@ -1244,7 +1289,7 @@ export default function StationChargerManagementScreen() {
 
               <div style={styles.row2}>
                 <div style={styles.field}>
-                  <div style={styles.label}>Tip</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.type")}</div>
                   <select
                     style={styles.input}
                     value={chargerDraft.type}
@@ -1258,7 +1303,7 @@ export default function StationChargerManagementScreen() {
                   </select>
                 </div>
                 <div style={styles.field}>
-                  <div style={styles.label}>Guc</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.power")}</div>
                   <select
                     style={styles.input}
                     value={chargerDraft.powerOutput}
@@ -1275,7 +1320,7 @@ export default function StationChargerManagementScreen() {
 
               <div style={styles.row2}>
                 <div style={styles.field}>
-                  <div style={styles.label}>Konnektor</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.connector")}</div>
                   <select
                     style={styles.input}
                     value={chargerDraft.connectorType}
@@ -1289,7 +1334,7 @@ export default function StationChargerManagementScreen() {
                   </select>
                 </div>
                 <div style={styles.field}>
-                  <div style={styles.label}>kWh Ucreti (TL)</div>
+                  <div style={styles.label}>{t("adminStationChargerManagement.pricePerKwh")}</div>
                   <input
                     style={styles.input}
                     value={chargerDraft.pricePerKwh}
@@ -1302,10 +1347,10 @@ export default function StationChargerManagementScreen() {
 
             <div style={styles.modalActions}>
               <button type="button" style={styles.saveButton} disabled={chargerSaving} onClick={() => saveCharger()}>
-                {chargerSaving ? "Saving..." : "Save"}
+                {chargerSaving ? t("adminStationChargerManagement.saving") : t("common.save")}
               </button>
               <button type="button" style={styles.cancelButton} onClick={() => setChargerModalOpen(false)}>
-                Never mind
+                {t("common.cancel")}
               </button>
             </div>
           </div>

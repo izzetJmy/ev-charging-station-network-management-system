@@ -1,10 +1,13 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import type { Station } from "../../models/Station";
@@ -40,6 +43,8 @@ function normalizeStation(data: unknown, id: string): Omit<Station, "chargers"> 
     ? obj.manualOffline === true
     : status === "offline" && isStationOpenAt({ operatingHours });
   const chargerIds = Array.isArray(obj.chargerIds) ? obj.chargerIds.filter((x): x is string => typeof x === "string") : [];
+  const ratingAverage = typeof obj.ratingAverage === "number" ? obj.ratingAverage : Number(obj.ratingAverage);
+  const ratingCount = typeof obj.ratingCount === "number" ? obj.ratingCount : Number(obj.ratingCount);
 
   if (!id || !name || !address || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
 
@@ -54,6 +59,8 @@ function normalizeStation(data: unknown, id: string): Omit<Station, "chargers"> 
       : (status as Station["status"]),
     operatingHours,
     manualOffline,
+    ratingAverage: Number.isFinite(ratingAverage) ? ratingAverage : 0,
+    ratingCount: Number.isFinite(ratingCount) ? ratingCount : 0,
     chargerIds,
   };
 }
@@ -104,6 +111,8 @@ export async function getStationsWithChargers(): Promise<Station[]> {
       status: derivedStatus ?? station.status,
       operatingHours: station.operatingHours ?? normalizeOperatingHours(null),
       manualOffline: station.manualOffline,
+      ratingAverage: station.ratingAverage ?? 0,
+      ratingCount: station.ratingCount ?? 0,
       chargers: stationChargers,
     };
   });
@@ -174,6 +183,12 @@ export async function upsertStation(station: Station) {
     status: nextStatus,
     operatingHours,
     manualOffline,
+    ratingAverage: previousSnapshot.exists()
+      ? Number(previousSnapshot.data().ratingAverage ?? station.ratingAverage ?? 0)
+      : station.ratingAverage ?? 0,
+    ratingCount: previousSnapshot.exists()
+      ? Number(previousSnapshot.data().ratingCount ?? station.ratingCount ?? 0)
+      : station.ratingCount ?? 0,
     chargerIds: (station.chargers ?? []).map((c) => c.id),
   });
 
@@ -209,4 +224,26 @@ export async function upsertStation(station: Station) {
 
 export async function updateStationChargerIds(stationId: string, chargerIds: string[]) {
   await setDoc(doc(db, "stations", stationId), { chargerIds }, { merge: true });
+}
+
+export async function deleteStation(stationId: string) {
+  if (!stationId.trim()) return;
+
+  const stationSnapshot = await getDoc(doc(db, "stations", stationId));
+  const stationName = stationSnapshot.exists()
+    ? String(stationSnapshot.data().name ?? stationId)
+    : stationId;
+
+  await cancelActiveReservationsForOfflineStation(stationId, stationName);
+
+  const chargersSnapshot = await getDocs(
+    query(collection(db, "chargers"), where("stationId", "==", stationId)),
+  );
+  const batch = writeBatch(db);
+  chargersSnapshot.docs.forEach((chargerDoc) => {
+    batch.delete(chargerDoc.ref);
+  });
+  await batch.commit();
+
+  await deleteDoc(doc(db, "stations", stationId));
 }

@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import StationMapScreen from "./screens/user/StationMapScreen";
 import VehicleHomeScreen from "./screens/user/VehicleHomeScreen";
 import VehicleProfileScreen from "./screens/user/VehicleProfileScreen";
@@ -22,6 +23,20 @@ import RevenueReportScreen from "./screens/admin/RevenueReportScreen";
 import StationStatisticsScreen from "./screens/admin/StationStatisticsScreen";
 import AdminReportsScreen from "./screens/admin/AdminReportsScreen";
 import StationChargerManagementScreen from "./screens/admin/StationChargerManagementScreen";
+
+function GlobalUserChrome() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isLandingPage = location.pathname === "/";
+
+  return (
+    <>
+      {!isAdminRoute && !isLandingPage && <NotificationCenter />}
+      <SnackbarHost />
+      {!isAdminRoute && <ActiveSessionCard />}
+    </>
+  );
+}
 
 function App() {
   return (
@@ -51,9 +66,7 @@ function App() {
           </Route>
         </Route>
       </Routes>
-      <NotificationCenter />
-      <SnackbarHost />
-      <ActiveSessionCard />
+      <GlobalUserChrome />
     </BrowserRouter>
   );
 }

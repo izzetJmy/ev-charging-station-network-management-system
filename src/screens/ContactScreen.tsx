@@ -1,5 +1,6 @@
 import { type CSSProperties, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
+import { useI18n } from "../i18n/I18nProvider";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -147,6 +148,7 @@ const styles: Record<string, CSSProperties> = {
 
 export default function ContactScreen() {
   const [sent, setSent] = useState(false);
+  const { t } = useI18n();
 
   return (
     <div style={styles.page}>
@@ -158,21 +160,18 @@ export default function ContactScreen() {
 
         <main style={styles.main}>
           <section style={styles.card} aria-label="Contact">
-            <h1 style={styles.title}>Contact</h1>
-            <p style={styles.desc}>
-              Contact us with your questions and feedback. Your message is recorded and
-              we will respond as soon as possible.
-            </p>
+            <h1 style={styles.title}>{t("contact.title")}</h1>
+            <p style={styles.desc}>{t("contact.description")}</p>
 
             <div className="contact-grid" style={styles.grid}>
               <div style={styles.infoCard}>
-                <div style={styles.label}>E-posta</div>
+                <div style={styles.label}>{t("contact.emailLabel")}</div>
                 <div style={styles.value}>destek@evnetwork.example</div>
 
                 <div style={{ height: "12px" }} />
 
-                <div style={styles.label}>Address</div>
-                <div style={styles.value}>FSE Project - Izmir, Turkiye</div>
+                <div style={styles.label}>{t("contact.addressLabel")}</div>
+                <div style={styles.value}>{t("contact.addressValue")}</div>
               </div>
 
               <form
@@ -182,16 +181,16 @@ export default function ContactScreen() {
                   setSent(true);
                 }}
               >
-                <input style={styles.input} placeholder="Full Name" required />
-                <input style={styles.input} placeholder="E-posta" type="email" required />
-                <textarea style={styles.textarea} placeholder="Mesajiniz" required />
+                <input style={styles.input} placeholder={t("contact.fullName")} required />
+                <input style={styles.input} placeholder={t("contact.emailLabel")} type="email" required />
+                <textarea style={styles.textarea} placeholder={t("contact.message")} required />
                 <button type="submit" style={styles.button}>
-                  Mesaj Gonder
+                  {t("contact.send")}
                 </button>
                 <div style={styles.note}>
                   {sent
-                    ? "Mesaj alindi (demo)."
-                    : "Not: Bu form su an demo. Istersen Firestore'a baglayabiliriz."}
+                    ? t("contact.sentDemo")
+                    : t("contact.demoNote")}
                 </div>
               </form>
             </div>

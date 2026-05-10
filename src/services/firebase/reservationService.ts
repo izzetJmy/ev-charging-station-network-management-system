@@ -178,6 +178,10 @@ export async function hasActiveReservationConflict(
       return false;
     }
 
+    if (existingDateRange.endDateTime.getTime() < Date.now()) {
+      return false;
+    }
+
     return hasDateTimeRangeOverlap(
       requestedDateRange.startDateTime,
       requestedDateRange.endDateTime,
@@ -334,7 +338,8 @@ export async function getActiveReservationsByChargerId(
         Boolean(reservation.date) &&
         Boolean(reservation.startTime) &&
         Boolean(reservation.endTime) &&
-        reservation.status === "active",
+        reservation.status === "active" &&
+        isUpcomingOrOngoingReservation(reservation),
     );
 }
 

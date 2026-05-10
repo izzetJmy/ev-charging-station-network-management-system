@@ -16,6 +16,7 @@ import {
   formatOperatingHours,
   isStationOpenAt,
 } from "../utils/stationOperatingHours";
+import { useI18n } from "../i18n/I18nProvider";
 
 interface StationDetailCardProps {
   station: Station;
@@ -25,8 +26,12 @@ interface StationDetailCardProps {
   directionsError?: string;
   isFavorite?: boolean;
   favoriteLoading?: boolean;
+  stationRating?: number;
+  stationAverageRating?: number;
+  ratingLoading?: boolean;
   onGetDirections?: () => void;
   onToggleFavorite?: () => void;
+  onRateStation?: (rating: number) => void;
   onClose: () => void;
 }
 
@@ -125,6 +130,67 @@ const styles: Record<string, CSSProperties> = {
     fontFamily: "inherit",
     lineHeight: 1,
     transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
+  ratingWrap: {
+    position: "relative",
+  },
+  ratingButton: {
+    minHeight: "40px",
+    minWidth: "44px",
+    padding: "0 12px",
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #AFCDBB",
+    borderRadius: "14px",
+    color: "#D49B1E",
+    fontSize: "20px",
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    lineHeight: 1,
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+  ratingAverage: {
+    color: "#6E5518",
+    fontSize: "13px",
+    fontWeight: 900,
+    lineHeight: 1,
+  },
+  ratingPopover: {
+    position: "absolute",
+    top: "48px",
+    right: 0,
+    width: "178px",
+    padding: "12px",
+    borderRadius: "16px",
+    border: "1px solid #D8E2DB",
+    backgroundColor: "#FFFFFF",
+    boxShadow: "0 16px 34px rgba(23,35,31,0.16)",
+    zIndex: 2,
+  },
+  ratingTitle: {
+    margin: "0 0 8px",
+    color: "#17231F",
+    fontSize: "12px",
+    fontWeight: 900,
+  },
+  starRow: {
+    display: "flex",
+    gap: "4px",
+  },
+  starButton: {
+    width: "28px",
+    height: "28px",
+    padding: 0,
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#D49B1E",
+    fontSize: "23px",
+    lineHeight: 1,
+    cursor: "pointer",
+    fontFamily: "inherit",
   },
   navigateButton: {
     minHeight: "40px",
@@ -243,11 +309,16 @@ function StationDetailCard({
   directionsError = "",
   isFavorite = false,
   favoriteLoading = false,
+  stationRating = 0,
+  stationAverageRating = 0,
+  ratingLoading = false,
   onGetDirections,
   onToggleFavorite,
+  onRateStation,
   onClose,
 }: StationDetailCardProps) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportTargetCharger, setReportTargetCharger] = useState<Charger | null>(
     null,
@@ -255,7 +326,14 @@ function StationDetailCard({
   const [reportSuccessMessage, setReportSuccessMessage] = useState("");
   const [statusWarningMessage, setStatusWarningMessage] = useState("");
   const [stationLocationLabel, setStationLocationLabel] = useState<string>("");
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
   const isOpenNow = station.status !== "offline" && isStationOpenAt(station);
+  const stationStatusText =
+    station.status === "available"
+      ? t("charger.status.available")
+      : station.status === "occupied"
+        ? t("charger.status.occupied")
+        : t("charger.status.offline");
 
   const handleReserve = (charger: Charger) => {
     setStatusWarningMessage("");
@@ -292,8 +370,8 @@ function StationDetailCard({
   const handleReportSubmitSuccess = () => {
     setReportSuccessMessage(
       reportTargetCharger
-        ? `Issue report saved for charger ${reportTargetCharger.id}.`
-        : "Issue report saved for the station.",
+        ? t("stationDetail.reportedCharger", { id: reportTargetCharger.id })
+        : t("stationDetail.reportedStation"),
     );
   };
 
@@ -324,7 +402,7 @@ function StationDetailCard({
       >
         <div style={styles.topBar}>
           <div style={styles.titleWrap}>
-            <div style={styles.eyebrow}>Selected Station</div>
+            <div style={styles.eyebrow}>{t("stationDetail.eyebrow")}</div>
             <h3 style={styles.title}>{station.name}</h3>
           </div>
 
@@ -336,30 +414,68 @@ function StationDetailCard({
               disabled={!onToggleFavorite || favoriteLoading}
               aria-label={
                 isFavorite
-                  ? "Remove from favorites"
-                  : "Add to favorites"
+                  ? t("stationDetail.favoritesRemove")
+                  : t("stationDetail.favoritesAdd")
               }
-              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              title={isFavorite ? t("stationDetail.favoritesRemove") : t("stationDetail.favoritesAdd")}
             >
               {isFavorite ? "♥" : "♡"}
             </button>
+            <div style={styles.ratingWrap}>
+              <button
+                type="button"
+                onClick={() => setIsRatingOpen((current) => !current)}
+                style={styles.ratingButton}
+                disabled={!onRateStation || ratingLoading}
+                aria-label={t("stationDetail.rateStation")}
+                title={t("stationDetail.rateStation")}
+              >
+                <span style={styles.ratingAverage}>
+                  {stationAverageRating > 0 ? stationAverageRating.toFixed(1) : "--"}
+                </span>
+                <span>{stationRating > 0 ? "★" : "☆"}</span>
+              </button>
+              {isRatingOpen && (
+                <div style={styles.ratingPopover}>
+                  <p style={styles.ratingTitle}>{t("stationDetail.rateStation")}</p>
+                  <div style={styles.starRow}>
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <button
+                        key={rating}
+                        type="button"
+                        style={styles.starButton}
+                        onClick={() => {
+                          onRateStation?.(rating);
+                          setIsRatingOpen(false);
+                        }}
+                        disabled={ratingLoading}
+                        aria-label={t("stationDetail.ratingValue", { rating })}
+                        title={t("stationDetail.ratingValue", { rating })}
+                      >
+                        {rating <= stationRating ? "★" : "☆"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={onGetDirections}
               style={styles.navigateButton}
               disabled={!onGetDirections || directionsLoading}
             >
-              {directionsLoading ? "Drawing route..." : "Get Directions"}
+              {directionsLoading ? t("stationDetail.directionsDrawing") : t("stationDetail.directionsGet")}
             </button>
             <button
               type="button"
               onClick={handleOpenStationReport}
               style={styles.reportButton}
             >
-              Report Issue
+              {t("stationDetail.report")}
             </button>
             <button type="button" onClick={onClose} style={styles.closeButton}>
-              Close
+              {t("stationDetail.close")}
             </button>
           </div>
         </div>
@@ -387,12 +503,12 @@ function StationDetailCard({
 
         <div style={styles.infoGrid}>
           <div style={{ ...styles.infoCard, ...styles.infoCardWide }}>
-            <div style={styles.label}>Address</div>
+            <div style={styles.label}>{t("stationDetail.address")}</div>
             <div style={styles.value}>{station.address}</div>
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Status</div>
+            <div style={styles.label}>{t("stationDetail.status")}</div>
             <div style={{ ...styles.value, ...styles.statusRow }}>
               <span
                 style={{
@@ -400,37 +516,37 @@ function StationDetailCard({
                   backgroundColor: STATION_STATUS_COLORS[station.status],
                 }}
               />
-              <span style={{ textTransform: "capitalize" }}>{station.status}</span>
+              <span>{stationStatusText}</span>
             </div>
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Location</div>
+            <div style={styles.label}>{t("stationDetail.location")}</div>
             <div style={styles.value}>
               {stationLocationLabel || station.address}
             </div>
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Distance</div>
+            <div style={styles.label}>{t("stationDetail.distance")}</div>
             <div style={styles.value}>
               {formatDistance(currentLocation, station)}
             </div>
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Operating Status</div>
-            <div style={styles.value}>{isOpenNow ? "Open" : "Closed"}</div>
+            <div style={styles.label}>{t("stationDetail.operatingStatus")}</div>
+            <div style={styles.value}>{isOpenNow ? t("stationDetail.open") : t("stationDetail.closed")}</div>
           </div>
 
           <div style={styles.infoCard}>
-            <div style={styles.label}>Operating Hours</div>
+            <div style={styles.label}>{t("stationDetail.operatingHours")}</div>
             <div style={styles.value}>{formatOperatingHours(station.operatingHours)}</div>
           </div>
         </div>
 
         <div style={styles.chargerSection}>
-          <h4 style={styles.sectionTitle}>Charger List</h4>
+          <h4 style={styles.sectionTitle}>{t("stationDetail.chargerList")}</h4>
 
           {station.chargers.length > 0 ? (
             <div style={styles.chargerGrid}>
@@ -448,7 +564,7 @@ function StationDetailCard({
             </div>
           ) : (
             <div style={styles.emptyState}>
-              No charger information is available for this station.
+              {t("stationDetail.noCharger")}
             </div>
           )}
         </div>

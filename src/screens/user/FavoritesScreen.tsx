@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { Station } from "../../models/Station";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
 import { getStationsWithChargers } from "../../services/firebase/stationService";
@@ -170,6 +171,7 @@ const styles: Record<string, CSSProperties> = {
 };
 
 function FavoritesScreen() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
   const { favorites, loading, error } = useFavoriteStations(userId);
@@ -187,7 +189,7 @@ function FavoritesScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setStationsError("Station data could not be loaded.");
+        setStationsError(t("favorites.stationDataLoadFailed"));
       });
 
     return () => {
@@ -223,13 +225,10 @@ function FavoritesScreen() {
         <header style={styles.header}>
           <div style={styles.eyebrow}>
             <span style={styles.signalDot} />
-            EV Network
+            {t("favorites.eyebrow")}
           </div>
-          <h1 style={styles.title}>Favorite Stations</h1>
-          <p style={styles.subtitle}>
-            Favori stationslariniz burada listelenir. Bir stationsu actiginizda
-            it appears selected on the map.
-          </p>
+          <h1 style={styles.title}>{t("favorites.title")}</h1>
+          <p style={styles.subtitle}>{t("favorites.subtitle")}</p>
         </header>
 
         <section style={styles.body}>
@@ -239,8 +238,7 @@ function FavoritesScreen() {
 
           {!loading && favorites.length === 0 && (
             <div style={styles.empty}>
-              No favorite stations yet. Use the heart icon on the map to add a favorite
-              ekleyebilirsiniz.
+              {t("favorites.empty")}
             </div>
           )}
 
@@ -257,10 +255,9 @@ function FavoritesScreen() {
                       <h2 style={styles.stationName}>{stationName}</h2>
                     </div>
                     <div style={styles.meta}>
-                      {station?.address ?? "Station detail bekleniyor"}
+                      {station?.address ?? t("favorites.stationDetailLoading")}
                       <br />
-                      Status: {station?.status ?? "--"} - Charger:{" "}
-                      {station?.chargers.length ?? "--"}
+                      {t("favorites.statusLabel")}: {station?.status ?? "--"} - {t("favorites.chargersLabel")}: {station?.chargers.length ?? "--"}
                     </div>
                   </div>
 
@@ -270,7 +267,7 @@ function FavoritesScreen() {
                       style={styles.primaryButton}
                       onClick={() => handleOpenStation(favorite.stationId)}
                     >
-                      Mapda Ac
+                      {t("favorites.openOnMap")}
                     </button>
                     <button
                       type="button"
@@ -278,7 +275,7 @@ function FavoritesScreen() {
                       onClick={() => void handleRemove(favorite.stationId)}
                       disabled={removingStationId === favorite.stationId}
                     >
-                      Favoriden Cikar
+                      {t("favorites.removeFromFavorites")}
                     </button>
                   </div>
                 </article>
@@ -292,14 +289,14 @@ function FavoritesScreen() {
               style={styles.secondaryButton}
               onClick={() => navigate("/station-map")}
             >
-              Back to Map
+              {t("favorites.backToMap")}
             </button>
             <button
               type="button"
               style={styles.secondaryButton}
               onClick={() => navigate("/app")}
             >
-              Saved Vehicles
+              {t("favorites.savedVehicles")}
             </button>
           </div>
         </section>

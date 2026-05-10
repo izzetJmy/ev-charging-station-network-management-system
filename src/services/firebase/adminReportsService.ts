@@ -19,6 +19,12 @@ type ChargingSessionDoc = {
   createdAt?: Timestamp;
 };
 
+type ReservationDoc = {
+  vehicleId?: string;
+  status?: string;
+  createdAt?: Timestamp;
+};
+
 function round2(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -154,6 +160,105 @@ export async function fetchRevenueReport() {
     totalRevenue: round2(totalRevenue),
     averageRevenuePerSession,
     revenueByStation: revenueByStationRows,
+  };
+}
+
+export async function fetchAdminActivityInsights() {
+  const [sessionsSnap, reservationsSnap, vehiclesSnap] = await Promise.all([
+    getDocs(collection(db, "chargingSessions")),
+    getDocs(collection(db, "reservations")),
+    getDocs(collection(db, "vehicles")),
+  ]);
+
+  const vehicleUserById = new Map<string, string>();
+  const userNameById = new Map<string, string>();
+  const userActivity: Record<
+    string,
+    {
+      userId: string;
+      vehicleCount: number;
+      reservationCount: number;
+      chargingSessionCount: number;
+      cancelledReservationCount: number;
+      revenue: number;
+    }
+  > = {};
+
+  const ensureUser = (userId: string) => {
+    const safeUserId = userId || "unknown";
+    userActivity[safeUserId] ||= {
+      userId: safeUserId,
+      vehicleCount: 0,
+      reservationCount: 0,
+      chargingSessionCount: 0,
+      cancelledReservationCount: 0,
+      revenue: 0,
+    };
+    return userActivity[safeUserId];
+  };
+
+  vehiclesSnap.docs.forEach((vehicleDoc) => {
+    const userId = String(vehicleDoc.data().userId ?? "unknown");
+    const ownerName = String(vehicleDoc.data().ownerName ?? "").trim();
+    vehicleUserById.set(vehicleDoc.id, userId);
+    if (ownerName) {
+      userNameById.set(userId, ownerName);
+    }
+    ensureUser(userId).vehicleCount += 1;
+  });
+
+  const peakBuckets: Record<string, { hour: number; sessionCount: number; revenue: number }> = {};
+  for (let hour = 0; hour < 24; hour += 1) {
+    peakBuckets[String(hour).padStart(2, "0")] = { hour, sessionCount: 0, revenue: 0 };
+  }
+
+  sessionsSnap.docs.forEach((sessionDoc) => {
+    const data = sessionDoc.data() as Partial<ChargingSessionDoc>;
+    const createdAt = data.createdAt?.toDate?.();
+    const hour = createdAt ? createdAt.getHours() : 0;
+    const key = String(hour).padStart(2, "0");
+    const revenue = Number(data.totalCost ?? 0);
+    peakBuckets[key].sessionCount += 1;
+    peakBuckets[key].revenue += revenue;
+
+    const userId = vehicleUserById.get(String(data.vehicleId ?? "")) ?? "unknown";
+    const activity = ensureUser(userId);
+    activity.chargingSessionCount += 1;
+    activity.revenue += revenue;
+  });
+
+  reservationsSnap.docs.forEach((reservationDoc) => {
+    const data = reservationDoc.data() as ReservationDoc;
+    const userId = vehicleUserById.get(String(data.vehicleId ?? "")) ?? "unknown";
+    const activity = ensureUser(userId);
+    activity.reservationCount += 1;
+    if (String(data.status ?? "").toLowerCase() === "cancelled") {
+      activity.cancelledReservationCount += 1;
+    }
+  });
+
+  return {
+    peakHours: Object.values(peakBuckets)
+      .map((bucket) => ({
+        hourLabel: `${String(bucket.hour).padStart(2, "0")}:00`,
+        sessionCount: bucket.sessionCount,
+        revenue: round2(bucket.revenue),
+      }))
+      .sort((a, b) => b.sessionCount - a.sessionCount || b.revenue - a.revenue)
+      .slice(0, 6),
+    userActivity: Object.values(userActivity)
+      .map((activity) => ({
+        ...activity,
+        displayName: userNameById.get(activity.userId) ?? `User ${activity.userId.slice(0, 8)}`,
+        revenue: round2(activity.revenue),
+      }))
+      .sort(
+        (a, b) =>
+          b.chargingSessionCount - a.chargingSessionCount ||
+          b.reservationCount - a.reservationCount ||
+          b.revenue - a.revenue,
+      )
+      .slice(0, 12),
   };
 }
 

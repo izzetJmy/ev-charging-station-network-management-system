@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { adminLogout } from "../../services/auth/adminAuth";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type AdminMenuItem = {
   id: string;
@@ -241,16 +242,17 @@ function persistMenuOrder(items: AdminMenuItem[]) {
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const defaultMenu = useMemo<AdminMenuItem[]>(
     () => [
-      { id: "dashboard", to: "/admin/dashboard", label: "Overview" },
-      { id: "reports", to: "/admin/reports", label: "Raporlar" },
-      { id: "revenue", to: "/admin/revenue", label: "Gelir Raporu" },
-      { id: "stations", to: "/admin/stations", label: "Station Statistics" },
-      { id: "manage", to: "/admin/manage", label: "Add Station/Charger" },
+      { id: "dashboard", to: "/admin/dashboard", label: t("admin.menuItems.dashboard") },
+      { id: "reports", to: "/admin/reports", label: t("admin.menuItems.reports") },
+      { id: "revenue", to: "/admin/revenue", label: t("admin.menuItems.revenue") },
+      { id: "stations", to: "/admin/stations", label: t("admin.menuItems.stations") },
+      { id: "manage", to: "/admin/manage", label: t("admin.menuItems.manage") },
     ],
-    [],
+    [t],
   );
 
   const [menuItems, setMenuItems] = useState<AdminMenuItem[]>(() => readMenuOrder(defaultMenu));
@@ -285,8 +287,8 @@ export default function AdminLayout() {
           <div style={styles.brand}>
             <span style={styles.dot} />
             <div style={styles.brandText}>
-              <div style={styles.brandTitle}>EV Network - Admin Panel</div>
-              <div style={styles.brandSub}>Reservation and charging session reports</div>
+              <div style={styles.brandTitle}>{t("admin.layout.title")}</div>
+              <div style={styles.brandSub}>{t("admin.layout.subtitle")}</div>
             </div>
           </div>
           <div style={styles.headerRight}>
@@ -297,11 +299,11 @@ export default function AdminLayout() {
                 adminLogout();
                 navigate("/", {
                   replace: true,
-                  state: { snackbar: { message: "Cikis yapildi.", variant: "info" } },
+                  state: { snackbar: { message: t("admin.layout.logoutSnackbar"), variant: "info" } },
                 });
               }}
             >
-              Cikis
+              {t("admin.layout.logout")}
             </button>
           </div>
         </header>
@@ -309,7 +311,7 @@ export default function AdminLayout() {
         <div className="admin-body" style={styles.body}>
           <aside className="admin-side" style={styles.side}>
             <div style={styles.sideCard}>
-              <div style={styles.sideTitle}>Menu</div>
+              <div style={styles.sideTitle}>{t("admin.layout.menu")}</div>
               <div style={styles.sideNav}>
                 {menuItems.map((item) => (
                   <div
@@ -341,7 +343,7 @@ export default function AdminLayout() {
                       {item.label}
                     </NavLink>
                     <div
-                      title="Drag and drop"
+                      title={t("admin.layout.dragHint")}
                       style={{
                         ...styles.dragHandle,
                         ...(draggingId === item.id ? styles.dragHandleActive : {}),

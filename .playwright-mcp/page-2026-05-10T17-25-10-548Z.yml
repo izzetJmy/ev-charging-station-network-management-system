@@ -1,0 +1,23 @@
+- generic [ref=e2]:
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - heading "Saved Vehicles" [level=1] [ref=e7]
+        - generic [ref=e8]:
+          - button "Add wallet balance" [ref=e9] [cursor=pointer]:
+            - generic [ref=e10]: TL
+            - generic [ref=e11]:
+              - generic [ref=e12]: Balance
+              - generic [ref=e13]: ...
+          - button "My Reservations" [ref=e14] [cursor=pointer]
+          - button "Back to Home" [ref=e15] [cursor=pointer]
+      - generic [ref=e16]:
+        - generic [ref=e18]: EV Network
+        - img
+    - region "Vehicle List" [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Vehicle List" [level=2] [ref=e24]
+        - generic [ref=e26]: Loading…
+      - paragraph [ref=e27]: Click a vehicle in the list to select it. Details open after you click.
+      - button "New Vehicle" [ref=e29] [cursor=pointer]
+  - button "Bildirimler" [ref=e31] [cursor=pointer]: 🔔

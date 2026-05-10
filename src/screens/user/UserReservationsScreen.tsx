@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useI18n } from "../../i18n/I18nProvider";
 import ReservationManagementPanel from "../../components/ReservationManagementPanel";
 import type { Vehicle } from "../../models/vehicle";
 import { getOrCreateLocalUserId } from "../../services/auth/localUser";
@@ -157,16 +158,17 @@ function getVehicleDisplayName(vehicle: Vehicle) {
   const name = [vehicle.brand?.trim(), vehicle.model?.trim()]
     .filter(Boolean)
     .join(" ");
-  return name || "Saved vehicle";
+  return name || "--";
 }
 
-function getVehiclePanelDescription(vehicle: Vehicle) {
+function getVehiclePanelDescription(vehicle: Vehicle, t: (key: string, vars?: Record<string, string | number>) => string) {
   const plate = vehicle.plateNumber?.trim().toUpperCase() || "--";
   const connector = vehicle.connectorType || "--";
-  return `Manage active reservations and track past reservations for the vehicle with plate ${plate} and ${connector} connector.`;
+  return t("userReservations.panelDescription", { plate, connector });
 }
 
 function UserReservationsScreen() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const routeState = (location.state ?? {}) as ReservationsLocationState;
@@ -198,14 +200,14 @@ function UserReservationsScreen() {
           setSelectedVehicleId("all");
         }
       } catch {
-        setError("Vehicle list could not be loaded. Please try again.");
+        setError(t("userReservations.vehicleDataLoadFailed"));
       } finally {
         setLoading(false);
       }
     };
 
     void loadVehicles();
-  }, [routeState.vehicleId, userId]);
+  }, [routeState.vehicleId, t, userId]);
 
   return (
     <div style={styles.page}>
@@ -216,37 +218,32 @@ function UserReservationsScreen() {
             <div>
               <div style={styles.eyebrow}>
                 <span style={styles.signalDot} />
-                EV Network
+                {t("userReservations.eyebrow")}
               </div>
-              <h1 style={styles.title}>My Reservations</h1>
-              <p style={styles.subtitle}>
-                Track active and past reservations made with your saved vehicles
-                vehicle bazinda buradan takip edin.
-              </p>
+              <h1 style={styles.title}>{t("userReservations.title")}</h1>
+              <p style={styles.subtitle}>{t("userReservations.subtitle")}</p>
             </div>
             <button
               type="button"
               style={styles.backButton}
               onClick={() => navigate("/app")}
             >
-              Saved vehiclelara don
+              {t("userReservations.backButton")}
             </button>
           </div>
         </header>
 
         <section style={styles.body}>
           {loading ? (
-            <div style={styles.message}>Loading vehicles for reservations...</div>
+            <div style={styles.message}>{t("userReservations.loading")}</div>
           ) : error ? (
             <div style={styles.message}>{error}</div>
           ) : vehicles.length === 0 ? (
-            <div style={styles.message}>
-              Create a saved vehicle first to view reservations.
-            </div>
+            <div style={styles.message}>{t("userReservations.noVehicles")}</div>
           ) : (
             <>
               <div className="user-reservations-topbar" style={styles.topBar}>
-                <div style={styles.filterRow} aria-label="Vehicle filtresi">
+                <div style={styles.filterRow} aria-label={t("userReservations.vehicleFilterAria")}>
                   <button
                     type="button"
                     style={{
@@ -255,7 +252,7 @@ function UserReservationsScreen() {
                     }}
                     onClick={() => setSelectedVehicleId("all")}
                   >
-                    Tum vehiclelar
+                    {t("userReservations.allVehicles")}
                   </button>
 
                   {vehicles.map((vehicle) => (
@@ -282,8 +279,8 @@ function UserReservationsScreen() {
                     key={vehicle.id}
                     vehicleId={vehicle.id}
                     vehicleConnectorType={vehicle.connectorType}
-                    title={`${getVehicleDisplayName(vehicle)} reservations`}
-                    description={getVehiclePanelDescription(vehicle)}
+                    title={t("userReservations.reservationsTitle", { vehicleName: getVehicleDisplayName(vehicle) })}
+                    description={getVehiclePanelDescription(vehicle, t)}
                   />
                 ))}
               </div>

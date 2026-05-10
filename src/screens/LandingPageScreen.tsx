@@ -1,6 +1,7 @@
 import { type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import SiteHeader from "../components/SiteHeader";
+import { useI18n } from "../i18n/I18nProvider";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -195,6 +196,7 @@ const styles: Record<string, CSSProperties> = {
 
 export default function LandingPageScreen() {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   return (
     <div style={styles.page}>
@@ -206,11 +208,8 @@ export default function LandingPageScreen() {
         <main style={styles.main}>
           <section style={styles.heroCard}>
             <div style={styles.heroContent}>
-              <h1 style={styles.title}>Manage EV stations from one screen.</h1>
-              <p style={styles.subtitle}>
-                Create your vehicle profile, view available stations on the map, make reservations, and
-                calculate your charging session cost instantly.
-              </p>
+              <h1 style={styles.title}>{t("landing.title")}</h1>
+              <p style={styles.subtitle}>{t("landing.subtitle")}</p>
 
               <button
                 type="button"
@@ -218,14 +217,14 @@ export default function LandingPageScreen() {
                 style={styles.primaryButton}
                 onClick={() => navigate("/app")}
               >
-                Basla
+                {t("landing.cta")}
               </button>
             </div>
           </section>
         </main>
 
         <footer style={styles.footer}>
-          <div>(c) {new Date().getFullYear()} EV Network</div>
+          <div>(c) {new Date().getFullYear()} {t("app.name")}</div>
         </footer>
       </div>
 

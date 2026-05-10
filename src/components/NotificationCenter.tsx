@@ -7,6 +7,10 @@ import {
   type NotificationRecord,
 } from "../services/firebase/notificationService";
 
+interface NotificationCenterProps {
+  variant?: "fixed" | "inline";
+}
+
 const styles: Record<string, CSSProperties> = {
   container: {
     position: "fixed",
@@ -28,6 +32,35 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 950,
     cursor: "pointer",
     boxShadow: "0 14px 34px rgba(28, 74, 61, 0.18)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inlineContainer: {
+    position: "relative",
+    zIndex: 2,
+    fontFamily:
+      "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  },
+  inlineButton: {
+    position: "relative",
+    width: "40px",
+    height: "40px",
+    borderRadius: "999px",
+    border: "1px solid rgba(184,240,97,0.30)",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)",
+    color: "#FFFFFF",
+    fontSize: "17px",
+    fontWeight: 950,
+    cursor: "pointer",
+    boxShadow:
+      "0 12px 26px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   badge: {
     position: "absolute",
@@ -155,7 +188,39 @@ function getTypeLabel(type: NotificationRecord["type"]) {
   return "Bildirim";
 }
 
-function NotificationCenter() {
+function BellIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M15 17H9M18 10.8C18 7.25 15.55 5 12 5S6 7.25 6 10.8C6 14.8 4.5 16.4 3.6 17.35C3.2 17.78 3.5 18.5 4.1 18.5H19.9C20.5 18.5 20.8 17.78 20.4 17.35C19.5 16.4 18 14.8 18 10.8Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 20.2C10.48 20.72 11.18 21 12 21C12.82 21 13.52 20.72 14 20.2"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 5V3.5"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function NotificationCenter({ variant = "fixed" }: NotificationCenterProps) {
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [open, setOpen] = useState(false);
@@ -193,14 +258,14 @@ function NotificationCenter() {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={variant === "inline" ? styles.inlineContainer : styles.container}>
       <button
         type="button"
-        style={styles.button}
+        style={variant === "inline" ? styles.inlineButton : styles.button}
         aria-label="Bildirimler"
         onClick={() => setOpen((current) => !current)}
       >
-        🔔
+        <BellIcon />
         {unreadCount > 0 && (
           <span style={styles.badge}>{unreadCount > 9 ? "9+" : unreadCount}</span>
         )}

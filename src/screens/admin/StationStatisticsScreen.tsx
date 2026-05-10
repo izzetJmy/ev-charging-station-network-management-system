@@ -1,4 +1,5 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n/I18nProvider";
 import { fetchStationStatistics } from "../../services/firebase/adminReportsService";
 import { GoogleMap } from "@react-google-maps/api";
 import StationMarkers from "../../components/Map/StationMarkers";
@@ -197,6 +198,7 @@ function round2(value: number) {
 }
 
 export default function StationStatisticsScreen() {
+  const { t } = useI18n();
   const { isLoaded } = useGoogleMapsLoader();
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [stationsForMap, setStationsForMap] = useState<Station[]>([]);
@@ -223,7 +225,7 @@ export default function StationStatisticsScreen() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("Station statistics could not be loaded. Check the Firestore connection.");
+        setError(t("adminStatistics.loadFailed"));
       })
       .finally(() => {
         if (cancelled) return;
@@ -233,7 +235,7 @@ export default function StationStatisticsScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -268,13 +270,10 @@ export default function StationStatisticsScreen() {
 
   return (
     <div>
-      <h2 style={styles.title}>Station Statistics</h2>
-      <p style={styles.subtitle}>
-        Compare station usage intensity, charging session count, and consumed energy by station.
-        bazinda goruntuleyin.
-      </p>
+      <h2 style={styles.title}>{t("adminStatistics.title")}</h2>
+      <p style={styles.subtitle}>{t("adminStatistics.subtitle")}</p>
 
-      {loading && <div style={styles.loading}>Loading...</div>}
+      {loading && <div style={styles.loading}>{t("adminStatistics.loading")}</div>}
       {!loading && error && <div style={styles.loading}>{error}</div>}
 
       {!loading && data && (
@@ -283,7 +282,7 @@ export default function StationStatisticsScreen() {
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Most used station</div>
+                <div style={styles.label}>{t("adminStatistics.mostUsedStation")}</div>
                 <div style={styles.value}>
                   {data.mostUsedStation
                     ? `${data.mostUsedStation.stationName} (${data.mostUsedStation.sessionCount})`
@@ -294,17 +293,16 @@ export default function StationStatisticsScreen() {
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Station status summary</div>
+                <div style={styles.label}>{t("adminStatistics.statusSummary")}</div>
                 <div style={styles.value}>
-                  {data.stationStatusSummary.available} available - {data.stationStatusSummary.occupied} occupied -{" "}
-                  {data.stationStatusSummary.offline} offline
+                  {data.stationStatusSummary.available} {t("stationMapScreen.statusReady")} - {data.stationStatusSummary.occupied} {t("stationMapScreen.statusWaiting")} - {data.stationStatusSummary.offline} {t("stationMapScreen.statusDenied")}
                 </div>
               </div>
             </div>
             <div className="admin-card" style={styles.card}>
               <div style={styles.cardGlow} aria-hidden="true" />
               <div style={styles.cardInner}>
-                <div style={styles.label}>Total reservations</div>
+                <div style={styles.label}>{t("adminStatistics.totalReservations")}</div>
                 <div style={styles.value}>{data.reservationCount}</div>
               </div>
             </div>
@@ -316,16 +314,16 @@ export default function StationStatisticsScreen() {
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Station</th>
-                    <th style={{ ...styles.th, ...styles.right }}>Session count</th>
-                    <th style={{ ...styles.th, ...styles.right }}>Energy (kWh)</th>
+                    <th style={styles.th}>{t("adminStatistics.station")}</th>
+                    <th style={{ ...styles.th, ...styles.right }}>{t("adminStatistics.sessionCount")}</th>
+                    <th style={{ ...styles.th, ...styles.right }}>{t("adminStatistics.energy")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sessionRows.length === 0 && energyRows.length === 0 && (
                     <tr>
                       <td style={styles.td} colSpan={3}>
-                        No data yet.
+                        {t("adminStatistics.noData")}
                       </td>
                     </tr>
                   )}
@@ -382,21 +380,21 @@ export default function StationStatisticsScreen() {
                 <div style={styles.metaItem}>
                   <div style={styles.metaGlow} aria-hidden="true" />
                   <div style={styles.metaInner}>
-                    <div style={styles.metaLabel}>Session count</div>
+                    <div style={styles.metaLabel}>{t("adminStatistics.sessionCount")}</div>
                     <div style={styles.metaValue}>{selectedStats.sessions}</div>
                   </div>
                 </div>
                 <div style={styles.metaItem}>
                   <div style={styles.metaGlow} aria-hidden="true" />
                   <div style={styles.metaInner}>
-                    <div style={styles.metaLabel}>Energy (kWh)</div>
+                    <div style={styles.metaLabel}>{t("adminStatistics.energy")}</div>
                     <div style={styles.metaValue}>{round2(selectedStats.energy)}</div>
                   </div>
                 </div>
                 <div style={styles.metaItem}>
                   <div style={styles.metaGlow} aria-hidden="true" />
                   <div style={styles.metaInner}>
-                    <div style={styles.metaLabel}>Revenue (TL)</div>
+                    <div style={styles.metaLabel}>{t("adminStatistics.revenue")}</div>
                     <div style={styles.metaValue}>{round2(selectedStats.revenue)}</div>
                   </div>
                 </div>

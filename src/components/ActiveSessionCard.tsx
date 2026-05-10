@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../i18n/I18nProvider";
 import { useActiveChargingSession } from "../hooks/useActiveChargingSession";
 import type { Station } from "../models/Station";
 import type { Charger } from "../models/Charger";
@@ -160,6 +161,7 @@ function formatEnergy(value: number) {
 }
 
 function ActiveSessionCard() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { activeSession, loading } = useActiveChargingSession();
   const [station, setStation] = useState<
@@ -227,7 +229,7 @@ function ActiveSessionCard() {
         station: {
           ...(station ?? {
             id: activeSession.stationId,
-            name: "Active station",
+            name: t("activeSession.stationPlaceholder"),
             address: "",
             latitude: 0,
             longitude: 0,
@@ -303,53 +305,53 @@ function ActiveSessionCard() {
     return null;
   }
 
-  const stationName = station?.name ?? "Active charging station";
+  const stationName = station?.name ?? t("activeSession.stationPlaceholder");
   const chargerLabel = charger
     ? `${charger.connectorType} - ${charger.powerOutput}`
-    : "Charger information is loading";
+    : t("activeSession.chargerLoading");
 
   return (
     <div className="active-session-card" style={styles.container}>
       <div style={styles.card}>
         <div style={styles.header}>
           <div style={styles.statusDot} />
-          <h3 style={styles.title}>Live Charging Session</h3>
-          <span style={styles.livePill}>Aktif</span>
+          <h3 style={styles.title}>{t("activeSession.title")}</h3>
+          <span style={styles.livePill}>{t("activeSession.live")}</span>
         </div>
 
         <div style={styles.stationName}>{stationName}</div>
         <div style={styles.chargerLabel}>{chargerLabel}</div>
         <p style={styles.subtleText}>
-          Your active session details appear here even if you change pages.
+          {t("activeSession.subtitle")}
         </p>
 
         <div style={styles.metricsGrid}>
           <div style={styles.metricItem}>
-            <div style={styles.metricLabel}>Kalan Sure</div>
+            <div style={styles.metricLabel}>{t("activeSession.remainingTime")}</div>
             <div style={styles.metricValue}>
               {formatMinutes(liveMetrics.remainingMinutes)}
             </div>
           </div>
           <div style={styles.metricItem}>
-            <div style={styles.metricLabel}>Ilerleme</div>
+            <div style={styles.metricLabel}>{t("activeSession.progress")}</div>
             <div style={styles.metricValue}>
               {Math.round(liveMetrics.progressPercentage)}%
             </div>
           </div>
           <div style={styles.metricItem}>
-            <div style={styles.metricLabel}>Gecen Sure</div>
+            <div style={styles.metricLabel}>{t("activeSession.elapsedTime")}</div>
             <div style={styles.metricValue}>
               {formatMinutes(liveMetrics.elapsedMinutes)}
             </div>
           </div>
           <div style={styles.metricItem}>
-            <div style={styles.metricLabel}>Tuketim</div>
+            <div style={styles.metricLabel}>{t("activeSession.consumption")}</div>
             <div style={styles.metricValue}>
               {formatEnergy(liveMetrics.currentKwh)}
             </div>
           </div>
           <div style={{ ...styles.metricItem, gridColumn: "1 / -1" }}>
-            <div style={styles.metricLabel}>Anlik Tutar</div>
+            <div style={styles.metricLabel}>{t("activeSession.currentCost")}</div>
             <div style={styles.metricValue}>{formatMoney(liveMetrics.liveCost)}</div>
           </div>
         </div>
@@ -364,7 +366,7 @@ function ActiveSessionCard() {
           onMouseLeave={() => setHovered(false)}
           onClick={handleNavigateToSession}
         >
-          Return to Session
+          {t("activeSession.returnToSession")}
         </button>
       </div>
 

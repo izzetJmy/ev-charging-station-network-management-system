@@ -17,5 +17,7 @@ export interface Station {
   status: StationStatus;
   operatingHours?: OperatingHours;
   manualOffline?: boolean;
+  ratingAverage?: number;
+  ratingCount?: number;
   chargers: Charger[];
 }

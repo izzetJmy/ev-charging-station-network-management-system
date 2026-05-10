@@ -27,6 +27,7 @@ import {
   getWallet,
   InsufficientWalletBalanceError,
 } from "../../services/firebase/walletService";
+import { useI18n } from "../../i18n/I18nProvider";
 import { getChargerStatusBlockMessage } from "../../utils/chargerCompatibility";
 import { isStationOpenAt } from "../../utils/stationOperatingHours";
 
@@ -441,10 +442,14 @@ function formatMinutes(minutes: number) {
   return `${hours} sa ${mins} dk`;
 }
 
-function getStatusLabel(session: ChargingSessionRecord | null, started: boolean) {
-  if (session?.status === "completed") return "Completed";
-  if (started) return "Canli takip active";
-  return "Hazir";
+function getStatusLabel(
+  session: ChargingSessionRecord | null,
+  started: boolean,
+  t: (key: string) => string,
+) {
+  if (session?.status === "completed") return t("chargingSession.statusCompleted");
+  if (started) return t("chargingSession.statusLive");
+  return t("chargingSession.statusReady");
 }
 
 function toDate(value: unknown): Date | null {
@@ -465,6 +470,7 @@ function toDate(value: unknown): Date | null {
 }
 
 function ChargingSessionScreen() {
+  const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const userId = useMemo(() => getOrCreateLocalUserId(), []);
@@ -563,12 +569,12 @@ function ChargingSessionScreen() {
       },
       () => {
         setSnackbar({
-          message: "Live session details could not be read.",
+          message: t("chargingSession.liveSessionUnreadable"),
           variant: "error",
         });
       },
     );
-  }, [activeSessionId]);
+  }, [activeSessionId, t]);
 
   const batteryCapacity = vehicle?.batteryCapacity ?? 0;
   const startBatteryValue = clampPercent(Number(startBattery));
@@ -591,7 +597,7 @@ function ChargingSessionScreen() {
     }
 
     if (!reservationDate || !reservationStartTime || !reservationEndTime) {
-      return "Reservation time information is missing.";
+      return t("chargingSession.reservationTimeMissing");
     }
 
     const canStartNow = isWithinReservationWindow({
@@ -601,7 +607,7 @@ function ChargingSessionScreen() {
     });
 
     if (!canStartNow) {
-      return "The charging session can only be started during the reservation time range.";
+      return t("chargingSession.reservationWindowOnly");
     }
 
     return "";
@@ -688,7 +694,7 @@ function ChargingSessionScreen() {
 
       if (finalKwh <= 0) {
         if (!autoComplete) {
-          setWarningMessage("Energy consumption must be generated before completing the session.");
+          setWarningMessage(t("chargingSession.energyRequired"));
         }
         return;
       }
@@ -699,8 +705,8 @@ function ChargingSessionScreen() {
         : endBatteryValue;
       const finalCost = round2(finalKwh * charger.pricePerKwh);
       const successMessage = autoComplete
-        ? "Reservation time expired. Charging session saved."
-        : "Charging session saved.";
+        ? t("chargingSession.reservationExpiredSaved")
+        : t("chargingSession.saved");
 
       try {
         setSaving(true);
@@ -730,13 +736,13 @@ function ChargingSessionScreen() {
         completingRef.current = false;
 
         if (error instanceof InsufficientWalletBalanceError) {
-          setErrorMessage("Wallet balance is insufficient. Please add balance and try again.");
-          setSnackbar({ message: "Wallet bakiyesi yetersiz.", variant: "error" });
+          setErrorMessage(t("chargingSession.walletInsufficient"));
+          setSnackbar({ message: t("chargingSession.walletInsufficient"), variant: "error" });
           return;
         }
 
-        setErrorMessage("Charging session could not be completed. Please try again.");
-        setSnackbar({ message: "Charging oturumu tamamlanamadi.", variant: "error" });
+        setErrorMessage(t("chargingSession.saveFailed"));
+        setSnackbar({ message: t("chargingSession.saveFailed"), variant: "error" });
       } finally {
         setSaving(false);
       }
@@ -817,7 +823,7 @@ function ChargingSessionScreen() {
           progressPercentage: nextProgress,
         }).catch(() => {
           setSnackbar({
-            message: "Live session could not be updated in Firestore.",
+            message: t("chargingSession.firestoreUpdateFailed"),
             variant: "error",
           });
         });
@@ -875,26 +881,26 @@ function ChargingSessionScreen() {
   const validate = () => {
     if (statusBlockMessage) return statusBlockMessage;
     if (reservationWindowBlockedMessage) return reservationWindowBlockedMessage;
-    if (!station || !charger) return "Station or charger information is missing.";
-    if (vehicleLoading) return "Vehicle details are loading. Please try again.";
-    if (!vehicle?.id) return "No suitable vehicle was found for the charging session.";
-    if (!batteryCapacity || batteryCapacity <= 0) return "Vehicle battery capacity could not be found.";
+    if (!station || !charger) return t("chargingSession.stationOrChargerMissing");
+    if (vehicleLoading) return t("chargingSession.vehicleLoading");
+    if (!vehicle?.id) return t("chargingSession.vehicleMissing");
+    if (!batteryCapacity || batteryCapacity <= 0) return t("chargingSession.batteryMissing");
     if (!startBattery.trim() || !endBattery.trim()) {
-      return "Please enter the starting and target battery percentages.";
+      return t("chargingSession.batteryRequired");
     }
     if (!Number.isFinite(startBatteryValue) || !Number.isFinite(endBatteryValue)) {
-      return "Battery percentage must be numeric.";
+      return t("chargingSession.batteryNotNumeric");
     }
     if (startBatteryValue < 0 || startBatteryValue > 100) {
-      return "Starting battery percentage must be between 0 and 100.";
+      return t("chargingSession.startRangeInvalid");
     }
     if (endBatteryValue < 0 || endBatteryValue > 100) {
-      return "Target battery percentage must be between 0 and 100.";
+      return t("chargingSession.targetRangeInvalid");
     }
     if (endBatteryValue <= startBatteryValue) {
-      return "Target battery percentage must be greater than the starting value.";
+      return t("chargingSession.targetBeforeStart");
     }
-    if (targetKwh == null || targetKwh <= 0) return "Hedef enerji hesaplanamadi.";
+    if (targetKwh == null || targetKwh <= 0) return t("chargingSession.targetEnergyMissing");
     return "";
   };
 
@@ -912,7 +918,7 @@ function ChargingSessionScreen() {
     }
 
     if (!station || !charger || !vehicle || targetKwh == null || plannedTotalCost == null) {
-      setErrorMessage("Live session could not be started. Please check the fields.");
+      setErrorMessage(t("chargingSession.firestoreReadFailed"));
       return;
     }
 
@@ -965,14 +971,14 @@ function ChargingSessionScreen() {
           cost: 0,
         },
       ]);
-      setSnackbar({ message: "Live charging session started.", variant: "success" });
+      setSnackbar({ message: t("chargingSession.sessionInitSuccess"), variant: "success" });
     } catch (error) {
       const message =
         error instanceof InsufficientWalletBalanceError
-          ? "Wallet balance is insufficient. Please add balance and try again."
+          ? t("chargingSession.walletInsufficient")
           : error instanceof Error && error.message
             ? error.message
-            : "Live charging session could not be started. Please try again.";
+            : t("chargingSession.saveFailed");
       setErrorMessage(message);
       setSnackbar({ message, variant: "error" });
     } finally {
@@ -988,9 +994,9 @@ function ChargingSessionScreen() {
     return (
       <div style={styles.page}>
         <div style={styles.fallbackCard}>
-          <h1 style={styles.fallbackTitle}>Charging oturumu bilgisi eksik</h1>
+          <h1 style={styles.fallbackTitle}>{t("chargingSession.missingInfoTitle")}</h1>
           <p style={styles.fallbackText}>
-            Create a reservation first and open this screen from that reservation.
+            {t("chargingSession.reservationWindowOnly")}
           </p>
           <div style={{ ...styles.actionRow, marginTop: "18px" }}>
             <button
@@ -998,10 +1004,10 @@ function ChargingSessionScreen() {
               style={styles.secondaryButton}
               onClick={() => navigate("/station-map")}
             >
-              Back to Station Map
+              {t("stationMap.mapTitle")}
             </button>
             <button type="button" style={styles.primaryButton} onClick={() => navigate("/app")}>
-              Go to Saved Vehicles
+              {t("vehicleHome.goHome")}
             </button>
           </div>
         </div>
@@ -1012,44 +1018,43 @@ function ChargingSessionScreen() {
   return (
     <div style={styles.page}>
       <main className="charging-session-shell" style={styles.shell}>
-        <section style={styles.summaryPanel} aria-label="Charging oturumu ozeti">
+        <section style={styles.summaryPanel} aria-label={t("chargingSession.summaryAria")}>
           <div style={styles.routeLayer} />
           <div style={styles.summaryContent}>
             <div style={styles.eyebrow}>
               <span style={styles.signalDot} />
-              EV Network
+              {t("app.name")}
             </div>
 
-            <h1 style={styles.title}>Live Charging Session</h1>
+            <h1 style={styles.title}>{t("chargingSession.title")}</h1>
             <p style={styles.summaryText}>
-              When the session starts, live kWh, remaining time, and cost are updated regularly.
-              hesaplanir ve Firestore'a yazilir.
+              {t("chargingSession.chartSubtitle")}
             </p>
 
             <div style={styles.specCard}>
               <div style={styles.specGrid}>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Station name</div>
+                  <div style={styles.specLabel}>{t("chargingSession.stationName")}</div>
                   <div style={styles.specValue}>{station.name}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Charger</div>
+                  <div style={styles.specLabel}>{t("chargingSession.charger")}</div>
                   <div style={styles.specValue}>{charger.id}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Konnektor tipi</div>
+                  <div style={styles.specLabel}>{t("chargingSession.connectorType")}</div>
                   <div style={styles.specValue}>{charger.connectorType}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Guc cikisi</div>
+                  <div style={styles.specLabel}>{t("chargingSession.powerOutput")}</div>
                   <div style={styles.specValue}>{charger.powerOutput}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Price per kWh</div>
+                  <div style={styles.specLabel}>{t("chargingSession.pricePerKwh")}</div>
                   <div style={styles.specValue}>{charger.pricePerKwh.toFixed(2)} TL</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Reservation</div>
+                  <div style={styles.specLabel}>{t("chargingSession.reservation")}</div>
                   <div style={styles.specValue}>
                     {reservationDate && reservationStartTime && reservationEndTime
                       ? `${reservationDate} ${reservationStartTime}-${reservationEndTime}`
@@ -1062,7 +1067,7 @@ function ChargingSessionScreen() {
 
           <div style={styles.livePanel}>
             <div style={styles.liveStatus}>
-              <strong>{getStatusLabel(remoteSession, Boolean(activeSessionId))}</strong>
+              <strong>{getStatusLabel(remoteSession, Boolean(activeSessionId), t)}</strong>
               <span style={styles.statusPill}>{Math.round(progressPercentage)}%</span>
             </div>
             <div style={styles.progressTrack}>
@@ -1076,22 +1081,21 @@ function ChargingSessionScreen() {
           </div>
         </section>
 
-        <section style={styles.formPanel} aria-label="Charging oturumu formu">
+        <section style={styles.formPanel} aria-label={t("chargingSession.formAria")}>
           <div style={styles.topBar}>
             <div>
-              <h2 style={styles.panelTitle}>Canli Takip</h2>
+              <h2 style={styles.panelTitle}>{t("chargingSession.panelTitle")}</h2>
               <p style={styles.subtitle}>
-                Enter the starting and target battery percentages. Final values are calculated while the session is active.
-                cost is calculated from live consumed kWh.
+                {t("chargingSession.batterySection")}
               </p>
             </div>
           </div>
 
           <form onSubmit={handleStart}>
-            <div style={styles.sectionLabel}>Battery Percentage</div>
+            <div style={styles.sectionLabel}>{t("chargingSession.batterySection")}</div>
             <div style={styles.formGrid}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Start (%)</label>
+                <label style={styles.label}>{t("chargingSession.start")}</label>
                 <input
                   type="number"
                   min={0}
@@ -1100,11 +1104,11 @@ function ChargingSessionScreen() {
                   onChange={(event) => setStartBattery(event.target.value)}
                   style={styles.input}
                   disabled={saving || Boolean(activeSessionId)}
-                  placeholder="Orn. 20"
+                  placeholder="20"
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Hedef (%)</label>
+                <label style={styles.label}>{t("chargingSession.target")}</label>
                 <input
                   type="number"
                   min={0}
@@ -1113,7 +1117,7 @@ function ChargingSessionScreen() {
                   onChange={(event) => setEndBattery(event.target.value)}
                   style={styles.input}
                   disabled={saving || Boolean(activeSessionId)}
-                  placeholder="Orn. 75"
+                  placeholder="75"
                 />
               </div>
             </div>
@@ -1143,39 +1147,39 @@ function ChargingSessionScreen() {
 
             <div style={styles.metricGrid}>
               <div style={styles.metricCard}>
-                <div style={styles.metricLabel}>Current kWh</div>
+                <div style={styles.metricLabel}>{t("chargingSession.currentKwh")}</div>
                 <div style={styles.metricValue}>{currentKwh.toFixed(2)}</div>
               </div>
               <div style={styles.metricCard}>
-                <div style={styles.metricLabel}>Kalan Sure</div>
+                <div style={styles.metricLabel}>{t("chargingSession.remainingTime")}</div>
                 <div style={styles.metricValue}>{formatMinutes(estimatedRemainingMinutes)}</div>
               </div>
               <div style={styles.metricCard}>
-                <div style={styles.metricLabel}>Live Cost</div>
+                <div style={styles.metricLabel}>{t("chargingSession.liveCost")}</div>
                 <div style={styles.metricValue}>{liveCost.toFixed(2)} TL</div>
               </div>
             </div>
 
             <div style={styles.costCard}>
-              <div style={styles.costTitle}>Maliyet ozeti</div>
+              <div style={styles.costTitle}>{t("chargingSession.costSummary")}</div>
               <div style={styles.costRow}>
-                <span>Hedef kWh</span>
+                <span>{t("chargingSession.targetKwh")}</span>
                 <span>{targetKwh == null ? "--" : targetKwh.toFixed(2)}</span>
               </div>
               <div style={styles.costRow}>
-                <span>Unit price</span>
+                <span>{t("chargingSession.unitPrice")}</span>
                 <span>{charger.pricePerKwh.toFixed(2)} TL/kWh</span>
               </div>
               <div style={styles.costRow}>
-                <span>Planned total</span>
+                <span>{t("chargingSession.plannedTotal")}</span>
                 <span>{plannedTotalCost == null ? "--" : `${plannedTotalCost.toFixed(2)} TL`}</span>
               </div>
               <div style={styles.costRow}>
-                <span>Wallet bakiyesi</span>
+                <span>{t("chargingSession.walletBalance")}</span>
                 <span>{walletBalance == null ? "--" : `${walletBalance.toFixed(2)} TL`}</span>
               </div>
               <div style={{ ...styles.costRow, ...styles.costRowLast }}>
-                <span>Islem sonrasi</span>
+                <span>{t("chargingSession.afterTransaction")}</span>
                 <span>
                   {walletBalance == null ? "--" : `${(walletBalance - liveCost).toFixed(2)} TL`}
                 </span>
@@ -1184,8 +1188,8 @@ function ChargingSessionScreen() {
 
             {trend.length > 0 && (
               <TimeSeriesChart
-                title="Canli kWh / Cost trend"
-                description="Latest measurements during the session"
+                title={t("chargingSession.chartTitle")}
+                description={t("chargingSession.chartSubtitle")}
                 labels={trend.map((point) => point.label)}
                 series={[
                   {
