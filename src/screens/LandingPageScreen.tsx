@@ -116,10 +116,10 @@ const styles: Record<string, CSSProperties> = {
   main: {
     flex: "1 1 auto",
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) minmax(340px, 430px)",
-    gap: "36px",
+    gridTemplateColumns: "minmax(340px, 420px) minmax(0, 1fr)",
+    gap: "72px",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "start",
     padding: "56px 0 40px",
     width: "min(1180px, 100%)",
     margin: "0 auto",
@@ -178,6 +178,11 @@ const styles: Record<string, CSSProperties> = {
     transition: "transform 180ms ease, box-shadow 180ms ease, filter 180ms ease",
   },
   authCard: {
+    gridColumn: "1",
+    gridRow: "1",
+    width: "min(420px, 100%)",
+    justifySelf: "start",
+    transform: "translateX(-24px)",
     borderRadius: "26px",
     border: "1px solid rgba(255,255,255,0.18)",
     backgroundColor: "rgba(255,255,255,0.94)",
@@ -187,6 +192,11 @@ const styles: Record<string, CSSProperties> = {
       "0 24px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.8)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
+  },
+  authHeroSpacer: {
+    gridColumn: "2",
+    gridRow: "1",
+    minHeight: "420px",
   },
   tabs: {
     display: "grid",
@@ -357,20 +367,20 @@ export default function LandingPageScreen() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.heroBg} aria-hidden="true" />
+      <div className="landing-hero-bg" style={styles.heroBg} aria-hidden="true" />
       <div style={styles.heroOverlay} aria-hidden="true" />
       <div className="landing-shell" style={styles.shell}>
         <SiteHeader />
 
         <main className="landing-main" style={styles.main}>
-          <section style={styles.heroCard}>
+          <section style={{ ...styles.heroCard, ...styles.authHeroSpacer }}>
             <div style={styles.heroContent}>
               <h1 style={styles.title}>{t("landing.title")}</h1>
               <p style={styles.subtitle}>{t("landing.subtitle")}</p>
             </div>
           </section>
 
-          <section style={styles.authCard} aria-label={t("auth.aria")}>
+          <section className="landing-auth-card" style={styles.authCard} aria-label={t("auth.aria")}>
             <div style={styles.tabs}>
               <button
                 type="button"
@@ -514,6 +524,25 @@ export default function LandingPageScreen() {
 
           .landing-main {
             grid-template-columns: 1fr !important;
+            justify-items: start !important;
+            align-items: start !important;
+            padding-top: 24px !important;
+          }
+
+          .landing-auth-card {
+            grid-column: 1 !important;
+            grid-row: 1 !important;
+            width: min(360px, calc(100vw - 32px)) !important;
+            box-sizing: border-box !important;
+            transform: translateX(-6px) !important;
+          }
+
+          .landing-main > section:first-child {
+            display: none !important;
+          }
+
+          .landing-hero-bg {
+            background-position: 76% center !important;
           }
         }
 
