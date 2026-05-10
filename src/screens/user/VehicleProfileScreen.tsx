@@ -651,7 +651,7 @@ function VehicleProfileScreen() {
 
               <div style={styles.platePreview}>
                 <div>
-                  <div style={styles.statusText}>Aktif profil</div>
+                  <div style={styles.statusText}>Active profile</div>
                   <div
                     style={{ marginTop: "6px", fontSize: "18px", fontWeight: 850 }}
                   >

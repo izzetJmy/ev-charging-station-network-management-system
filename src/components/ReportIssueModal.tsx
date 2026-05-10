@@ -246,7 +246,7 @@ function ReportIssueModal({
       <section style={styles.modal} onClick={(event) => event.stopPropagation()}>
         <div style={styles.topBar}>
           <div style={styles.titleWrap}>
-            <div style={styles.eyebrow}>Sorun Bildirimi</div>
+            <div style={styles.eyebrow}>Issue Report</div>
             <h3 style={styles.title}>Report Station / Charger Issue</h3>
           </div>
           <button
@@ -268,7 +268,7 @@ function ReportIssueModal({
 
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
-            <label style={styles.label}>Sorun Turu</label>
+            <label style={styles.label}>Issue Type</label>
             <select
               value={issueType}
               onChange={(event) => setIssueType(event.target.value as ReportIssueType)}
@@ -285,7 +285,7 @@ function ReportIssueModal({
           </div>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>Aciklama</label>
+            <label style={styles.label}>Description</label>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}

@@ -28,6 +28,7 @@ import {
   InsufficientWalletBalanceError,
 } from "../../services/firebase/walletService";
 import { getChargerStatusBlockMessage } from "../../utils/chargerCompatibility";
+import { isStationOpenAt } from "../../utils/stationOperatingHours";
 
 interface ChargingSessionLocationState {
   station?: Station;
@@ -441,7 +442,7 @@ function formatMinutes(minutes: number) {
 }
 
 function getStatusLabel(session: ChargingSessionRecord | null, started: boolean) {
-  if (session?.status === "completed") return "Tamamlandi";
+  if (session?.status === "completed") return "Completed";
   if (started) return "Canli takip active";
   return "Hazir";
 }
@@ -575,10 +576,14 @@ function ChargingSessionScreen() {
   const chargerPowerKw = charger ? parsePowerKw(charger.powerOutput) : 0;
   const statusBlockMessage = useMemo(() => {
     if (!station || !charger) return "";
-    if (reservationId && charger.status === "occupied" && station.status !== "offline") {
+    const stationOpenNow = !station.manualOffline && isStationOpenAt(station);
+    if (reservationId && charger.status === "occupied" && stationOpenNow) {
       return "";
     }
-    return getChargerStatusBlockMessage(station, charger);
+    return getChargerStatusBlockMessage({
+      ...station,
+      status: stationOpenNow && station.status === "offline" ? "available" : station.status,
+    }, charger);
   }, [charger, reservationId, station]);
   const reservationWindowBlockedMessage = useMemo(() => {
     if (!reservationId) {
@@ -906,13 +911,25 @@ function ChargingSessionScreen() {
       return;
     }
 
-    if (!station || !charger || !vehicle || targetKwh == null) {
+    if (!station || !charger || !vehicle || targetKwh == null || plannedTotalCost == null) {
       setErrorMessage("Live session could not be started. Please check the fields.");
       return;
     }
 
     try {
       setSaving(true);
+      const wallet = await getWallet(userId);
+      setWalletBalance(wallet.balance);
+
+      if (wallet.balance < plannedTotalCost) {
+        const message = `Wallet balance is insufficient for the estimated cost (${plannedTotalCost.toFixed(
+          2,
+        )} TL). Please add balance.`;
+        setWarningMessage(message);
+        setSnackbar({ message, variant: "error" });
+        return;
+      }
+
       const estimatedTotalMinutes = targetChargeMinutes ?? (targetKwh / chargerPowerKw) * 60;
       const effectiveTotalMinutes = sessionLimitMinutes ?? estimatedTotalMinutes;
       const sessionId = await createLiveChargingSession({
@@ -951,9 +968,11 @@ function ChargingSessionScreen() {
       setSnackbar({ message: "Live charging session started.", variant: "success" });
     } catch (error) {
       const message =
-        error instanceof Error && error.message
-          ? error.message
-          : "Live charging session could not be started. Please try again.";
+        error instanceof InsufficientWalletBalanceError
+          ? "Wallet balance is insufficient. Please add balance and try again."
+          : error instanceof Error && error.message
+            ? error.message
+            : "Live charging session could not be started. Please try again.";
       setErrorMessage(message);
       setSnackbar({ message, variant: "error" });
     } finally {

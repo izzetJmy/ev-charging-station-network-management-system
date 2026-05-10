@@ -37,8 +37,12 @@ export function getReservationStatusBlockMessage(
   station: Station,
   charger: Charger,
 ) {
-  if (station.status === "offline" || charger.status === "offline") {
-    return "This station is currently unavailable.";
+  if (station.manualOffline) {
+    return "This station is manually offline and cannot accept reservations.";
+  }
+
+  if (charger.status === "offline") {
+    return "This charger is currently offline and cannot accept reservations.";
   }
 
   return "";
@@ -61,19 +65,19 @@ export function checkVehicleChargerCompatibility(
     };
   }
 
-  if (station.status === "offline" || charger.status === "offline") {
-    return {
-      isCompatible: false,
-      state: "offline",
-      reason: getChargerStatusBlockMessage(station, charger),
-    };
-  }
-
   if (vehicle.connectorType !== charger.connectorType) {
     return {
       isCompatible: false,
       state: "not-compatible",
       reason: "Not compatible with your vehicle",
+    };
+  }
+
+  if (station.status === "offline" || charger.status === "offline") {
+    return {
+      isCompatible: false,
+      state: "offline",
+      reason: getChargerStatusBlockMessage(station, charger),
     };
   }
 

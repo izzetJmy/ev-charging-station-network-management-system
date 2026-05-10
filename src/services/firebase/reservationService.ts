@@ -232,6 +232,8 @@ function toStation(record: Awaited<ReturnType<typeof getStationById>>): Station 
     latitude: record.latitude,
     longitude: record.longitude,
     status: record.status,
+    operatingHours: record.operatingHours,
+    manualOffline: record.manualOffline,
     chargers: [],
   };
 }
@@ -349,6 +351,7 @@ export async function createReservation(reservation: ReservationInput) {
       latitude: 0,
       longitude: 0,
       status: (stationSnapshot.data()?.status ?? "offline") as StationStatus,
+      manualOffline: stationSnapshot.data()?.manualOffline === true,
       chargers: [],
     },
     {
@@ -419,7 +422,7 @@ export async function createReservation(reservation: ReservationInput) {
     await createNotification({
       userId,
       type: "reservation_confirmed",
-      title: "Reservation onaylandi",
+      title: "Reservation confirmed",
       message: `${reservation.date} ${reservation.startTime}-${reservation.endTime} reservation was created for the selected time range.`,
     });
   }
@@ -502,7 +505,7 @@ export function cancelActiveReservationsForOfflineStation(
     fieldName: "stationId",
     fieldValue: stationId,
     title: "Reservation cancelled",
-    reason: `${stationName} offline duruma gecti.`,
+    reason: `${stationName} went offline.`,
   });
 }
 
@@ -514,7 +517,7 @@ export function cancelActiveReservationsForOfflineCharger(
     fieldName: "chargerId",
     fieldValue: chargerId,
     title: "Reservation cancelled",
-    reason: `${chargerLabel} offline duruma gecti.`,
+    reason: `${chargerLabel} went offline.`,
   });
 }
 
@@ -547,7 +550,36 @@ export async function updateReservationSchedule(
     throw new Error("Only active reservations can be rescheduled.");
   }
 
-  const stationSnapshot = await getDoc(doc(db, "stations", reservation.stationId));
+  const [stationSnapshot, chargerSnapshot] = await Promise.all([
+    getDoc(doc(db, "stations", reservation.stationId)),
+    getDoc(doc(db, "chargers", reservation.chargerId)),
+  ]);
+  const statusBlockMessage = getReservationStatusBlockMessage(
+    {
+      id: reservation.stationId,
+      name: "",
+      address: "",
+      latitude: 0,
+      longitude: 0,
+      status: (stationSnapshot.data()?.status ?? "offline") as StationStatus,
+      manualOffline: stationSnapshot.data()?.manualOffline === true,
+      chargers: [],
+    },
+    {
+      id: reservation.chargerId,
+      stationId: reservation.stationId,
+      type: "AC",
+      powerOutput: "22kW",
+      connectorType: "Type 2",
+      pricePerKwh: 0,
+      status: (chargerSnapshot.data()?.status ?? "offline") as ChargerStatus,
+    },
+  );
+
+  if (statusBlockMessage) {
+    throw new Error(statusBlockMessage);
+  }
+
   const requestedRange = getReservationDateRange(
     reservationRange.date,
     reservationRange.startTime,

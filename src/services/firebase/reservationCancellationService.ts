@@ -142,7 +142,7 @@ export function cancelActiveReservationsForOfflineStation(
     fieldName: "stationId",
     fieldValue: stationId,
     title: "Reservation cancelled",
-    reason: `${stationName} offline duruma gecti.`,
+    reason: `${stationName} went offline.`,
   });
 }
 
@@ -154,6 +154,6 @@ export function cancelActiveReservationsForOfflineCharger(
     fieldName: "chargerId",
     fieldValue: chargerId,
     title: "Reservation cancelled",
-    reason: `${chargerLabel} offline duruma gecti.`,
+    reason: `${chargerLabel} went offline.`,
   });
 }
