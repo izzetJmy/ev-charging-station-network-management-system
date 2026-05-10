@@ -77,6 +77,34 @@
     "cta": "Başla",
     "footerCopyright": "© 2026 EV Network"
   },
+  "auth": {
+    "aria": "Kullanıcı girişi",
+    "registerTab": "Kayıt ol",
+    "loginTab": "Giriş yap",
+    "registerTitle": "Yeni hesap oluştur",
+    "loginTitle": "Hesabına giriş yap",
+    "registerHelper": "E-posta ve telefon tekil tutulur; araçların bu hesaba kaydedilir.",
+    "loginHelper": "E-posta adresin ya da telefon numaran ile devam edebilirsin.",
+    "email": "E-posta",
+    "phone": "Telefon numarası",
+    "emailOrPhone": "E-posta veya telefon",
+    "password": "Şifre",
+    "passwordPlaceholder": "En az 6 karakter",
+    "checking": "Kontrol ediliyor...",
+    "registerSubmit": "Kayıt ol ve devam et",
+    "loginSubmit": "Giriş yap",
+    "usernameNote": "Kullanıcı adın e-postadaki @ işaretinden önceki kısımdan oluşur.",
+    "failed": "İşlem tamamlanamadı.",
+    "errors": {
+      "invalidEmail": "Geçerli bir e-posta adresi girin.",
+      "invalidPhone": "Geçerli bir telefon numarası girin.",
+      "shortPassword": "Şifre en az 6 karakter olmalı.",
+      "emailExists": "Bu e-posta ile kayıtlı bir kullanıcı zaten var.",
+      "phoneExists": "Bu telefon numarası ile kayıtlı bir kullanıcı zaten var.",
+      "notFound": "Kullanıcı bulunamadı.",
+      "invalidCredentials": "E-posta/telefon veya şifre hatalı."
+    }
+  },
   "about": {
     "title": "Hakkımızda",
     "description": "EV Network; araç profili, rezervasyon ve şarj oturumu akışını tek arayüzde birleştirerek istasyon deneyimini hızlandırmayı hedefler. Bu proje; kullanım kolaylığı, şeffaf maliyet hesaplama ve istasyon yönetimine odaklanır.",
@@ -172,7 +200,8 @@
     "noLocation": "Konum kaydı yok",
     "resolvingLocation": "Konum bulunuyor…",
     "openMap": "Bu Araçla Haritayı Aç",
-    "updateVehicle": "Aracı Güncelle"
+    "updateVehicle": "Aracı Güncelle",
+    "logout": "Çıkış yap"
   },
   "favorites": {
     "eyebrow": "EV Network",

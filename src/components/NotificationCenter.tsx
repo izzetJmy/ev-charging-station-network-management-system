@@ -1,5 +1,5 @@
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
-import { getOrCreateLocalUserId } from "../services/auth/localUser";
+import { type CSSProperties, useEffect, useState } from "react";
+import { getCurrentUserSession } from "../services/auth/localUser";
 import {
   markAllNotificationsRead,
   markNotificationRead,
@@ -221,7 +221,8 @@ function BellIcon() {
 }
 
 function NotificationCenter({ variant = "fixed" }: NotificationCenterProps) {
-  const userId = useMemo(() => getOrCreateLocalUserId(), []);
+  const session = getCurrentUserSession();
+  const userId = session?.id ?? "";
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -229,6 +230,8 @@ function NotificationCenter({ variant = "fixed" }: NotificationCenterProps) {
   const unreadCount = notifications.filter((notification) => !notification.read).length;
 
   useEffect(() => {
+    if (!userId) return () => undefined;
+
     const unsubscribe = subscribeToNotifications(
       userId,
       (nextNotifications) => {
@@ -241,9 +244,13 @@ function NotificationCenter({ variant = "fixed" }: NotificationCenterProps) {
     return unsubscribe;
   }, [userId]);
 
-  const handleToggleRead = async (notification: NotificationRecord) => {
+  if (!session) return null;
+
+  const handleMarkRead = async (notification: NotificationRecord) => {
+    if (notification.read) return;
+
     try {
-      await markNotificationRead(notification.id, !notification.read);
+      await markNotificationRead(notification.id);
     } catch {
       setError("Notification status could not be updated.");
     }
@@ -301,7 +308,7 @@ function NotificationCenter({ variant = "fixed" }: NotificationCenterProps) {
                     ...styles.item,
                     ...(!notification.read ? styles.unreadItem : {}),
                   }}
-                  onClick={() => void handleToggleRead(notification)}
+                  onClick={() => void handleMarkRead(notification)}
                 >
                   <div style={styles.itemTop}>
                     <div style={styles.itemTitle}>

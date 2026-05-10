@@ -17,6 +17,7 @@ import SnackbarHost from "./components/SnackbarHost";
 import ActiveSessionCard from "./components/ActiveSessionCard";
 import NotificationCenter from "./components/NotificationCenter";
 import RequireAdmin from "./components/RequireAdmin";
+import RequireUser from "./components/RequireUser";
 import AdminLayout from "./screens/admin/AdminLayout";
 import AdminDashboardScreen from "./screens/admin/AdminDashboardScreen";
 import RevenueReportScreen from "./screens/admin/RevenueReportScreen";
@@ -45,16 +46,18 @@ function App() {
         <Route path="/" element={<LandingPageScreen />} />
         <Route path="/about" element={<AboutScreen />} />
         <Route path="/contact" element={<ContactScreen />} />
-        <Route path="/app" element={<VehicleHomeScreen />} />
-        <Route path="/vehicles/new" element={<VehicleRegistrationScreen />} />
-        <Route path="/vehicles/:vehicleId/edit" element={<VehicleProfileScreen />} />
-        <Route path="/register-vehicle" element={<VehicleRegistrationScreen />} />
-        <Route path="/station-map" element={<StationMapScreen />} />
-        <Route path="/reservation" element={<ReservationScreen />} />
-        <Route path="/my-reservations" element={<UserReservationsScreen />} />
-        <Route path="/charging-session" element={<ChargingSessionScreen />} />
-        <Route path="/charging-history" element={<ChargingHistoryScreen />} />
-        <Route path="/favorites" element={<FavoritesScreen />} />
+        <Route element={<RequireUser />}>
+          <Route path="/app" element={<VehicleHomeScreen />} />
+          <Route path="/vehicles/new" element={<VehicleRegistrationScreen />} />
+          <Route path="/vehicles/:vehicleId/edit" element={<VehicleProfileScreen />} />
+          <Route path="/register-vehicle" element={<VehicleRegistrationScreen />} />
+          <Route path="/station-map" element={<StationMapScreen />} />
+          <Route path="/reservation" element={<ReservationScreen />} />
+          <Route path="/my-reservations" element={<UserReservationsScreen />} />
+          <Route path="/charging-session" element={<ChargingSessionScreen />} />
+          <Route path="/charging-history" element={<ChargingHistoryScreen />} />
+          <Route path="/favorites" element={<FavoritesScreen />} />
+        </Route>
         <Route path="/admin" element={<AdminLoginScreen />} />
         <Route element={<RequireAdmin />}>
           <Route element={<AdminLayout />}>
