@@ -161,7 +161,7 @@ export default function ContactScreen() {
             <h1 style={styles.title}>Contact</h1>
             <p style={styles.desc}>
               Contact us with your questions and feedback. Your message is recorded and
-              en kisa surede donus yapilir.
+              we will respond as soon as possible.
             </p>
 
             <div className="contact-grid" style={styles.grid}>

@@ -754,7 +754,7 @@ function VehicleProfileScreen() {
                     disabled={!vehicleId || saving}
                   >
                     <option value="" disabled>
-                      Connector secin
+                      Select connector
                     </option>
                     {connectorOptions.map((option) => (
                       <option key={option} value={option}>

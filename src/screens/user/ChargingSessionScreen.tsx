@@ -695,7 +695,7 @@ function ChargingSessionScreen() {
       const finalCost = round2(finalKwh * charger.pricePerKwh);
       const successMessage = autoComplete
         ? "Reservation time expired. Charging session saved."
-        : "Charging oturumu kaydedildi.";
+        : "Charging session saved.";
 
       try {
         setSaving(true);
@@ -982,7 +982,7 @@ function ChargingSessionScreen() {
               Back to Station Map
             </button>
             <button type="button" style={styles.primaryButton} onClick={() => navigate("/app")}>
-              Kayitli Vehiclelara Git
+              Go to Saved Vehicles
             </button>
           </div>
         </div>
@@ -1014,7 +1014,7 @@ function ChargingSessionScreen() {
                   <div style={styles.specValue}>{station.name}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>Charging cihazi</div>
+                  <div style={styles.specLabel}>Charger</div>
                   <div style={styles.specValue}>{charger.id}</div>
                 </div>
                 <div style={styles.specItem}>
@@ -1026,7 +1026,7 @@ function ChargingSessionScreen() {
                   <div style={styles.specValue}>{charger.powerOutput}</div>
                 </div>
                 <div style={styles.specItem}>
-                  <div style={styles.specLabel}>kWh basina ucret</div>
+                  <div style={styles.specLabel}>Price per kWh</div>
                   <div style={styles.specValue}>{charger.pricePerKwh.toFixed(2)} TL</div>
                 </div>
                 <div style={styles.specItem}>
