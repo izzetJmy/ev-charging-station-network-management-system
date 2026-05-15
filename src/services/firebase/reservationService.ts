@@ -274,6 +274,17 @@ export async function getReservationsByVehicleId(
     .sort((a, b) => getReservationSortTime(b) - getReservationSortTime(a));
 }
 
+export async function getReservationById(
+  reservationId: string,
+): Promise<ReservationRecord | null> {
+  const reservationSnapshot = await getDoc(doc(db, "reservations", reservationId));
+  if (!reservationSnapshot.exists()) {
+    return null;
+  }
+
+  return toReservationRecord(reservationSnapshot.id, reservationSnapshot.data());
+}
+
 export async function getReservationDetailsByVehicleId(
   vehicleId: string,
 ): Promise<ReservationDetailRecord[]> {

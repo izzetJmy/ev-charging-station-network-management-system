@@ -21,7 +21,10 @@ import {
   updateLiveChargingSession,
   type ChargingSessionRecord,
 } from "../../services/firebase/chargingSessionService";
-import { isWithinReservationWindow } from "../../services/firebase/reservationService";
+import {
+  getReservationById,
+  isWithinReservationWindow,
+} from "../../services/firebase/reservationService";
 import { getVehicleById, getVehicleByUserId } from "../../services/firebase/vehicleService";
 import {
   getWallet,
@@ -480,9 +483,9 @@ function ChargingSessionScreen() {
   const station = locationState?.station ?? null;
   const charger = locationState?.charger ?? null;
   const reservationId = locationState?.reservationId ?? null;
-  const reservationDate = locationState?.reservationDate ?? "";
-  const reservationStartTime = locationState?.reservationStartTime ?? "";
-  const reservationEndTime = locationState?.reservationEndTime ?? "";
+  const initialReservationDate = locationState?.reservationDate ?? "";
+  const initialReservationStartTime = locationState?.reservationStartTime ?? "";
+  const initialReservationEndTime = locationState?.reservationEndTime ?? "";
   const requestedVehicleId = locationState?.vehicleId ?? "";
   const requestedChargingSessionId = locationState?.chargingSessionId ?? null;
 
@@ -494,6 +497,9 @@ function ChargingSessionScreen() {
     requestedChargingSessionId,
   );
   const [remoteSession, setRemoteSession] = useState<ChargingSessionRecord | null>(null);
+  const [reservationDate, setReservationDate] = useState(initialReservationDate);
+  const [reservationStartTime, setReservationStartTime] = useState(initialReservationStartTime);
+  const [reservationEndTime, setReservationEndTime] = useState(initialReservationEndTime);
   const [currentKwh, setCurrentKwh] = useState(0);
   const [estimatedRemainingMinutes, setEstimatedRemainingMinutes] = useState(0);
   const [liveCost, setLiveCost] = useState(0);
@@ -544,6 +550,29 @@ function ChargingSessionScreen() {
       cancelled = true;
     };
   }, [userId]);
+
+  useEffect(() => {
+    if (!reservationId) return;
+    if (reservationDate && reservationStartTime && reservationEndTime) return;
+
+    let cancelled = false;
+
+    getReservationById(reservationId)
+      .then((reservation) => {
+        if (cancelled || !reservation) return;
+        setReservationDate(reservation.date);
+        setReservationStartTime(reservation.startTime);
+        setReservationEndTime(reservation.endTime);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setWarningMessage(t("chargingSession.reservationTimeMissing"));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reservationDate, reservationEndTime, reservationId, reservationStartTime, t]);
 
   useEffect(() => {
     if (!activeSessionId) return undefined;
