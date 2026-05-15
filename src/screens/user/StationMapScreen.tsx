@@ -1484,21 +1484,30 @@ function StationMapScreen() {
     setDirectionsResult(null);
     setNavigationStation(null);
     setIsNavigationPreviewOpen(false);
-    setMessage(t("stationMapScreen.routeRequestingLocation"));
+    const cachedCoords = coordsRef.current;
+    let routeOrigin = cachedCoords;
 
-    const locationResult = await getCurrentLocation();
-    setPermissionState(locationResult.permissionState);
-    setCoords(locationResult.coords);
-    setMessage(locationResult.message);
+    if (!routeOrigin) {
+      setMessage(t("stationMapScreen.routeRequestingLocation"));
 
-    if (!locationResult.coords) {
-      setDirectionsLoading(false);
-      setDirectionsError(
-        locationResult.permissionState === "denied"
-          ? t("stationMapScreen.routeLocationDenied")
-          : locationResult.message,
-      );
-      return;
+      const locationResult = await getCurrentLocation();
+      setPermissionState(locationResult.permissionState);
+      setCoords(locationResult.coords);
+      setMessage(locationResult.message);
+      routeOrigin = locationResult.coords;
+
+      if (!routeOrigin) {
+        setDirectionsLoading(false);
+        setDirectionsError(
+          locationResult.permissionState === "denied"
+            ? t("stationMapScreen.routeLocationDenied")
+            : locationResult.message,
+        );
+        return;
+      }
+    } else {
+      setPermissionState("granted");
+      setMessage(t("stationMapScreen.routeRequestingLocation"));
     }
 
     try {
@@ -1510,7 +1519,7 @@ function StationMapScreen() {
 
       directionsService.route(
         {
-          origin: locationResult.coords,
+          origin: routeOrigin,
           destination,
           travelMode: google.maps.TravelMode.DRIVING,
         },
